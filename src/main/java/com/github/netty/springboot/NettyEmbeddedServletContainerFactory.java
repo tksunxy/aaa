@@ -3,10 +3,7 @@ package com.github.netty.springboot;
 import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletDefaultHttpServlet;
 import com.github.netty.servlet.ServletSessionCookieConfig;
-import org.springframework.boot.context.embedded.AbstractEmbeddedServletContainerFactory;
-import org.springframework.boot.context.embedded.EmbeddedServletContainer;
-import org.springframework.boot.context.embedded.EmbeddedServletContainerFactory;
-import org.springframework.boot.context.embedded.Ssl;
+import org.springframework.boot.context.embedded.*;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
 import org.springframework.context.ResourceLoaderAware;
 import org.springframework.core.io.ResourceLoader;
@@ -38,6 +35,8 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
             if (isRegisterDefaultServlet()) {
                 registerDefaultServlet(servletContext);
             }
+
+            JspServlet jspServlet = getJspServlet();
 
             for (ServletContextInitializer initializer : initializers) {
                 initializer.onStartup(servletContext);
@@ -93,7 +92,6 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
     protected ServletSessionCookieConfig loadSessionCookieConfig(){
         ServletSessionCookieConfig sessionCookieConfig = new ServletSessionCookieConfig();
         sessionCookieConfig.setMaxAge(-1);
-
         sessionCookieConfig.setSessionTimeout(getSessionTimeout());
         return sessionCookieConfig;
     }

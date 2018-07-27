@@ -4,7 +4,7 @@
 
     <groupId>com.github.wangzihaogithub</groupId>
     <artifactId>netty-container</artifactId>
-    <version>1.1.14</version>
+    <version>1.2.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>Netty Container</name>
@@ -30,7 +30,7 @@
     </licenses>
 
     <scm>
-        <tag>netty-container-1.1.14</tag>
+        <tag>netty-container-1.1.19</tag>
         <connection>scm:git:https://github.com/wangzihaogithub/netty-container.git</connection>
         <developerConnection>scm:git:https://github.com/wangzihaogithub/netty-container.git</developerConnection>
         <url>https://github.com/wangzihaogithub/netty-container</url>
@@ -83,6 +83,17 @@
     <build>
         <pluginManagement>
         <plugins>
+            <plugin>
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>nexus-staging-maven-plugin</artifactId>
+                <version>1.5.1</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <serverId>ossrh</serverId>
+                    <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+                    <autoReleaseAfterClose>false</autoReleaseAfterClose>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

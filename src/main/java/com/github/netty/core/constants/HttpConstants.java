@@ -16,7 +16,7 @@ public class HttpConstants {
     public static final String JSESSION_ID_PARAMS = "jsessionid";
 
     public static final String SP = ",";
-    public static final String GET = "GET";
+    public static final String POST = "POST";
     public static final String HTTPS = "HTTPS";
     public static final Charset DEFAULT_CHARSET = Charset.forName("UTF-8");
 

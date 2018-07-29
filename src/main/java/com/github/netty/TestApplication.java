@@ -3,10 +3,15 @@ package com.github.netty;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 
 /**
@@ -16,9 +21,19 @@ import java.io.IOException;
 @SpringBootApplication
 public class TestApplication {
 
-    @RequestMapping("/")
-    public Object hallo(){
-        return "测试";
+    @RequestMapping("/hello")
+    public Object hello(@RequestBody Map o ){
+        List list = new LinkedList<>();
+        for(int i=0; i<100; i++){
+            Map map = new HashMap<>();
+            StringBuilder sb = new StringBuilder();
+            for(int j=0; j<500;j++){
+                sb.append(j);
+            }
+            map.put("fd1",sb);
+            list.add(map);
+        }
+        return list;
     }
 
 

@@ -13,6 +13,11 @@ public class NamespaceUtil {
 
     private NamespaceUtil(){}
 
+    public static String newIdName(Object obj){
+        String startName = obj instanceof Class?((Class) obj).getSimpleName():obj.toString();
+        return getDefaultNamespace().newIdName(obj,startName);
+    }
+
     public static String newIdName(Object obj,String name){
         return getDefaultNamespace().newIdName(obj,name);
     }

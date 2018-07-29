@@ -35,7 +35,7 @@ public class ProxyUtil {
 
     //============================newInstance=================================
 
-    private static <T>T newInstance(Class<T> sourceClass){
+    public static <T>T newInstance(Class<T> sourceClass){
         try {
             return newInstance(sourceClass,new Class[]{},new Object[]{});
         } catch (Exception e) {
@@ -77,6 +77,10 @@ public class ProxyUtil {
 
         T proxy = (T) enhancer.create(argTypes,args);
         return proxy;
+    }
+
+    public static <T>T newProxyByCglib(Class<T> sourceClass, Class[]argTypes, Object[] args){
+        return newProxyByCglib(sourceClass,NamespaceUtil.newIdName(sourceClass),true,argTypes,args);
     }
 
     public static void setCglibDebugClassWriterPath(String path){
@@ -149,12 +153,15 @@ public class ProxyUtil {
     }
 
 
-    static void log(String proxyName, Method method,Object[] args){
+    static void log(String proxyName, Method method,Object[] args,Object result){
+//        if(!method.getName().contains("Heade")){
+//            return;
+//        }
         if(Arrays.asList("toString","hashCode","equals").contains(method.getName())){
             return;
         }
         System.out.println("--------"+ Thread.currentThread() + "----"+proxyName + " 方法:" + method.getName() +
-                (args == null || args.length == 0? "":" 参数:"+Arrays.toString(args)));
+                (args == null || args.length == 0? "":" 参数:"+Arrays.toString(args))+" 结果:"+result);
     }
 
     public static class CglibProxy implements MethodInterceptor {
@@ -169,14 +176,14 @@ public class ProxyUtil {
 
         @Override
         public Object intercept(Object o, Method method, Object[] args, MethodProxy methodProxy) throws Throwable {
-            if(isEnableLog){
-                ProxyUtil.log(name,method,args);
-            }
             try {
                 if("toString".equals(method.getName())){
                     return name;
                 }
                 Object result = methodProxy.invokeSuper(o,args);
+                if(isEnableLog){
+                    ProxyUtil.log(name,method,args,result);
+                }
                 return result;
             }catch (Throwable t){
                 throw t;
@@ -206,14 +213,14 @@ public class ProxyUtil {
 
         @Override
         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-            if(isEnableLog){
-                ProxyUtil.log(name,method,args);
-            }
             try {
                 if("toString".equals(method.getName())){
                     return name;
                 }
                 Object result = method.invoke(source,args);
+                if(isEnableLog){
+                    ProxyUtil.log(name,method,args,result);
+                }
                 return result;
             }catch (Throwable t){
                 throw t;

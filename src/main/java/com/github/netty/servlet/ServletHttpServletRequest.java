@@ -60,12 +60,12 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     private ServletContext servletContext;
     private ServletAsyncContext asyncContext;
 
-    private final HttpRequest request;
-    private final HttpHeaders headers;
+    private final HttpRequest nettyRequest;
+    private final HttpHeaders nettyHeaders;
 
-    public ServletHttpServletRequest(ServletInputStream inputStream, ServletContext servletContext, HttpRequest request) {
-        this.request = request;
-        this.headers = request.headers();
+    public ServletHttpServletRequest(ServletInputStream inputStream, ServletContext servletContext, HttpRequest nettyRequest) {
+        this.nettyRequest = nettyRequest;
+        this.nettyHeaders = nettyRequest.headers();
         this.attributeMap = null;
         this.inputStream = inputStream;
         this.servletContext = servletContext;
@@ -78,7 +78,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     }
 
     public HttpRequest getNettyRequest() {
-        return request;
+        return nettyRequest;
     }
 
     private Map<String, Object> getAttributeMap() {
@@ -102,12 +102,12 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     private void decodeParameter(){
         Map<String,String[]> parameterMap = new HashMap<>(16);
-        if(HttpConstants.GET.equalsIgnoreCase(getMethod())){
-            ServletUtil.decodeByUrl(parameterMap,request.uri());
-            this.decodeParameterByUrlFlag = true;
-        }else {
+        ServletUtil.decodeByUrl(parameterMap, nettyRequest.uri());
+        this.decodeParameterByUrlFlag = true;
+
+        if(HttpConstants.POST.equalsIgnoreCase(getMethod())){
 //            ServletUtil.decodeByBody(parameterMap,request);
-//            this.decodeParameterByBodyFlag = true;
+            this.decodeParameterByBodyFlag = true;
         }
         this.parameterMap = parameterMap;
     }
@@ -126,7 +126,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
             return;
         }
 
-        String servletPath = request.uri().replace(servletContext.getContextPath(), "");
+        String servletPath = nettyRequest.uri().replace(servletContext.getContextPath(), "");
         if (!servletPath.startsWith("/")) {
             servletPath = "/" + servletPath;
         }
@@ -176,7 +176,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
             return -1;
         }
 
-        Long timestamp = ServletUtil.parseHeaderDate(value,ServletUtil.FORMATS_TEMPLATE);
+        Long timestamp = ServletUtil.parseHeaderDate(value);
         if(timestamp == null){
             throw new IllegalArgumentException(value);
         }
@@ -185,12 +185,12 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String getHeader(String name) {
-        return headers.getAndConvert(name);
+        return nettyHeaders.getAndConvert(name);
     }
 
     @Override
     public Enumeration<String> getHeaderNames() {
-        Set<CharSequence> nameSet = headers.names();
+        Set<CharSequence> nameSet = nettyHeaders.names();
         List<String> nameList = new LinkedList<>();
         for(CharSequence name : nameSet){
             nameList.add(name.toString());
@@ -202,7 +202,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public StringBuffer getRequestURL() {
-        return new StringBuffer(request.uri());
+        return new StringBuffer(nettyRequest.uri());
     }
 
     //TODO ServletPath和PathInfo应该是互补的，根据URL-Pattern匹配的路径不同而不同
@@ -236,7 +236,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public Enumeration<String> getHeaders(String name) {
-        return Collections.enumeration(this.headers.getAllAndConvert(name));
+        return Collections.enumeration(this.nettyHeaders.getAllAndConvert(name));
     }
 
 
@@ -266,7 +266,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String getMethod() {
-        return request.method().name().toString();
+        return nettyRequest.method().name().toString();
     }
 
 
@@ -473,12 +473,12 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String getProtocol() {
-        return request.protocolVersion().toString();
+        return nettyRequest.protocolVersion().toString();
     }
 
     @Override
     public String getScheme() {
-        return request.protocolVersion().protocolName().toString();
+        return nettyRequest.protocolVersion().protocolName().toString();
     }
 
     @Override

@@ -7,6 +7,7 @@ import com.github.netty.servlet.ServletRequestDispatcher;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.handler.codec.http.HttpRequest;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.http.HttpServletResponse;
@@ -28,7 +29,8 @@ public class NettyServletDispatcherHandler extends SimpleChannelInboundHandler<S
 
     @Override
     protected void messageReceived(ChannelHandlerContext ctx, ServletHttpServletRequest servletRequest) throws Exception {
-        ServletHttpServletResponse servletResponse = new ServletHttpServletResponse(ctx, servletContext,servletRequest);
+        HttpRequest nettyRequest = servletRequest.getNettyRequest();
+        ServletHttpServletResponse servletResponse = newServletHttpServletResponse(ctx,servletRequest);
 
         try {
             ServletRequestDispatcher dispatcher = servletContext.getRequestDispatcher(servletRequest.getRequestURI());
@@ -58,6 +60,15 @@ public class NettyServletDispatcherHandler extends SimpleChannelInboundHandler<S
         if(null != ctx) {
             ctx.close();
         }
+    }
+
+    private ServletHttpServletResponse newServletHttpServletResponse(ChannelHandlerContext ctx, ServletHttpServletRequest servletRequest){
+        ServletHttpServletResponse servletResponse = new ServletHttpServletResponse(ctx,servletRequest);
+//        ServletHttpServletResponse servletResponse = ProxyUtil.newProxyByCglib(
+//                ServletHttpServletResponse.class,
+//                new Class[]{NettyFullHttpResponse.class,ServletHttpServletRequest.class},
+//                new Object[]{nettyResponse,servletRequest});
+        return servletResponse;
     }
 
 }

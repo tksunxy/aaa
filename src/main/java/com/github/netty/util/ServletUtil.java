@@ -1,9 +1,11 @@
 package com.github.netty.util;
 
+import io.netty.handler.codec.AsciiString;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.handler.codec.http.ServerCookieDecoder;
 import io.netty.handler.codec.http.multipart.*;
+import io.netty.util.concurrent.FastThreadLocal;
 
 import javax.servlet.http.Cookie;
 import java.io.IOException;
@@ -22,12 +24,26 @@ public class ServletUtil {
     private static HttpDataFactory HTTP_DATA_FACTORY;
 
     /**
+     * SimpleDateFormat非线程安全，为了节省内存提高效率，把他放在ThreadLocal里
+     * 用于设置HTTP响应头的时间信息
+     */
+    private static final FastThreadLocal<DateFormat> FORMAT = new FastThreadLocal<DateFormat>() {
+        private TimeZone timeZone = TimeZone.getTimeZone("GMT");
+        @Override
+        protected DateFormat initialValue() {
+            DateFormat df = new SimpleDateFormat("EEE, dd-MMM-yyyy HH:mm:ss z", Locale.ENGLISH);
+            df.setTimeZone(timeZone);
+            return df;
+        }
+    };
+
+    /**
      * The only date format permitted when generating HTTP headers.
      */
-    public static final String RFC1123_DATE =
+    private static final String RFC1123_DATE =
             "EEE, dd MMM yyyy HH:mm:ss zzz";
 
-    public static final SimpleDateFormat[] FORMATS_TEMPLATE = {
+    private static final SimpleDateFormat[] FORMATS_TEMPLATE = {
             new SimpleDateFormat(RFC1123_DATE, Locale.getDefault()),
             new SimpleDateFormat("EEEEEE, dd-MMM-yy HH:mm:ss zzz", Locale.getDefault()),
             new SimpleDateFormat("EEE MMMM d HH:mm:ss yyyy", Locale.getDefault())
@@ -133,8 +149,8 @@ public class ServletUtil {
         decoder.destroy();
     }
 
-    public static Long parseHeaderDate
-            (String value, DateFormat[] formats) {
+    public static Long parseHeaderDate(String value) {
+        DateFormat[] formats = FORMATS_TEMPLATE;
         Date date = null;
         for (int i = 0; (date == null) && (i < formats.length); i++) {
             try {
@@ -158,6 +174,13 @@ public class ServletUtil {
             }
         }
         return HTTP_DATA_FACTORY;
+    }
+
+    /**
+     * @return 线程安全的获取当前时间格式化后的字符串
+     */
+    public static CharSequence newDateGMT() {
+        return new AsciiString(FORMAT.get().format(new Date()));
     }
 
 }

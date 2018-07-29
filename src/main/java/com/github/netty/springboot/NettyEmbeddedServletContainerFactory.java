@@ -32,12 +32,18 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
             ServletContext servletContext = newServletContext();
             NettyEmbeddedServletContainer container = newNettyEmbeddedServletContainer(servletContext);
 
+            //默认 servlet
             if (isRegisterDefaultServlet()) {
                 registerDefaultServlet(servletContext);
             }
 
+            //jsp servlet
             JspServlet jspServlet = getJspServlet();
+            if(jspServlet != null  && jspServlet.getRegistered()){
+                registerJspServlet(servletContext,jspServlet);
+            }
 
+            //初始化
             for (ServletContextInitializer initializer : initializers) {
                 initializer.onStartup(servletContext);
             }
@@ -54,6 +60,14 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
     protected void registerDefaultServlet(ServletContext servletContext){
         ServletDefaultHttpServlet defaultServlet = new ServletDefaultHttpServlet();
         servletContext.addServlet("default",defaultServlet);
+    }
+
+    /**
+     * 注册 jsp servlet
+     * @param servletContext servlet上下文
+     */
+    protected void registerJspServlet(ServletContext servletContext,JspServlet jspServlet){
+
     }
 
     /**

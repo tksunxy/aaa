@@ -1,0 +1,43 @@
+package com.github.netty.util;
+
+import java.lang.reflect.InvocationTargetException;
+
+/**
+ * Created by acer01 on 2018/7/29/029.
+ */
+public class ExceptionUtil {
+
+    /**
+     * Checks whether the supplied Throwable is one that needs to be
+     * rethrown and swallows all others.
+     * @param t the Throwable to check
+     */
+    public static void handleThrowable(Throwable t) {
+        if (t instanceof ThreadDeath) {
+            throw (ThreadDeath) t;
+        }
+        if (t instanceof StackOverflowError) {
+            // Swallow silently - it should be recoverable
+            return;
+        }
+        if (t instanceof VirtualMachineError) {
+            throw (VirtualMachineError) t;
+        }
+        // All other instances of Throwable will be silently swallowed
+    }
+
+    /**
+     * Checks whether the supplied Throwable is an instance of
+     * <code>InvocationTargetException</code> and returns the throwable that is
+     * wrapped by it, if there is any.
+     *
+     * @param t the Throwable to check
+     * @return <code>t</code> or <code>t.getCause()</code>
+     */
+    public static Throwable unwrapInvocationTargetException(Throwable t) {
+        if (t instanceof InvocationTargetException && t.getCause() != null) {
+            return t.getCause();
+        }
+        return t;
+    }
+}

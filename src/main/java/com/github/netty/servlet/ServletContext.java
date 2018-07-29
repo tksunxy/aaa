@@ -1,10 +1,8 @@
 package com.github.netty.servlet;
 
 import com.github.netty.core.constants.HttpConstants;
-import com.github.netty.util.MimeTypeUtil;
-import com.github.netty.util.NamespaceUtil;
-import com.github.netty.util.TodoOptimize;
-import com.github.netty.util.TypeUtil;
+import com.github.netty.servlet.support.ServletEventListenerManager;
+import com.github.netty.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,7 +18,9 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  *
@@ -44,6 +44,7 @@ public class ServletContext implements javax.servlet.ServletContext {
     private List<EventListener> eventListenerList;
     private Set<SessionTrackingMode> sessionTrackingModeSet;
 
+    private ServletEventListenerManager servletEventListenerManager;
     private ServletSessionCookieConfig sessionCookieConfig;
     private RequestUrlPatternMapper servletUrlPatternMapper;
     private String rootDirStr;
@@ -52,7 +53,6 @@ public class ServletContext implements javax.servlet.ServletContext {
     private final String serverInfo;
     private final ClassLoader classLoader;
     private String contextPath;
-    private volatile boolean initialized; //记录是否初始化完毕
 
     public ServletContext(InetSocketAddress socketAddress,
                           ClassLoader classLoader,
@@ -60,7 +60,6 @@ public class ServletContext implements javax.servlet.ServletContext {
                           ServletSessionCookieConfig sessionCookieConfig) {
 //        File rootDir = new File("");
 //        this.rootDirStr = rootDir.isAbsolute() ? rootDir.getAbsolutePath() : FilenameUtils.concat(new File(".").getAbsolutePath(), rootDir.getPath());
-        this.initialized = false;
         this.sessionCookieConfig = sessionCookieConfig;
         this.serverInfo = serverInfo == null? "netty-server/1.0":serverInfo;
 
@@ -78,21 +77,18 @@ public class ServletContext implements javax.servlet.ServletContext {
         this.servletRegistrationMap = new ConcurrentHashMap<>();
         this.filterRegistrationMap = new ConcurrentHashMap<>();
         this.servletUrlPatternMapper = new RequestUrlPatternMapper(contextPath);
+        this.servletEventListenerManager = new ServletEventListenerManager();
 
         //一分钟检查一次过期session
         new SessionInvalidThread(NamespaceUtil.newIdName(this,"SessionInvalidThread"),60 * 1000).start();
     }
 
+    public ServletEventListenerManager getServletEventListenerManager() {
+        return servletEventListenerManager;
+    }
+
     public void addServletMapping(String urlPattern, String name, Servlet servlet) throws ServletException {
         servletUrlPatternMapper.addServlet(urlPattern, servlet, name);
-    }
-
-    public boolean isInitialized() {
-        return initialized;
-    }
-
-    public void setInitialized(boolean initialized) {
-        this.initialized = initialized;
     }
 
     public ExecutorService getAsyncExecutorService() {
@@ -233,7 +229,7 @@ public class ServletContext implements javax.servlet.ServletContext {
             for (ServletFilterRegistration registration : filterRegistrationMap.values()) {
                 allNeedFilters.add(registration.getFilter());
             }
-            FilterChain filterChain = new ServletFilterChain(servlet, allNeedFilters);
+            FilterChain filterChain = new ServletFilterChain(this,servlet, allNeedFilters);
             return new ServletRequestDispatcher(this, filterChain);
         } catch (ServletException e) {
             logger.error("Throwing exception when getting Filter from ServletFilterRegistration of name " + name, e);
@@ -243,7 +239,7 @@ public class ServletContext implements javax.servlet.ServletContext {
 
     @Override
     public Servlet getServlet(String name) throws ServletException {
-        com.github.netty.servlet.ServletRegistration registration = servletRegistrationMap.get(name);
+        ServletRegistration registration = servletRegistrationMap.get(name);
         if(registration == null){
             return null;
         }
@@ -253,7 +249,7 @@ public class ServletContext implements javax.servlet.ServletContext {
     @Override
     public Enumeration<Servlet> getServlets() {
         List<Servlet> list = new ArrayList<>();
-        for(com.github.netty.servlet.ServletRegistration registration : servletRegistrationMap.values()){
+        for(ServletRegistration registration : servletRegistrationMap.values()){
             list.add(registration.getServlet());
         }
         return Collections.enumeration(list);
@@ -262,7 +258,7 @@ public class ServletContext implements javax.servlet.ServletContext {
     @Override
     public Enumeration<String> getServletNames() {
         List<String> list = new ArrayList<>();
-        for(com.github.netty.servlet.ServletRegistration registration : servletRegistrationMap.values()){
+        for(ServletRegistration registration : servletRegistrationMap.values()){
             list.add(registration.getName());
         }
         return Collections.enumeration(list);
@@ -333,12 +329,25 @@ public class ServletContext implements javax.servlet.ServletContext {
 
     @Override
     public void setAttribute(String name, Object object) {
-        attributeMap.put(name,object);
+        Object oldObject = attributeMap.put(name,object);
+
+        ServletEventListenerManager listenerManager = getServletEventListenerManager();
+        if(listenerManager.hasServletContextAttributeListener()){
+            listenerManager.onServletContextAttributeAdded(new ServletContextAttributeEvent(this,name,object));
+            if(oldObject != null){
+                listenerManager.onServletContextAttributeReplaced(new ServletContextAttributeEvent(this,name,oldObject));
+            }
+        }
     }
 
     @Override
     public void removeAttribute(String name) {
-        attributeMap.remove(name);
+        Object oldObject = attributeMap.remove(name);
+
+        ServletEventListenerManager listenerManager = getServletEventListenerManager();
+        if(listenerManager.hasServletContextAttributeListener()){
+            listenerManager.onServletContextAttributeRemoved(new ServletContextAttributeEvent(this,name,oldObject));
+        }
     }
 
     @Override
@@ -362,7 +371,7 @@ public class ServletContext implements javax.servlet.ServletContext {
 
     @Override
     public ServletRegistration addServlet(String servletName, Servlet servlet) {
-        ServletRegistration servletRegistration = new com.github.netty.servlet.ServletRegistration(servletName,servlet,this);
+        ServletRegistration servletRegistration = new ServletRegistration(servletName,servlet,this);
         servletRegistrationMap.put(servletName,servletRegistration);
         return servletRegistration;
     }
@@ -399,7 +408,7 @@ public class ServletContext implements javax.servlet.ServletContext {
     }
 
     @Override
-    public Map<String, com.github.netty.servlet.ServletRegistration> getServletRegistrations() {
+    public Map<String, ServletRegistration> getServletRegistrations() {
         return servletRegistrationMap;
     }
 
@@ -415,7 +424,7 @@ public class ServletContext implements javax.servlet.ServletContext {
 
     @Override
     public FilterRegistration.Dynamic addFilter(String filterName, Filter filter) {
-        ServletFilterRegistration registration = new ServletFilterRegistration(filterName,filter);
+        ServletFilterRegistration registration = new ServletFilterRegistration(filterName,filter,this);
         filterRegistrationMap.put(filterName,registration);
         return registration;
     }
@@ -480,40 +489,34 @@ public class ServletContext implements javax.servlet.ServletContext {
     }
 
     @Override
-    public <T extends EventListener> void addListener(T t) {
-        boolean match = false;
-        if (t instanceof ServletContextAttributeListener ||
-                t instanceof ServletRequestListener ||
-                t instanceof ServletRequestAttributeListener ||
-                t instanceof HttpSessionIdListener ||
-                t instanceof HttpSessionAttributeListener) {
-//            eventListenerList.add(t);
-            match = true;
-        }
+    public <T extends EventListener> void addListener(T listener) {
+        ObjectUtil.checkNotNull(listener);
 
-        if (t instanceof HttpSessionListener
-                || (t instanceof ServletContextListener)) {
-            // Add listener directly to the list of instances rather than to
-            // the list of class names.
-//            eventListenerList.add(t);
-            match = true;
-        }
+        ServletEventListenerManager listenerManager = getServletEventListenerManager();
+        if(listener instanceof ServletContextAttributeListener){
+            listenerManager.addServletContextAttributeListener((ServletContextAttributeListener) listener);
 
-        if (match) {
-            if(eventListenerList == null) {
-                eventListenerList = new CopyOnWriteArrayList<>();
-            }
-            eventListenerList.add(t);
-            return;
-        }
+        }else if(listener instanceof ServletRequestListener){
+            listenerManager.addServletRequestListener((ServletRequestListener) listener);
 
-        if (t instanceof ServletContextListener) {
-            throw new IllegalArgumentException(
-                    "applicationContext.addListener.iae.sclNotAllowed"+
-                    t.getClass().getName());
-        } else {
+        }else if(listener instanceof ServletRequestAttributeListener){
+            listenerManager.addServletRequestAttributeListener((ServletRequestAttributeListener) listener);
+
+        }else if(listener instanceof HttpSessionIdListener){
+            listenerManager.addHttpSessionIdListenerListener((HttpSessionIdListener) listener);
+
+        }else if(listener instanceof HttpSessionAttributeListener){
+            listenerManager.addHttpSessionAttributeListener((HttpSessionAttributeListener) listener);
+
+        }else if(listener instanceof HttpSessionListener){
+            listenerManager.addHttpSessionListener((HttpSessionListener) listener);
+
+        }else if(listener instanceof ServletContextListener){
+            listenerManager.addServletContextListener((ServletContextListener) listener);
+
+        }else {
             throw new IllegalArgumentException("applicationContext.addListener.iae.wrongType"+
-                    t.getClass().getName());
+                    listener.getClass().getName());
         }
     }
 

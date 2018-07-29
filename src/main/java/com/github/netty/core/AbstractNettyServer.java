@@ -118,20 +118,20 @@ public abstract class AbstractNettyServer implements Runnable{
             }
         } catch (Exception e) {
             e.printStackTrace();
-        } finally {
-            try {
-                boss.shutdownGracefully().sync();
-                worker.shutdownGracefully().sync();
-                serverChannel.close();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
         }
     }
 
     public void stop() {
-        if(closeFuture != null) {
-            closeFuture.notify();
+        try {
+            boss.shutdownGracefully().sync();
+            worker.shutdownGracefully().sync();
+            serverChannel.close();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }finally {
+            if(closeFuture != null) {
+                closeFuture.notify();
+            }
         }
     }
 

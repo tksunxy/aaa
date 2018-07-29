@@ -3,10 +3,13 @@ package com.github.netty;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -22,7 +25,7 @@ import java.util.Map;
 public class TestApplication {
 
     @RequestMapping("/hello")
-    public Object hello(@RequestBody Map o ){
+    public Object hello(@RequestParam Map o, HttpSession session, HttpServletRequest request, HttpServletResponse response){
         List list = new LinkedList<>();
         for(int i=0; i<100; i++){
             Map map = new HashMap<>();
@@ -44,8 +47,6 @@ public class TestApplication {
      */
     public static void main(String[] args) throws IOException {
         ConfigurableApplicationContext context = SpringApplication.run(TestApplication.class, args);
-
-        System.out.println("启动结束..");
     }
 
 

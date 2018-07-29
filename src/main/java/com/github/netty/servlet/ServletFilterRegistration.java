@@ -1,60 +1,80 @@
 package com.github.netty.servlet;
 
-import javax.servlet.DispatcherType;
-import javax.servlet.Filter;
-import javax.servlet.FilterRegistration;
-import java.util.Collection;
-import java.util.EnumSet;
-import java.util.Map;
-import java.util.Set;
+import com.github.netty.util.TodoOptimize;
+
+import javax.servlet.*;
+import java.util.*;
 
 /**
  *
  * @author acer01
  *  2018/7/14/014
  */
+@TodoOptimize("过滤器初始化没做完")
 public class ServletFilterRegistration implements FilterRegistration,FilterRegistration.Dynamic {
 
     private String filterName;
     private Filter filter;
+    private FilterConfig filterConfig;
+    private ServletContext servletContext;
+    private Map<String,String> initParameterMap;
+    private ServletFilterRegistration self;
+    private Set<String> mappingSet;
+    private boolean asyncSupported;
 
-    public ServletFilterRegistration(String filterName, Filter filter) {
+    public ServletFilterRegistration(String filterName, Filter servlet,ServletContext servletContext) {
         this.filterName = filterName;
-        this.filter = filter;
+        this.filter = servlet;
+        this.servletContext = servletContext;
+        this.initParameterMap = new HashMap<>();
+        this.mappingSet = new HashSet<>();
+        this.asyncSupported = false;
+        this.self = this;
+
+        this.filterConfig = new FilterConfig(){
+
+            @Override
+            public String getFilterName() {
+                return self.filterName;
+            }
+
+            @Override
+            public ServletContext getServletContext() {
+                return self.servletContext;
+            }
+
+            @Override
+            public String getInitParameter(String name) {
+                return self.getInitParameter(name);
+            }
+
+            @Override
+            public Enumeration<String> getInitParameterNames() {
+                return Collections.enumeration(self.getInitParameters().keySet());
+            }
+        };
+    }
+
+    public FilterConfig getFilterConfig() {
+        return filterConfig;
     }
 
     public Filter getFilter() {
         return filter;
     }
 
-    @Override
-    public void addMappingForServletNames(EnumSet<DispatcherType> dispatcherTypes, boolean isMatchAfter, String... servletNames) {
-
-    }
-
-    @Override
-    public Collection<String> getServletNameMappings() {
-        return null;
-    }
-
-    @Override
-    public void addMappingForUrlPatterns(EnumSet<DispatcherType> dispatcherTypes, boolean isMatchAfter, String... urlPatterns) {
-
-    }
-
-    @Override
-    public Collection<String> getUrlPatternMappings() {
-        return null;
+    public boolean isAsyncSupported() {
+        return asyncSupported;
     }
 
     @Override
     public String getName() {
-        return null;
+        return filterName;
     }
 
     @Override
     public String getClassName() {
-        return null;
+        return filter.getClass().getName();
     }
 
     @Override
@@ -64,21 +84,45 @@ public class ServletFilterRegistration implements FilterRegistration,FilterRegis
 
     @Override
     public String getInitParameter(String name) {
-        return null;
+        return initParameterMap.get(name);
     }
 
     @Override
     public Set<String> setInitParameters(Map<String, String> initParameters) {
-        return null;
+        this.initParameterMap = initParameters;
+        return initParameterMap.keySet();
     }
 
     @Override
     public Map<String, String> getInitParameters() {
+        return initParameterMap;
+    }
+
+    //==============
+
+    @Override
+    public void setAsyncSupported(boolean isAsyncSupported) {
+        this.asyncSupported = isAsyncSupported;
+    }
+
+    @Override
+    public void addMappingForServletNames(EnumSet<DispatcherType> dispatcherTypes, boolean isMatchAfter, String... servletNames) {
+        //
+    }
+
+    @Override
+    public Collection<String> getServletNameMappings() {
         return null;
     }
 
     @Override
-    public void setAsyncSupported(boolean isAsyncSupported) {
-
+    public void addMappingForUrlPatterns(EnumSet<DispatcherType> dispatcherTypes, boolean isMatchAfter, String... urlPatterns) {
+        mappingSet.addAll(Arrays.asList(urlPatterns));
     }
+
+    @Override
+    public Collection<String> getUrlPatternMappings() {
+        return mappingSet;
+    }
+
 }

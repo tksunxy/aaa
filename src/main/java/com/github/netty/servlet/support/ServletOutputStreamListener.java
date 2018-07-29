@@ -24,16 +24,41 @@ public class ServletOutputStreamListener implements StreamListener {
         this.servletResponse = servletResponse;
     }
 
+    @Override
+    public void closeBefore(int totalLength) {
+        HttpRequest nettyRequest = servletRequest.getNettyRequest();
+        HttpResponse nettyResponse = servletResponse.getNettyResponse();
+
+        settingResponse(nettyRequest,nettyResponse,servletRequest,servletResponse,totalLength);
+    }
+
+    @Override
+    public void closeAfter(ByteBuf content) {
+        if(content.refCnt() > 0) {
+            ReferenceCountUtil.safeRelease(content);
+        }
+    }
+
     /**
      * 设置基本的请求头
+     * @param nettyRequest netty请求
+     * @param nettyResponse netty响应
+     * @param servletRequest servlet请求
+     * @param servletResponse servlet响应
+     * @param totalLength 总内容长度
      */
     public void settingResponse(HttpRequest nettyRequest,HttpResponse nettyResponse,
-                                ServletHttpServletRequest servletRequest, ServletHttpServletResponse servletResponse) {
+                                ServletHttpServletRequest servletRequest, ServletHttpServletResponse servletResponse,int totalLength) {
         String contentType = servletResponse.getContentType();
         String characterEncoding = servletResponse.getCharacterEncoding();
         List<Cookie> cookies = servletResponse.getCookies();
 
         HttpHeaderUtil.setKeepAlive(nettyResponse, HttpHeaderUtil.isKeepAlive(nettyRequest));
+
+        if (!HttpHeaderUtil.isKeepAlive(nettyRequest) && !HttpHeaderUtil.isContentLengthSet(nettyResponse)) {
+            HttpHeaderUtil.setContentLength(nettyResponse, totalLength);
+        }
+
         HttpHeaders headers = nettyResponse.headers();
         if (null != contentType) {
             String value = (null == characterEncoding) ? contentType : contentType + "; charset=" + characterEncoding; //Content Type 响应头的内容
@@ -47,7 +72,9 @@ public class ServletOutputStreamListener implements StreamListener {
 //        long curTime = System.currentTimeMillis(); //用于根据maxAge计算Cookie的Expires
         //先处理Session ，如果是新Session需要通过Cookie写入
         if (servletRequest.getSession().isNew()) {
-            String sessionCookieStr = HttpConstants.JSESSION_ID_COOKIE + "=" + servletRequest.getRequestedSessionId() + "; path=/; domain=" + servletRequest.getServerName();
+            String sessionCookieStr = HttpConstants.JSESSION_ID_COOKIE + "=" + servletRequest.getRequestedSessionId() + "; " +
+                    "path=/; " ;
+//                    "domain=" + servletRequest.getServerName();
             headers.add(HttpHeaderNames.SET_COOKIE, sessionCookieStr);
         }
 
@@ -66,23 +93,6 @@ public class ServletOutputStreamListener implements StreamListener {
                 headers.add(HttpHeaderNames.SET_COOKIE, sb.toString());
             }
         }
-    }
-
-    @Override
-    public void closeBefore(int totalLength) {
-        HttpRequest nettyRequest = servletRequest.getNettyRequest();
-        HttpResponse nettyResponse = servletResponse.getNettyResponse();
-
-//        if (!HttpHeaderUtil.isContentLengthSet(nettyResponse)) {
-//            HttpHeaderUtil.setContentLength(nettyResponse, totalLength);
-//        }
-        settingResponse(nettyRequest,nettyResponse,servletRequest,servletResponse);
-
-    }
-
-    @Override
-    public void closeAfter(ByteBuf content) {
-        ReferenceCountUtil.safeRelease(content);
     }
 
 }

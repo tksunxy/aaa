@@ -1,5 +1,7 @@
 package com.github.netty.servlet;
 
+import com.github.netty.servlet.support.ServletEventListenerManager;
+
 import javax.servlet.*;
 import java.io.IOException;
 import java.util.Iterator;
@@ -15,8 +17,11 @@ public class ServletFilterChain implements FilterChain {
      */
     private final Iterator<Filter> filterIterator;
     private final Servlet servlet;
+    private boolean isFirstDoFilter = false;
+    private ServletContext servletContext;
 
-    public ServletFilterChain(Servlet servlet, Iterable<Filter> filters) throws ServletException {
+    public ServletFilterChain(ServletContext servletContext, Servlet servlet, Iterable<Filter> filters) throws ServletException {
+        this.servletContext = servletContext;
         this.filterIterator = filters.iterator();
         this.servlet = servlet;
     }
@@ -28,11 +33,26 @@ public class ServletFilterChain implements FilterChain {
      */
     @Override
     public void doFilter(ServletRequest request, ServletResponse response) throws IOException, ServletException {
+        ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
+
+        if(isFirstDoFilter){
+            isFirstDoFilter = false;
+            if(listenerManager.hasServletRequestListener()) {
+                listenerManager.onServletRequestInitialized(new ServletRequestEvent(servletContext,request));
+            }
+        }
+
         if (filterIterator.hasNext()) {
             Filter filter = filterIterator.next();
             filter.doFilter(request, response, this);
         } else {
-            servlet.service(request, response);
+            try {
+                servlet.service(request, response);
+            }finally {
+                if(listenerManager.hasServletRequestListener()) {
+                    listenerManager.onServletRequestDestroyed(new ServletRequestEvent(servletContext,request));
+                }
+            }
         }
     }
 

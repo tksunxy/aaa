@@ -10,11 +10,12 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.HttpResponse;
-import io.netty.util.ReferenceCountUtil;
 
 import javax.servlet.WriteListener;
 import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
+import java.util.LinkedList;
+import java.util.List;
 
 
 /**
@@ -30,7 +31,7 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream {
     private WriteListener writeListener;
     private ChannelHandlerContext ctx;
     private CompositeByteBuf compositeByteBuf;
-    private StreamListener streamListener;
+    private List<StreamListener> streamListenerList;
     private HttpResponse nettyResponse;
     @TodoOptimize("缺少对keep-alive的支持")
     private boolean isKeepAlive;
@@ -40,11 +41,12 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream {
         this.ctx = ctx;
         this.nettyResponse = nettyResponse;
         this.compositeByteBuf = new CompositeByteBuf(ctx.alloc(),false,16);
+        this.streamListenerList = new LinkedList<>();
         this.closed = false;
     }
 
-    public void setStreamListener(StreamListener streamListener) {
-        this.streamListener = streamListener;
+    public void addStreamListener(StreamListener streamListener) {
+        this.streamListenerList.add(streamListener);
     }
 
     @Override
@@ -106,7 +108,9 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream {
                 int cap = compositeByteBuf.capacity();
                 compositeByteBuf.writerIndex(cap);
 
-                streamListener.closeBefore(cap);
+                for(StreamListener streamListener : streamListenerList) {
+                    streamListener.closeBefore(cap);
+                }
 
                 ctx.write(nettyResponse, ctx.voidPromise());
                 ctx.write(new DefaultLastHttpContent(compositeByteBuf))
@@ -119,8 +123,9 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream {
                             @Override
                             public void operationComplete(ChannelFuture future) throws Exception {
                                 ctx.flush();
-                                if(compositeByteBuf.refCnt() > 0) {
-                                    ReferenceCountUtil.safeRelease(compositeByteBuf);
+
+                                for(StreamListener streamListener : streamListenerList) {
+                                    streamListener.closeAfter(compositeByteBuf);
                                 }
                                 future.channel().close();
                             }

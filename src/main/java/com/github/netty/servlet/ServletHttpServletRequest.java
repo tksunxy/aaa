@@ -1,20 +1,16 @@
 package com.github.netty.servlet;
 
 import com.github.netty.core.constants.HttpConstants;
+import com.github.netty.servlet.support.ServletEventListenerManager;
 import com.github.netty.util.ObjectUtil;
 import com.github.netty.util.ServletUtil;
+import com.github.netty.util.TodoOptimize;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 
-import javax.servlet.DispatcherType;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpSession;
-import javax.servlet.http.HttpUpgradeHandler;
-import javax.servlet.http.Part;
+import javax.servlet.*;
+import javax.servlet.http.*;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -26,7 +22,7 @@ import java.security.Principal;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static com.github.netty.util.ObjectUtil.EMPTY;
+import static com.github.netty.util.ObjectUtil.NULL;
 
 /**
  * Created by acer01 on 2018/7/15/015.
@@ -75,6 +71,17 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         this.decodeCookieFlag = false;
         this.parsePathsFlag = false;
         this.usingReaderFlag = false;
+    }
+
+    private InetSocketAddress getRemoteAddress(){
+        SocketAddress socketAddress = inputStream.getChannel().remoteAddress();
+        if(socketAddress == null){
+            return null;
+        }
+        if(socketAddress instanceof InetSocketAddress){
+            return (InetSocketAddress) socketAddress;
+        }
+        return null;
     }
 
     public HttpRequest getNettyRequest() {
@@ -140,6 +147,17 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         this.pathInfo = null;
 
         parsePathsFlag = true;
+    }
+
+    private String newSessionId(){
+        return UUID.randomUUID().toString().replace("-","");
+    }
+
+    private ServletHttpSession newHttpSession(String sessionId){
+        ServletHttpSession session = new ServletHttpSession(sessionId, servletContext,servletContext.getSessionCookieConfig());
+        session.access();
+        session.init();
+        return session;
     }
 
     @Override
@@ -281,16 +299,15 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
             return httpSession;
         }
 
-        String id = getRequestedSessionId();
+        String sessionId = getRequestedSessionId();
         Map<String,ServletHttpSession> sessionMap = servletContext.getHttpSessionMap();
-        ServletHttpSession session = sessionMap.get(id);
+        ServletHttpSession session = sessionMap.get(sessionId);
         if(session == null){
             if(create) {
-                session = new ServletHttpSession(id, servletContext,servletContext.getSessionCookieConfig());
+                session = newHttpSession(sessionId);
                 if(isRequestedSessionIdValid()) {
-                    sessionMap.put(id, session);
+                    sessionMap.put(sessionId, session);
                 }
-                session.access();
             }
         }else {
             session.access().setNewSessionFlag(false);
@@ -300,6 +317,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         return session;
     }
 
+
     @Override
     public HttpSession getSession() {
         return getSession(true);
@@ -307,7 +325,21 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String changeSessionId() {
-        return getRequestedSessionId();
+        ServletHttpSession httpSession = getSession(true);
+        String oldSessionId = httpSession.getId();
+        String newSessionId = newSessionId();
+
+        Map<String,ServletHttpSession> httpSessionMap = servletContext.getHttpSessionMap();
+        if(ObjectUtil.isNotEmpty(oldSessionId)) {
+            httpSessionMap.put(newSessionId, httpSessionMap.remove(oldSessionId));
+        }
+        sessionId = newSessionId;
+
+        ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
+        if(listenerManager.hasHttpSessionIdListener()){
+            listenerManager.onHttpSessionIdChanged(new HttpSessionEvent(httpSession),oldSessionId);
+        }
+        return newSessionId;
     }
 
     @Override
@@ -345,7 +377,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
             sessionId = getParameter(HttpConstants.JSESSION_ID_PARAMS);
             if(ObjectUtil.isEmpty(sessionId)){
                 sessionIdSource = HttpConstants.SESSION_ID_SOURCE_NOT_FOUND_CREATE;
-                sessionId = UUID.randomUUID().toString().replace("-","");
+                sessionId = newSessionId();
             }else {
                 sessionIdSource = HttpConstants.SESSION_ID_SOURCE_URL;
             }
@@ -390,10 +422,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     public Object getAttribute(String name) {
         Object value = getAttributeMap().get(name);
 
-        if(value == EMPTY){
-            return null;
-        }
-        return value;
+        return value == NULL? null:value;
     }
 
     @Override
@@ -481,6 +510,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         return nettyRequest.protocolVersion().protocolName().toString();
     }
 
+    @TodoOptimize("用于写cookie作用域, 可以实现跨域会话追踪")
     @Override
     public String getServerName() {
         return servletContext.getServerSocketAddress().getHostName();
@@ -509,17 +539,6 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         return inetAddress.getHostAddress();
     }
 
-    private InetSocketAddress getRemoteAddress(){
-        SocketAddress socketAddress = inputStream.getChannel().remoteAddress();
-        if(socketAddress == null){
-            return null;
-        }
-        if(socketAddress instanceof InetSocketAddress){
-            return (InetSocketAddress) socketAddress;
-        }
-        return null;
-    }
-
     @Override
     public String getRemoteHost() {
         InetSocketAddress inetSocketAddress = getRemoteAddress();
@@ -539,16 +558,26 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     }
 
     @Override
-    public void setAttribute(String name, Object o) {
-        if(o == null){
-            o = EMPTY;
+    public void setAttribute(String name, Object object) {
+        Object oldObject = getAttributeMap().put(name,object == null?NULL:object);
+
+        ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
+        if(listenerManager.hasServletRequestAttributeListener()){
+            listenerManager.onServletRequestAttributeAdded(new ServletRequestAttributeEvent(servletContext,this,name,object));
+            if(oldObject != null){
+                listenerManager.onServletRequestAttributeReplaced(new ServletRequestAttributeEvent(servletContext,this,name,oldObject == NULL?null:oldObject));
+            }
         }
-        getAttributeMap().put(name,o);
     }
 
     @Override
     public void removeAttribute(String name) {
-        getAttributeMap().remove(name);
+        Object oldObject = getAttributeMap().remove(name);
+
+        ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
+        if(listenerManager.hasServletRequestAttributeListener()){
+            listenerManager.onServletRequestAttributeRemoved(new ServletRequestAttributeEvent(servletContext,this,name,oldObject == NULL?null:oldObject));
+        }
     }
 
     @Override

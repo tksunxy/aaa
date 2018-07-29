@@ -42,7 +42,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
         this.nettyResponse = new NettyHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, false,false);
         this.nettyHeaders = nettyResponse.headers();
         this.outputStream = new ServletOutputStream(ctx, nettyResponse,HttpHeaderUtil.isKeepAlive(httpServletRequest.getNettyRequest()));
-        outputStream.setStreamListener(new ServletOutputStreamListener(httpServletRequest,this));
+        outputStream.addStreamListener(new ServletOutputStreamListener(httpServletRequest,this));
 
         this.httpServletRequest = httpServletRequest;
         this.characterEncoding = null;

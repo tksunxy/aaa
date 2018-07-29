@@ -8,7 +8,7 @@ package com.github.netty.util;
  */
 public class ObjectUtil {
 
-    public static final Object EMPTY = new Object();
+    public static final Object NULL = new Object();
 
     public static void checkState(boolean b, String errorMessageTemplate, Object p1, Object p2, Object p3, Object p4) {
         if(!b) {

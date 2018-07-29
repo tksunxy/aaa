@@ -1,14 +1,18 @@
 package com.github.netty.servlet;
 
+import com.github.netty.servlet.support.ServletEventListenerManager;
+
 import javax.servlet.http.HttpSession;
+import javax.servlet.http.HttpSessionBindingEvent;
 import javax.servlet.http.HttpSessionContext;
+import javax.servlet.http.HttpSessionEvent;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.github.netty.util.ObjectUtil.EMPTY;
+import static com.github.netty.util.ObjectUtil.NULL;
 
 /**
  * Created by acer01 on 2018/7/15/015.
@@ -26,7 +30,6 @@ public class ServletHttpSession implements HttpSession{
     private volatile int maxInactiveInterval;
     private volatile boolean newSessionFlag;
     private transient AtomicInteger accessCount;
-
 
     ServletHttpSession(String id, ServletContext servletContext, ServletSessionCookieConfig sessionCookieConfig) {
         this.id = id;
@@ -83,11 +86,7 @@ public class ServletHttpSession implements HttpSession{
     @Override
     public Object getAttribute(String name) {
         Object value = getAttributeMap().get(name);
-
-        if(value == EMPTY){
-            return null;
-        }
-        return value;
+        return value == NULL? null: value;
     }
 
     @Override
@@ -107,10 +106,15 @@ public class ServletHttpSession implements HttpSession{
 
     @Override
     public void setAttribute(String name, Object value) {
-        if(value == null){
-            value = EMPTY;
+        Object oldValue = getAttributeMap().put(name,value == null?NULL:value);
+
+        ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
+        if(listenerManager.hasHttpSessionAttributeListener()){
+            listenerManager.onHttpSessionAttributeAdded(new HttpSessionBindingEvent(this,name,value));
+            if(oldValue != null){
+                listenerManager.onHttpSessionAttributeReplaced(new HttpSessionBindingEvent(this,name,oldValue));
+            }
         }
-        getAttributeMap().put(name,value);
     }
 
     @Override
@@ -120,7 +124,12 @@ public class ServletHttpSession implements HttpSession{
 
     @Override
     public void removeAttribute(String name) {
-        getAttributeMap().remove(name);
+        Object oldValue = getAttributeMap().remove(name);
+
+        ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
+        if(listenerManager.hasHttpSessionAttributeListener()){
+            listenerManager.onHttpSessionAttributeRemoved(new HttpSessionBindingEvent(this,name,oldValue));
+        }
     }
 
     @Override
@@ -130,12 +139,24 @@ public class ServletHttpSession implements HttpSession{
 
     @Override
     public void invalidate() {
+        ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
+        if(listenerManager.hasHttpSessionListener()){
+            listenerManager.onHttpSessionDestroyed(new HttpSessionEvent(this));
+        }
+
         servletContext.getHttpSessionMap().remove(id);
         if(attributeMap != null) {
             attributeMap.clear();
             attributeMap = null;
         }
         servletContext = null;
+    }
+
+    public void init() {
+        ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
+        if(listenerManager.hasHttpSessionListener()){
+            listenerManager.onHttpSessionCreated(new HttpSessionEvent(this));
+        }
     }
 
     @Override

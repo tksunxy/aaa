@@ -2,7 +2,10 @@ package com.github.netty.springboot;
 
 import com.github.netty.core.AbstractNettyServer;
 import com.github.netty.servlet.ServletContext;
+import com.github.netty.servlet.ServletFilterRegistration;
 import com.github.netty.servlet.ServletRegistration;
+import com.github.netty.servlet.support.ServletEventListenerManager;
+import com.github.netty.util.TodoOptimize;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
@@ -20,6 +23,7 @@ import org.springframework.boot.context.embedded.Ssl;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
+import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletException;
 import java.io.File;
 import java.util.Map;
@@ -36,9 +40,12 @@ public class NettyEmbeddedServletContainer extends AbstractNettyServer implement
     private final boolean enableSsl;
     private SslContext sslContext;
     private ChannelHandler dispatcherHandler;
+    private final Thread serverThread;
 
+    @TodoOptimize("ssl没测试能不能用")
     public NettyEmbeddedServletContainer(ServletContext servletContext,Ssl ssl,int bizThreadCount) throws SSLException {
         super(servletContext.getServerSocketAddress());
+
         this.servletContext = servletContext;
         this.enableSsl = ssl != null && ssl.isEnabled();
         if(enableSsl){
@@ -46,6 +53,11 @@ public class NettyEmbeddedServletContainer extends AbstractNettyServer implement
         }
         this.dispatcherExecutorGroup = new DefaultEventExecutorGroup(bizThreadCount);
         this.dispatcherHandler = new NettyServletDispatcherHandler(servletContext);
+        this.serverThread = new Thread(this);
+        serverThread.setName(servletContext.getServerInfo());
+        serverThread.setUncaughtExceptionHandler((thread,throwable)->{
+            //
+        });
     }
 
     @Override
@@ -71,30 +83,50 @@ public class NettyEmbeddedServletContainer extends AbstractNettyServer implement
 
     @Override
     public void start() throws EmbeddedServletContainerException {
+        ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
+        if(listenerManager.hasServletContextListener()){
+            listenerManager.onServletContextInitialized(new ServletContextEvent(servletContext));
+        }
+
+        initFilter();
         initServlet();
-        servletContext.setInitialized(true);
 
-        String serverInfo = servletContext.getServerInfo();
-
-        Thread serverThread = new Thread(this);
-        serverThread.setName(serverInfo);
-        serverThread.setUncaughtExceptionHandler((thread,throwable)->{
-            //
-        });
         serverThread.start();
-
-        System.out.println("启动成功 "+serverInfo+"["+getPort()+"]...");
+        System.out.println("启动成功 "+servletContext.getServerInfo()+"["+getPort()+"]...");
     }
 
     @Override
     public void stop() throws EmbeddedServletContainerException {
+        ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
+        if(listenerManager.hasServletContextListener()){
+            listenerManager.onServletContextDestroyed(new ServletContextEvent(servletContext));
+        }
+
+        destroyFilter();
         destroyServlet();
+
         super.stop();
+        synchronized (serverThread) {
+            serverThread.interrupt();
+        }
+        System.out.println("停止成功 "+servletContext.getServerInfo()+"["+getPort()+"]...");
     }
 
     @Override
     public int getPort() {
         return super.getPort();
+    }
+
+    private void initFilter(){
+        Map<String, ServletFilterRegistration> servletFilterRegistrationMap = servletContext.getFilterRegistrations();
+        for(Map.Entry<String,ServletFilterRegistration> entry : servletFilterRegistrationMap.entrySet()){
+            ServletFilterRegistration registration = entry.getValue();
+            try {
+                registration.getFilter().init(registration.getFilterConfig());
+            } catch (ServletException e) {
+                throw new EmbeddedServletContainerException(e.getMessage(),e);
+            }
+        }
     }
 
     private void initServlet(){
@@ -106,6 +138,14 @@ public class NettyEmbeddedServletContainer extends AbstractNettyServer implement
             } catch (ServletException e) {
                 throw new EmbeddedServletContainerException(e.getMessage(),e);
             }
+        }
+    }
+
+    private void destroyFilter(){
+        Map<String, ServletFilterRegistration> servletRegistrationMap = servletContext.getFilterRegistrations();
+        for(Map.Entry<String,ServletFilterRegistration> entry : servletRegistrationMap.entrySet()){
+            ServletFilterRegistration registration = entry.getValue();
+            registration.getFilter().destroy();
         }
     }
 

@@ -3,7 +3,6 @@ package com.github.netty.springboot;
 import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletInputStream;
-import com.github.netty.util.ProxyUtil;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.*;
@@ -55,13 +54,13 @@ public class NettyServletCodecHandler extends SimpleChannelInboundHandler<HttpOb
     }
 
     private ServletHttpServletRequest newServletHttpServletRequest(HttpRequest request){
-        //            ServletHttpServletRequest servletRequest = new ServletHttpServletRequest(inputStream, servletContext, request);
-        ProxyUtil.setEnableProxy(true);
-        ServletHttpServletRequest servletRequest = ProxyUtil.newProxyByCglib(
-                ServletHttpServletRequest.class,
-                new Class[]{ServletInputStream.class,ServletContext.class,HttpRequest.class},
-                new Object[]{inputStream,servletContext,request});
-        ProxyUtil.setEnableProxy(false);
+        ServletHttpServletRequest servletRequest = new ServletHttpServletRequest(inputStream, servletContext, request);
+//        ProxyUtil.setEnableProxy(true);
+//        ServletHttpServletRequest servletRequest = ProxyUtil.newProxyByCglib(
+//                ServletHttpServletRequest.class,
+//                new Class[]{ServletInputStream.class,ServletContext.class,HttpRequest.class},
+//                new Object[]{inputStream,servletContext,request});
+//        ProxyUtil.setEnableProxy(false);
         return servletRequest;
     }
 

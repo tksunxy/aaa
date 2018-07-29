@@ -15,7 +15,6 @@ import io.netty.handler.codec.http.*;
  */
 public class NettyServletCodecHandler extends SimpleChannelInboundHandler<HttpObject> {
 
-    private int i;
     private ServletContext servletContext;
     private ServletInputStream inputStream; // FIXME this feels wonky, need a better approach
 
@@ -30,7 +29,6 @@ public class NettyServletCodecHandler extends SimpleChannelInboundHandler<HttpOb
 
     @Override
     protected void messageReceived(ChannelHandlerContext ctx, HttpObject msg) throws Exception {
-        System.out.println((i++)+"--------"+msg);
         if (msg instanceof HttpRequest) {
             HttpRequest request = (HttpRequest) msg;
 

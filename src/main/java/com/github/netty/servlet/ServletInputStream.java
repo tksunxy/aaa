@@ -5,6 +5,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.util.ReferenceCountUtil;
 
 import javax.servlet.ReadListener;
 import java.io.IOException;
@@ -115,7 +116,7 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
      */
     private void closeCurrentHttpContent() {
         if(current != null){
-            current.release();
+            ReferenceCountUtil.safeRelease(current);
             current = null;
         }
     }
@@ -127,7 +128,7 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
         while(!queue.isEmpty()){
             HttpContent content = queue.poll();
             if(content != null){
-                content.release();
+                ReferenceCountUtil.safeRelease(content);
             }
         }
         queue.clear();

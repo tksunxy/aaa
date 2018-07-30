@@ -6,7 +6,9 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * Created by acer01 on 2018/7/29/029.
+ *
+ * @author acer01
+ *  2018/7/29/029
  */
 public class ServletEventListenerManager {
 
@@ -22,103 +24,154 @@ public class ServletEventListenerManager {
     private List<ServletContextListener> servletContextListenerList;
 
     //=============event=================
+
     public void onServletContextAttributeAdded(ServletContextAttributeEvent event){
+        if(servletContextAttributeListenerList == null){
+            return;
+        }
         for(ServletContextAttributeListener listener : servletContextAttributeListenerList){
             listener.attributeAdded(event);
         }
     }
 
     public void onServletContextAttributeRemoved(ServletContextAttributeEvent event){
+        if(servletContextAttributeListenerList == null){
+            return;
+        }
         for(ServletContextAttributeListener listener : servletContextAttributeListenerList){
             listener.attributeRemoved(event);
         }
     }
 
     public void onServletContextAttributeReplaced(ServletContextAttributeEvent event){
+        if(servletContextAttributeListenerList == null){
+            return;
+        }
         for(ServletContextAttributeListener listener : servletContextAttributeListenerList){
             listener.attributeReplaced(event);
         }
     }
 
     public void onServletRequestInitialized(ServletRequestEvent event){
+        if(servletRequestListenerList == null){
+            return;
+        }
         for(ServletRequestListener listener : servletRequestListenerList){
             listener.requestInitialized(event);
         }
     }
 
     public void onServletRequestDestroyed(ServletRequestEvent event){
+        if(servletRequestListenerList == null){
+            return;
+        }
         for(ServletRequestListener listener : servletRequestListenerList){
             listener.requestDestroyed(event);
         }
     }
 
     public void onServletRequestAttributeAdded(ServletRequestAttributeEvent event){
+        if(servletRequestAttributeListenerList == null){
+            return;
+        }
         for(ServletRequestAttributeListener listener : servletRequestAttributeListenerList){
             listener.attributeAdded(event);
         }
     }
 
     public void onServletRequestAttributeRemoved(ServletRequestAttributeEvent event){
+        if(servletRequestAttributeListenerList == null){
+            return;
+        }
         for(ServletRequestAttributeListener listener : servletRequestAttributeListenerList){
             listener.attributeRemoved(event);
         }
     }
 
     public void onServletRequestAttributeReplaced(ServletRequestAttributeEvent event){
+        if(servletRequestAttributeListenerList == null){
+            return;
+        }
         for(ServletRequestAttributeListener listener : servletRequestAttributeListenerList){
             listener.attributeReplaced(event);
         }
     }
 
     public void onHttpSessionIdChanged(HttpSessionEvent event, String oldSessionId){
+        if(httpSessionIdListenerList == null){
+            return;
+        }
         for(HttpSessionIdListener listener : httpSessionIdListenerList){
             listener.sessionIdChanged(event,oldSessionId);
         }
     }
 
     public void onHttpSessionAttributeAdded(HttpSessionBindingEvent event){
+        if(httpSessionAttributeListenerList == null){
+            return;
+        }
         for(HttpSessionAttributeListener listener : httpSessionAttributeListenerList){
             listener.attributeAdded(event);
         }
     }
 
     public void onHttpSessionAttributeRemoved(HttpSessionBindingEvent event){
+        if(httpSessionAttributeListenerList == null){
+            return;
+        }
         for(HttpSessionAttributeListener listener : httpSessionAttributeListenerList){
             listener.attributeRemoved(event);
         }
     }
 
     public void onHttpSessionAttributeReplaced(HttpSessionBindingEvent event){
+        if(httpSessionAttributeListenerList == null){
+            return;
+        }
         for(HttpSessionAttributeListener listener : httpSessionAttributeListenerList){
             listener.attributeReplaced(event);
         }
     }
 
     public void onHttpSessionCreated(HttpSessionEvent event){
+        if(httpSessionListenerList == null){
+            return;
+        }
         for(HttpSessionListener listener : httpSessionListenerList){
             listener.sessionCreated(event);
         }
     }
 
     public void onHttpSessionDestroyed(HttpSessionEvent event){
+        if(httpSessionListenerList == null){
+            return;
+        }
         for(HttpSessionListener listener : httpSessionListenerList){
             listener.sessionDestroyed(event);
         }
     }
 
     public void onServletContextInitialized(ServletContextEvent event){
+        if(servletContextListenerList == null){
+            return;
+        }
         for(ServletContextListener listener : servletContextListenerList){
             listener.contextInitialized(event);
         }
     }
 
     public void onServletContextDestroyed(ServletContextEvent event){
+        if(servletContextListenerList == null){
+            return;
+        }
         for(ServletContextListener listener : servletContextListenerList){
             listener.contextDestroyed(event);
         }
     }
 
+
     //==============has===========
+
     public boolean hasServletContextAttributeListener(){
         return servletContextAttributeListenerList != null;
     }
@@ -141,7 +194,9 @@ public class ServletEventListenerManager {
         return servletContextListenerList != null;
     }
 
+
     //==============add===========
+
     public void addServletContextAttributeListener(ServletContextAttributeListener listener){
         getServletContextAttributeListenerList().add(listener);
     }
@@ -170,11 +225,10 @@ public class ServletEventListenerManager {
         getServletContextListenerList().add(listener);
     }
 
-    private <T>List<T> newListenerList(){
-        return new LinkedList<T>();
-    }
 
-    public List<ServletContextAttributeListener> getServletContextAttributeListenerList() {
+    //==============get===========
+
+    private List<ServletContextAttributeListener> getServletContextAttributeListenerList() {
         if(servletContextAttributeListenerList == null){
             synchronized (lock) {
                 if(servletContextAttributeListenerList == null) {
@@ -186,7 +240,7 @@ public class ServletEventListenerManager {
     }
 
 
-    public List<ServletRequestListener> getServletRequestListenerList() {
+    private List<ServletRequestListener> getServletRequestListenerList() {
         if(servletRequestListenerList == null){
             synchronized (lock) {
                 if(servletRequestListenerList == null) {
@@ -197,7 +251,7 @@ public class ServletEventListenerManager {
         return servletRequestListenerList;
     }
 
-    public List<ServletRequestAttributeListener> getServletRequestAttributeListenerList() {
+    private List<ServletRequestAttributeListener> getServletRequestAttributeListenerList() {
         if(servletRequestAttributeListenerList == null){
             synchronized (lock) {
                 if(servletRequestAttributeListenerList == null) {
@@ -208,7 +262,7 @@ public class ServletEventListenerManager {
         return servletRequestAttributeListenerList;
     }
 
-    public List<HttpSessionIdListener> getHttpSessionIdListenerList() {
+    private List<HttpSessionIdListener> getHttpSessionIdListenerList() {
         if(httpSessionIdListenerList == null){
             synchronized (lock) {
                 if(httpSessionIdListenerList == null) {
@@ -219,7 +273,7 @@ public class ServletEventListenerManager {
         return httpSessionIdListenerList;
     }
 
-    public List<HttpSessionAttributeListener> getHttpSessionAttributeListenerList() {
+    private List<HttpSessionAttributeListener> getHttpSessionAttributeListenerList() {
         if(httpSessionAttributeListenerList == null){
             synchronized (lock) {
                 if(httpSessionAttributeListenerList == null) {
@@ -230,7 +284,7 @@ public class ServletEventListenerManager {
         return httpSessionAttributeListenerList;
     }
 
-    public List<HttpSessionListener> getHttpSessionListenerList() {
+    private List<HttpSessionListener> getHttpSessionListenerList() {
         if(httpSessionListenerList == null){
             synchronized (lock) {
                 if(httpSessionListenerList == null) {
@@ -241,7 +295,7 @@ public class ServletEventListenerManager {
         return httpSessionListenerList;
     }
 
-    public List<ServletContextListener> getServletContextListenerList() {
+    private List<ServletContextListener> getServletContextListenerList() {
         if(servletContextListenerList == null){
             synchronized (lock) {
                 if(servletContextListenerList == null) {
@@ -252,4 +306,7 @@ public class ServletEventListenerManager {
         return servletContextListenerList;
     }
 
+    private <T>List<T> newListenerList(){
+        return new LinkedList<T>();
+    }
 }

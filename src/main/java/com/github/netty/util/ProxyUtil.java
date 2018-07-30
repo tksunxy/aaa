@@ -28,9 +28,9 @@ public class ProxyUtil {
         ProxyUtil.enableProxy = enableProxy;
     }
 
-    public static boolean canProxy(Class clazz) {
+    public static boolean canProxyByCglib(Class clazz) {
         int mod = clazz.getModifiers();
-        return Modifier.isFinal(mod) || Modifier.isAbstract(mod);
+        return !Modifier.isFinal(mod) && !Modifier.isAbstract(mod) && !Modifier.isInterface(mod) && !Modifier.isPrivate(mod);
     }
 
     //============================newInstance=================================

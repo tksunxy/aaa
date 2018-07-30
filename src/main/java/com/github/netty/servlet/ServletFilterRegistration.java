@@ -1,8 +1,9 @@
 package com.github.netty.servlet;
 
-import com.github.netty.util.TodoOptimize;
-
-import javax.servlet.*;
+import javax.servlet.DispatcherType;
+import javax.servlet.Filter;
+import javax.servlet.FilterConfig;
+import javax.servlet.FilterRegistration;
 import java.util.*;
 
 /**
@@ -10,7 +11,6 @@ import java.util.*;
  * @author acer01
  *  2018/7/14/014
  */
-@TodoOptimize("过滤器初始化没做完")
 public class ServletFilterRegistration implements FilterRegistration,FilterRegistration.Dynamic {
 
     private String filterName;
@@ -20,6 +20,7 @@ public class ServletFilterRegistration implements FilterRegistration,FilterRegis
     private Map<String,String> initParameterMap;
     private ServletFilterRegistration self;
     private Set<String> mappingSet;
+    private Set<String> servletNameMappingSet;
     private boolean asyncSupported;
 
     public ServletFilterRegistration(String filterName, Filter servlet,ServletContext servletContext) {
@@ -28,6 +29,7 @@ public class ServletFilterRegistration implements FilterRegistration,FilterRegis
         this.servletContext = servletContext;
         this.initParameterMap = new HashMap<>();
         this.mappingSet = new HashSet<>();
+        this.servletNameMappingSet = new HashSet<>();
         this.asyncSupported = false;
         this.self = this;
 
@@ -107,17 +109,24 @@ public class ServletFilterRegistration implements FilterRegistration,FilterRegis
 
     @Override
     public void addMappingForServletNames(EnumSet<DispatcherType> dispatcherTypes, boolean isMatchAfter, String... servletNames) {
-        //
+        servletNameMappingSet.addAll(Arrays.asList(servletNames));
+//        for(String servletName : servletNames) {
+//            servletContext.find
+//            servletContext.addFilterMapping(servletName,filterName,filter);
+//        }
     }
 
     @Override
     public Collection<String> getServletNameMappings() {
-        return null;
+        return servletNameMappingSet;
     }
 
     @Override
     public void addMappingForUrlPatterns(EnumSet<DispatcherType> dispatcherTypes, boolean isMatchAfter, String... urlPatterns) {
         mappingSet.addAll(Arrays.asList(urlPatterns));
+        for(String pattern : urlPatterns) {
+            servletContext.addFilterMapping(pattern,filterName,filter);
+        }
     }
 
     @Override

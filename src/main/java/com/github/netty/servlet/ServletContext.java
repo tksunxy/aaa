@@ -90,11 +90,11 @@ public class ServletContext implements javax.servlet.ServletContext {
         return servletEventListenerManager;
     }
 
-    public void addServletMapping(String urlPattern, String servletName, Servlet servlet) throws ServletException {
+    public void addServletMapping(String urlPattern, String servletName, Servlet servlet) throws IllegalArgumentException {
         servletUrlMapper.addMapping(urlPattern, servlet, servletName);
     }
 
-    public void addFilterMapping(String urlPattern, String filterName, Filter filter) throws ServletException {
+    public void addFilterMapping(String urlPattern, String filterName, Filter filter) throws IllegalArgumentException {
         filterUrlMapper.addMapping(urlPattern, filter, filterName);
     }
 
@@ -218,7 +218,7 @@ public class ServletContext implements javax.servlet.ServletContext {
 
     @Override
     public ServletRequestDispatcher getRequestDispatcher(String path) {
-        String servletName = servletUrlMapper.getMappingObjectName(path);
+        String servletName = servletUrlMapper.getMappingObjectNameByUri(path);
         return getNamedDispatcher(servletName);
     }
 

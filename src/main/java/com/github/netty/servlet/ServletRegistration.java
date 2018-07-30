@@ -67,11 +67,7 @@ public class ServletRegistration implements javax.servlet.ServletRegistration, j
     public Set<String> addMapping(String... urlPatterns) {
         mappingSet.addAll(Arrays.asList(urlPatterns));
         for(String pattern : urlPatterns) {
-            try {
-                servletContext.addServletMapping(pattern,getName(),servlet);
-            } catch (ServletException e) {
-                e.printStackTrace();
-            }
+            servletContext.addServletMapping(pattern,servletName,servlet);
         }
         return mappingSet;
     }

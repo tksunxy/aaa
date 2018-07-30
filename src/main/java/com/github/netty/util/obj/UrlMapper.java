@@ -32,9 +32,9 @@ public class UrlMapper<T> {
      * @param urlPattern  urlPattern
      * @param object     对象
      * @param objectName 对象名称
-     * @throws RuntimeException 异常
+     * @throws IllegalArgumentException 异常
      */
-    public void addMapping(String urlPattern, T object, String objectName) throws RuntimeException {
+    public void addMapping(String urlPattern, T object, String objectName) throws IllegalArgumentException {
         Objects.requireNonNull(urlPattern);
         Objects.requireNonNull(object);
         Objects.requireNonNull(objectName);
@@ -44,7 +44,7 @@ public class UrlMapper<T> {
             String pattern = urlPattern.substring(0, urlPattern.length() - 1);
             for (MapElement ms : urlPatternContext.wildcardObjectList) {
                 if (ms.pattern.equals(pattern)) {
-                    throw new RuntimeException("URL Pattern('" + urlPattern + "') already exists!");
+                    throw new IllegalArgumentException("URL Pattern('" + urlPattern + "') already exists!");
                 }
             }
             MapElement newServlet = new MapElement(pattern, object, objectName);
@@ -58,7 +58,7 @@ public class UrlMapper<T> {
         if (urlPattern.startsWith("*.")) {
             String pattern = urlPattern.substring(2);
             if (urlPatternContext.extensionObjectMap.get(pattern) != null) {
-                throw new RuntimeException("URL Pattern('" + urlPattern + "') already exists!");
+                throw new IllegalArgumentException("URL Pattern('" + urlPattern + "') already exists!");
             }
             MapElement newServlet = new MapElement(pattern, object, objectName);
             urlPatternContext.extensionObjectMap.put(pattern, newServlet);
@@ -69,7 +69,7 @@ public class UrlMapper<T> {
         // Default资源匹配
         if (urlPattern.equals("/")) {
             if (urlPatternContext.defaultObject != null) {
-                throw new RuntimeException("URL Pattern('" + urlPattern + "') already exists!");
+                throw new IllegalArgumentException("URL Pattern('" + urlPattern + "') already exists!");
             }
             urlPatternContext.defaultObject = new MapElement("", object, objectName);
             return;
@@ -83,7 +83,7 @@ public class UrlMapper<T> {
             pattern = urlPattern;
         }
         if (urlPatternContext.exactObjectMap.get(pattern) != null) {
-            throw new RuntimeException("URL Pattern('" + urlPattern + "') already exists!");
+            throw new IllegalArgumentException("URL Pattern('" + urlPattern + "') already exists!");
         }
         MapElement newServlet = new MapElement(pattern, object, objectName);
         urlPatternContext.exactObjectMap.put(pattern, newServlet);
@@ -126,9 +126,13 @@ public class UrlMapper<T> {
         urlPatternContext.exactObjectMap.remove(pattern);
     }
 
-    public String getMappingObjectName(String absoluteUri) {
+    public String getMappingObjectNameByUri(String absoluteUri) {
         MappingData mappingData = getMapping(absoluteUri);
         return mappingData == null? null : mappingData.objectName;
+    }
+
+    public List<String> getMappingUrlPatternByObjectName(String objectName) {
+        return null;
     }
 
     private MappingData getMapping(String absolutePath) {
@@ -202,7 +206,7 @@ public class UrlMapper<T> {
         urlMapper.addMapping("/sys/add","1","add");
         urlMapper.addMapping("/db/get","2","get");
 
-        String name = urlMapper.getMappingObjectName("/hh/sys/add");
+        String name = urlMapper.getMappingObjectNameByUri("/hh/sys/add");
         System.out.println();
     }
 

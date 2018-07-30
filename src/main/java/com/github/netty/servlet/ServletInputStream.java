@@ -115,7 +115,7 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
      * 关闭当前HttpContent
      */
     private void closeCurrentHttpContent() {
-        if(current != null){
+        if(current != null && current.refCnt() > 0){
             ReferenceCountUtil.safeRelease(current);
             current = null;
         }
@@ -127,7 +127,7 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
     private void closeHttpContentQueue() {
         while(!queue.isEmpty()){
             HttpContent content = queue.poll();
-            if(content != null){
+            if(content != null && content.refCnt() > 0){
                 ReferenceCountUtil.safeRelease(content);
             }
         }

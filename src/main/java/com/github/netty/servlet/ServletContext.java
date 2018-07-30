@@ -1,6 +1,7 @@
 package com.github.netty.servlet;
 
 import com.github.netty.core.constants.HttpConstants;
+import com.github.netty.util.obj.UrlMapper;
 import com.github.netty.servlet.support.ServletEventListenerManager;
 import com.github.netty.util.*;
 import org.slf4j.Logger;
@@ -46,7 +47,8 @@ public class ServletContext implements javax.servlet.ServletContext {
 
     private ServletEventListenerManager servletEventListenerManager;
     private ServletSessionCookieConfig sessionCookieConfig;
-    private RequestUrlPatternMapper servletUrlPatternMapper;
+    private UrlMapper<Servlet> servletUrlMapper;
+    private UrlMapper<Filter> filterUrlMapper;
     private String rootDirStr;
     private Charset defaultCharset;
     private InetSocketAddress serverSocketAddress;
@@ -76,7 +78,8 @@ public class ServletContext implements javax.servlet.ServletContext {
         this.initParamMap = new ConcurrentHashMap<>();
         this.servletRegistrationMap = new ConcurrentHashMap<>();
         this.filterRegistrationMap = new ConcurrentHashMap<>();
-        this.servletUrlPatternMapper = new RequestUrlPatternMapper(contextPath);
+        this.servletUrlMapper = new UrlMapper<>(contextPath);
+        this.filterUrlMapper = new UrlMapper<>(contextPath);
         this.servletEventListenerManager = new ServletEventListenerManager();
 
         //一分钟检查一次过期session
@@ -87,8 +90,12 @@ public class ServletContext implements javax.servlet.ServletContext {
         return servletEventListenerManager;
     }
 
-    public void addServletMapping(String urlPattern, String name, Servlet servlet) throws ServletException {
-        servletUrlPatternMapper.addServlet(urlPattern, servlet, name);
+    public void addServletMapping(String urlPattern, String servletName, Servlet servlet) throws ServletException {
+        servletUrlMapper.addMapping(urlPattern, servlet, servletName);
+    }
+
+    public void addFilterMapping(String urlPattern, String filterName, Filter filter) throws ServletException {
+        filterUrlMapper.addMapping(urlPattern, filter, filterName);
     }
 
     public ExecutorService getAsyncExecutorService() {
@@ -211,7 +218,7 @@ public class ServletContext implements javax.servlet.ServletContext {
 
     @Override
     public ServletRequestDispatcher getRequestDispatcher(String path) {
-        String servletName = servletUrlPatternMapper.getServletNameByRequestURI(path);
+        String servletName = servletUrlMapper.getMappingObjectName(path);
         return getNamedDispatcher(servletName);
     }
 

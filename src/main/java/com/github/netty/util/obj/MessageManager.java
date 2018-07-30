@@ -1,4 +1,4 @@
-package com.github.netty.servlet.support;
+package com.github.netty.util.obj;
 
 import java.text.MessageFormat;
 import java.util.Hashtable;

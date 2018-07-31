@@ -1,13 +1,13 @@
 package com.github.netty.servlet;
 
+import com.github.netty.core.NettyHttpRequestWarpper;
 import com.github.netty.core.constants.HttpConstants;
+import com.github.netty.core.constants.HttpHeaderConstants;
 import com.github.netty.servlet.support.ServletEventListenerManager;
 import com.github.netty.util.ObjectUtil;
 import com.github.netty.util.ServletUtil;
 import com.github.netty.util.TodoOptimize;
-import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpRequest;
 
 import javax.servlet.*;
 import javax.servlet.http.*;
@@ -56,10 +56,10 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     private ServletContext servletContext;
     private ServletAsyncContext asyncContext;
 
-    private final HttpRequest nettyRequest;
+    private final NettyHttpRequestWarpper nettyRequest;
     private final HttpHeaders nettyHeaders;
 
-    public ServletHttpServletRequest(ServletInputStream inputStream, ServletContext servletContext, HttpRequest nettyRequest) {
+    public ServletHttpServletRequest(ServletInputStream inputStream, ServletContext servletContext, NettyHttpRequestWarpper nettyRequest) {
         this.nettyRequest = nettyRequest;
         this.nettyHeaders = nettyRequest.headers();
         this.attributeMap = null;
@@ -84,7 +84,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         return null;
     }
 
-    public HttpRequest getNettyRequest() {
+    public NettyHttpRequestWarpper getNettyRequest() {
         return nettyRequest;
     }
 
@@ -120,7 +120,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     }
 
     private void decodeCookie(){
-        CharSequence value = getHeader(HttpHeaderNames.COOKIE.toString());
+        CharSequence value = getHeader(HttpHeaderConstants.COOKIE);
         if (value == null) {
             return;
         }
@@ -203,24 +203,22 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String getHeader(String name) {
-        return nettyHeaders.getAndConvert(name);
+        return String.valueOf(nettyHeaders.get(name));
     }
 
     @Override
     public Enumeration<String> getHeaderNames() {
-        Set<CharSequence> nameSet = nettyHeaders.names();
+        Set nameSet = nettyHeaders.names();
         List<String> nameList = new LinkedList<>();
-        for(CharSequence name : nameSet){
+        for(Object name : nameSet){
             nameList.add(name.toString());
         }
         return Collections.enumeration(nameList);
     }
 
-
-
     @Override
     public StringBuffer getRequestURL() {
-        return new StringBuffer(nettyRequest.uri());
+        return new StringBuffer(nettyRequest.getUri());
     }
 
     //TODO ServletPath和PathInfo应该是互补的，根据URL-Pattern匹配的路径不同而不同
@@ -251,10 +249,14 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         return this.servletPath;
     }
 
-
     @Override
     public Enumeration<String> getHeaders(String name) {
-        return Collections.enumeration(this.nettyHeaders.getAllAndConvert(name));
+        Collection collection = this.nettyHeaders.getAll(name);
+        List<String> headerList = new LinkedList<>();
+        for(Object header : collection){
+            headerList.add(header.toString());
+        }
+        return Collections.enumeration(headerList);
     }
 
 
@@ -455,7 +457,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String getContentType() {
-        return getHeader(HttpHeaderNames.CONTENT_TYPE.toString());
+        return getHeader(HttpHeaderConstants.CONTENT_TYPE.toString());
     }
 
     @Override
@@ -587,7 +589,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         }
 
         Locale locale;
-        String value = getHeader(HttpHeaderNames.ACCEPT_LANGUAGE.toString());
+        String value = getHeader(HttpHeaderConstants.ACCEPT_LANGUAGE);
         if(value == null){
             locale = Locale.getDefault();
         }else {

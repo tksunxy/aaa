@@ -1,6 +1,10 @@
 package com.github.netty.util;
 
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 /**
  *
  * @author acer01
@@ -23,6 +27,18 @@ public class ObjectUtil {
             return reference;
         }
     }
+
+
+    public static Class[] add(Class[] arr,Class... classes) {
+        List<Class> list = new ArrayList<>(Arrays.asList(arr));
+        for(Class clazz : classes){
+            if(clazz != null) {
+                list.add(clazz);
+            }
+        }
+        return list.toArray(new Class[list.size()]);
+    }
+
 
     public static boolean isNotEmpty(String str){
         return !isEmpty(str);

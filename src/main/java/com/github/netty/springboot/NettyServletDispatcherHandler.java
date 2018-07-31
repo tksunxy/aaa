@@ -1,12 +1,12 @@
 package com.github.netty.springboot;
 
+import com.github.netty.core.adapter.ChannelHandlerVersionAdapter;
 import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletHttpServletResponse;
 import com.github.netty.servlet.ServletRequestDispatcher;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.HttpRequest;
 
 import javax.servlet.DispatcherType;
@@ -18,7 +18,7 @@ import javax.servlet.http.HttpServletResponse;
  *  2018/7/1/001
  */
 @ChannelHandler.Sharable
-public class NettyServletDispatcherHandler extends SimpleChannelInboundHandler<ServletHttpServletRequest> {
+public class NettyServletDispatcherHandler extends ChannelHandlerVersionAdapter<ServletHttpServletRequest> {
 
     private ServletContext servletContext;
 
@@ -28,7 +28,7 @@ public class NettyServletDispatcherHandler extends SimpleChannelInboundHandler<S
     }
 
     @Override
-    protected void messageReceived(ChannelHandlerContext ctx, ServletHttpServletRequest servletRequest) throws Exception {
+    protected void adaptMessageReceived(ChannelHandlerContext ctx, ServletHttpServletRequest servletRequest) throws Exception {
         HttpRequest nettyRequest = servletRequest.getNettyRequest();
         ServletHttpServletResponse servletResponse = newServletHttpServletResponse(ctx,servletRequest);
 

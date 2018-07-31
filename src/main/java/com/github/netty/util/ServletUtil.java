@@ -1,14 +1,13 @@
 package com.github.netty.util;
 
-import io.netty.handler.codec.AsciiString;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.QueryStringDecoder;
-import io.netty.handler.codec.http.ServerCookieDecoder;
 import io.netty.handler.codec.http.multipart.*;
 import io.netty.util.concurrent.FastThreadLocal;
 
 import javax.servlet.http.Cookie;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -22,6 +21,7 @@ import java.util.*;
 public class ServletUtil {
 
     private static HttpDataFactory HTTP_DATA_FACTORY;
+    private static final Method COOKIE_DECODER_METHOD;
 
     /**
      * SimpleDateFormat非线程安全，为了节省内存提高效率，把他放在ThreadLocal里
@@ -49,6 +49,23 @@ public class ServletUtil {
             new SimpleDateFormat("EEE MMMM d HH:mm:ss yyyy", Locale.getDefault())
     };
 
+    static {
+        Class cookieDecoderClass = ReflectUtils.forName(
+                "io.netty.handler.codec.http.CookieDecoder",
+                "io.netty.handler.codec.http.ServerCookieDecoder"
+        );
+        if(cookieDecoderClass == null) {
+            throw new RuntimeException("netty版本错误");
+        }
+        try {
+            COOKIE_DECODER_METHOD = cookieDecoderClass.getDeclaredMethod("decode",String.class);
+            if(COOKIE_DECODER_METHOD == null){
+                throw new RuntimeException("netty版本错误");
+            }
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException("netty版本错误");
+        }
+    }
 
     public static String getCookieValue(Cookie[] cookies, String cookieName){
         if(cookies == null || cookieName == null) {
@@ -99,7 +116,7 @@ public class ServletUtil {
     }
 
     public static Cookie[] decodeCookie(String value){
-        Set<io.netty.handler.codec.http.Cookie> nettyCookieSet = ServerCookieDecoder.decode(value);
+        Set<io.netty.handler.codec.http.Cookie> nettyCookieSet = (Set<io.netty.handler.codec.http.Cookie>) ReflectUtils.invokeMethod(null,COOKIE_DECODER_METHOD,value);
         io.netty.handler.codec.http.Cookie[] nettyCookieArr = nettyCookieSet.toArray(new io.netty.handler.codec.http.Cookie[nettyCookieSet.size()]);
         int size = nettyCookieArr.length;
         Cookie[] cookies = new Cookie[size];

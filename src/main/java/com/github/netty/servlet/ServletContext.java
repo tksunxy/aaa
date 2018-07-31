@@ -78,8 +78,8 @@ public class ServletContext implements javax.servlet.ServletContext {
         this.initParamMap = new ConcurrentHashMap<>();
         this.servletRegistrationMap = new ConcurrentHashMap<>();
         this.filterRegistrationMap = new ConcurrentHashMap<>();
-        this.servletUrlMapper = new UrlMapper<>(contextPath);
-        this.filterUrlMapper = new UrlMapper<>(contextPath);
+        this.servletUrlMapper = new UrlMapper<>(contextPath,true);
+        this.filterUrlMapper = new UrlMapper<>(contextPath,false);
         this.servletEventListenerManager = new ServletEventListenerManager();
 
         //一分钟检查一次过期session

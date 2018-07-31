@@ -1,18 +1,24 @@
 package com.github.netty.servlet.support;
 
+import com.github.netty.core.NettyHttpRequestWarpper;
+import com.github.netty.core.NettyHttpResponse;
 import com.github.netty.core.constants.HttpConstants;
+import com.github.netty.core.constants.HttpHeaderConstants;
 import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletHttpServletResponse;
+import com.github.netty.util.HttpHeaderUtil;
 import com.github.netty.util.ServletUtil;
 import io.netty.buffer.ByteBuf;
-import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.util.ReferenceCountUtil;
 
 import javax.servlet.http.Cookie;
 import java.util.List;
 
 /**
- * Created by acer01 on 2018/7/28/028.
+ *
+ * @author acer01
+ *  2018/7/28/028
  */
 public class ServletOutputStreamListener implements StreamListener {
 
@@ -26,8 +32,8 @@ public class ServletOutputStreamListener implements StreamListener {
 
     @Override
     public void closeBefore(int totalLength) {
-        HttpRequest nettyRequest = servletRequest.getNettyRequest();
-        HttpResponse nettyResponse = servletResponse.getNettyResponse();
+        NettyHttpRequestWarpper nettyRequest = servletRequest.getNettyRequest();
+        NettyHttpResponse nettyResponse = servletResponse.getNettyResponse();
 
         settingResponse(nettyRequest,nettyResponse,servletRequest,servletResponse,totalLength);
     }
@@ -47,7 +53,7 @@ public class ServletOutputStreamListener implements StreamListener {
      * @param servletResponse servlet响应
      * @param totalLength 总内容长度
      */
-    public void settingResponse(HttpRequest nettyRequest,HttpResponse nettyResponse,
+    public void settingResponse(NettyHttpRequestWarpper nettyRequest,NettyHttpResponse nettyResponse,
                                 ServletHttpServletRequest servletRequest, ServletHttpServletResponse servletResponse,int totalLength) {
         String contentType = servletResponse.getContentType();
         String characterEncoding = servletResponse.getCharacterEncoding();
@@ -62,11 +68,11 @@ public class ServletOutputStreamListener implements StreamListener {
         HttpHeaders headers = nettyResponse.headers();
         if (null != contentType) {
             String value = (null == characterEncoding) ? contentType : contentType + "; charset=" + characterEncoding; //Content Type 响应头的内容
-            headers.set(HttpHeaderNames.CONTENT_TYPE, value);
+            headers.set(HttpHeaderConstants.CONTENT_TYPE, value);
         }
         CharSequence date = ServletUtil.newDateGMT();
-        headers.set(HttpHeaderNames.DATE, date); // 时间日期响应头
-        headers.set(HttpHeaderNames.SERVER, servletRequest.getServletContext().getServerInfo()); //服务器信息响应头
+        headers.set(HttpHeaderConstants.DATE, date); // 时间日期响应头
+        headers.set(HttpHeaderConstants.SERVER, servletRequest.getServletContext().getServerInfo()); //服务器信息响应头
 
         // cookies处理
 //        long curTime = System.currentTimeMillis(); //用于根据maxAge计算Cookie的Expires
@@ -75,7 +81,7 @@ public class ServletOutputStreamListener implements StreamListener {
             String sessionCookieStr = HttpConstants.JSESSION_ID_COOKIE + "=" + servletRequest.getRequestedSessionId() + "; " +
                     "path=/; " ;
 //                    "domain=" + servletRequest.getServerName();
-            headers.add(HttpHeaderNames.SET_COOKIE, sessionCookieStr);
+            headers.add(HttpHeaderConstants.SET_COOKIE, sessionCookieStr);
         }
 
         //其他业务或框架设置的cookie，逐条写入到响应头去
@@ -90,7 +96,7 @@ public class ServletOutputStreamListener implements StreamListener {
                 if (cookie.getDomain() != null) {
                     sb.append("; domain=").append(cookie.getDomain());
                 }
-                headers.add(HttpHeaderNames.SET_COOKIE, sb.toString());
+                headers.add(HttpHeaderConstants.SET_COOKIE, sb.toString());
             }
         }
     }

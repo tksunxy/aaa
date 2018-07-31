@@ -3,12 +3,11 @@ package com.github.netty.core;
 import com.github.netty.util.NamespaceUtil;
 import com.github.netty.util.ProxyUtil;
 import io.netty.channel.ChannelException;
-import io.netty.channel.ChannelFactory;
 
 /**
  * @author 84215
  */
-public class NioServerChannelFactory implements ChannelFactory<NioServerSocketChannel> {
+public class NioServerChannelFactory implements io.netty.bootstrap.ChannelFactory<NioServerSocketChannel>  {
 
     @Override
     public NioServerSocketChannel newChannel() {

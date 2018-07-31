@@ -14,7 +14,8 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>1.8</java.version>
-        <netty.version>5.0.0.Alpha2</netty.version>
+        <!--<netty.version>5.0.0.Alpha2</netty.version>-->
+        <netty.version>4.0.27.Final</netty.version>
         <guava.version>20.0</guava.version>
         <spring-boot.version>1.5.10.RELEASE</spring-boot.version>
         <servlet-api.version>3.1.0</servlet-api.version>

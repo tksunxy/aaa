@@ -1,12 +1,11 @@
 package com.github.netty.core;
 
-import com.github.netty.util.HostUtil;
-import com.github.netty.util.NamespaceUtil;
-import com.github.netty.util.ProxyUtil;
-
+import com.github.netty.util.*;
+import io.netty.bootstrap.ChannelFactory;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.*;
+import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.util.internal.PlatformDependent;
@@ -38,7 +37,7 @@ public abstract class AbstractNettyServer implements Runnable{
 
     public AbstractNettyServer(InetSocketAddress address) {
         super();
-        this.enableEpoll = HostUtil.isLinux();
+        this.enableEpoll = HostUtil.isLinux() && Epoll.isAvailable();
         this.socketAddress = address;
         this.name = NamespaceUtil.newIdName(this.getClass(),"nettyServer");
         this.bootstrap = newServerBootstrap();
@@ -84,6 +83,7 @@ public abstract class AbstractNettyServer implements Runnable{
             channelFactory = EpollServerSocketChannel::new;
         }else {
             ChannelFactory<NioServerSocketChannel> serverChannelFactory = new NioServerChannelFactory();
+
             channelFactory = ProxyUtil.newProxyByJdk(serverChannelFactory, serverChannelFactory.toString(), true);
         }
         return channelFactory;
@@ -91,17 +91,18 @@ public abstract class AbstractNettyServer implements Runnable{
 
     @Override
     public final void run() {
-        bootstrap
-                .group(boss, worker)
-                .channelFactory(channelFactory)
-                .childHandler(initializerChannelHandler)
-                .option(ChannelOption.TCP_NODELAY, true)
-                .option(ChannelOption.SO_REUSEADDR, true)
-                .option(ChannelOption.SO_BACKLOG, 128) // determining the number of connections queued
-                .childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
-                .childOption(ChannelOption.SO_KEEPALIVE, Boolean.TRUE);
-
         try {
+
+            bootstrap
+                    .group(boss, worker)
+                    .channelFactory(channelFactory)
+                    .childHandler(initializerChannelHandler)
+                    .option(ChannelOption.TCP_NODELAY, true)
+                    .option(ChannelOption.SO_REUSEADDR, true)
+                    .option(ChannelOption.SO_BACKLOG, 128) // determining the number of connections queued
+                    .childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
+                    .childOption(ChannelOption.SO_KEEPALIVE, Boolean.TRUE);
+
             ChannelFuture channelFuture = bootstrap.bind(socketAddress);
             //堵塞
             channelFuture.await();
@@ -116,8 +117,8 @@ public abstract class AbstractNettyServer implements Runnable{
                 closeFuture = serverChannel.closeFuture();
                 closeFuture.sync();
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (Throwable throwable) {
+            ExceptionUtil.printRootCauseStackTrace(throwable);
         }
     }
 

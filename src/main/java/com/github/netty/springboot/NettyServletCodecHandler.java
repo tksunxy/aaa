@@ -1,10 +1,12 @@
 package com.github.netty.springboot;
 
+import com.github.netty.core.NettyHttpRequestWarpper;
+import com.github.netty.core.adapter.ChannelHandlerVersionAdapter;
 import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletInputStream;
+import com.github.netty.util.HttpHeaderUtil;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.*;
 
 /**
@@ -13,7 +15,7 @@ import io.netty.handler.codec.http.*;
  * channel恢复时，关闭输入流，等待下一次连接到来
  * @author 84215
  */
-public class NettyServletCodecHandler extends SimpleChannelInboundHandler<HttpObject> {
+public class NettyServletCodecHandler extends ChannelHandlerVersionAdapter<HttpObject> {
 
     private ServletContext servletContext;
     private ServletInputStream inputStream; // FIXME this feels wonky, need a better approach
@@ -28,9 +30,9 @@ public class NettyServletCodecHandler extends SimpleChannelInboundHandler<HttpOb
     }
 
     @Override
-    protected void messageReceived(ChannelHandlerContext ctx, HttpObject msg) throws Exception {
+    protected void adaptMessageReceived(ChannelHandlerContext ctx, HttpObject msg) throws Exception {
         if (msg instanceof HttpRequest) {
-            HttpRequest request = (HttpRequest) msg;
+            NettyHttpRequestWarpper request = new NettyHttpRequestWarpper((HttpRequest) msg);
 
             if (HttpHeaderUtil.is100ContinueExpected(request)) { //请求头包含Expect: 100-continue
                 ctx.write(new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.CONTINUE), ctx.voidPromise());
@@ -51,7 +53,7 @@ public class NettyServletCodecHandler extends SimpleChannelInboundHandler<HttpOb
         inputStream.close();
     }
 
-    private ServletHttpServletRequest newServletHttpServletRequest(HttpRequest request){
+    private ServletHttpServletRequest newServletHttpServletRequest(NettyHttpRequestWarpper request){
         ServletHttpServletRequest servletRequest = new ServletHttpServletRequest(inputStream, servletContext, request);
 //        ProxyUtil.setEnableProxy(true);
 //        ServletHttpServletRequest servletRequest = ProxyUtil.newProxyByCglib(

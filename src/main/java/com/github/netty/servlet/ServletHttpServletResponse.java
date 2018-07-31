@@ -2,7 +2,9 @@ package com.github.netty.servlet;
 
 import com.github.netty.core.NettyHttpResponse;
 import com.github.netty.core.constants.HttpConstants;
+import com.github.netty.core.constants.HttpHeaderConstants;
 import com.github.netty.servlet.support.ServletOutputStreamListener;
+import com.github.netty.util.HttpHeaderUtil;
 import com.github.netty.util.TodoOptimize;
 import com.google.common.base.Optional;
 import com.google.common.net.MediaType;
@@ -23,7 +25,7 @@ import java.util.*;
 public class ServletHttpServletResponse implements javax.servlet.http.HttpServletResponse {
 
     private ServletHttpServletRequest httpServletRequest;
-    private HttpResponse nettyResponse;
+    private NettyHttpResponse nettyResponse;
     private ServletOutputStream outputStream;
     private PrintWriter writer;
     private List<Cookie> cookies;
@@ -39,7 +41,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
      */
     public ServletHttpServletResponse(ChannelHandlerContext ctx, ServletHttpServletRequest httpServletRequest) {
         //Netty自带的http响应对象，初始化为200
-        this.nettyResponse = new NettyHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, false,false);
+        this.nettyResponse = new NettyHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, false);
         this.nettyHeaders = nettyResponse.headers();
         this.outputStream = new ServletOutputStream(ctx, nettyResponse,HttpHeaderUtil.isKeepAlive(httpServletRequest.getNettyRequest()));
         outputStream.addStreamListener(new ServletOutputStreamListener(httpServletRequest,this));
@@ -52,7 +54,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
         return cookies;
     }
 
-    public HttpResponse getNettyResponse() {
+    public NettyHttpResponse getNettyResponse() {
         return nettyResponse;
     }
 
@@ -113,18 +115,18 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
     public void sendRedirect(String location) throws IOException {
         checkNotCommitted();
         nettyResponse.setStatus(HttpResponseStatus.FOUND);
-        nettyHeaders.set(HttpHeaderNames.LOCATION, location);
+        nettyHeaders.set(HttpHeaderConstants.LOCATION, location);
         outputStream.close();
     }
 
     @Override
     public void setDateHeader(String name, long date) {
-        nettyHeaders.setLong(name, date);
+        nettyHeaders.set(name, String.valueOf(date));
     }
 
     @Override
     public void addDateHeader(String name, long date) {
-        nettyHeaders.addLong(name, date);
+        nettyHeaders.add(name, String.valueOf(date));
     }
 
     @Override
@@ -144,7 +146,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
     private boolean setHeaderField(String name, String value) {
         char c = name.charAt(0);//减少判断的时间，提高效率
         if ('C' == c || 'c' == c) {
-            if (HttpHeaderNames.CONTENT_TYPE.equalsIgnoreCase(name)) {
+            if (HttpHeaderConstants.CONTENT_TYPE.equalsIgnoreCase(name)) {
                 setContentType(value);
                 return true;
             }
@@ -174,7 +176,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
         if (isCommitted()) {
             return;
         }
-        nettyHeaders.setInt(name, value);
+        nettyHeaders.set(name, String.valueOf(value));
     }
 
     @Override
@@ -226,26 +228,31 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
 
     @Override
     public int getStatus() {
-        return nettyResponse.status().code();
+        return nettyResponse.getHttpStatus().code();
     }
 
     @Override
     public String getHeader(String name) {
-        return nettyHeaders.getAndConvert(name);
+        return String.valueOf(nettyHeaders.get(name));
     }
 
     @Override
     public Collection<String> getHeaders(String name) {
-        return nettyHeaders.getAllAndConvert(name);
+        List list = nettyHeaders.getAll(name);
+        List<String> stringList = new LinkedList<>();
+        for(Object charSequence : list){
+            stringList.add(String.valueOf(charSequence));
+        }
+        return stringList;
     }
 
     @Override
     public Collection<String> getHeaderNames() {
-        Set<CharSequence> nameSet = nettyHeaders.names();
+        Set nameSet = nettyHeaders.names();
 
         List<String> nameList = new LinkedList<>();
-        for(CharSequence charSequence : nameSet){
-            nameList.add(charSequence.toString());
+        for(Object charSequence : nameSet){
+            nameList.add(String.valueOf(charSequence));
         }
         return nameList;
     }

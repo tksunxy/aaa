@@ -100,17 +100,21 @@ public class ProxyUtil {
         }
     }
     public static <T>T newProxyByJdk(T source){
-        return newProxyByJdk(source,source.toString(),true);
+        return newProxyByJdk(source,source.toString(),true,getInterfaces(source));
     }
 
-    public static <T>T newProxyByJdk(T source, String logName,boolean isEnableLog){
+    public static <T>T newProxyByJdk(T source, String logName,boolean isEnableLog,Class[] interfaces){
         if(!isEnableProxy()){
             return source;
         }
         return (T) Proxy.newProxyInstance(
                 source.getClass().getClassLoader(),
-                getInterfaces(source),
+                interfaces,
                 new JdkProxy(source,logName,isEnableLog));
+    }
+
+    public static <T>T newProxyByJdk(T source, String logName,boolean isEnableLog){
+        return newProxyByJdk(source,logName,isEnableLog,getInterfaces(source));
     }
 
     //============================JdkProxy=================================
@@ -143,7 +147,7 @@ public class ProxyUtil {
         return Proxy.isProxyClass(object.getClass());
     }
 
-    private static Class[] getInterfaces(Object source){
+    public static Class[] getInterfaces(Object source){
         List<Class> interfaceList = new ArrayList<>();
         Class sourceClass = source.getClass();
         for(Class currClass = sourceClass; currClass != null; currClass = currClass.getSuperclass()){

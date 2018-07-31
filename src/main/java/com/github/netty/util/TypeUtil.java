@@ -530,7 +530,7 @@ public class TypeUtil {
             }
         }
 
-        throw new IllegalArgumentException("can not cast to long, value : " + value);
+        return null;
     }
 
     public static Integer castToInt(Object value) {

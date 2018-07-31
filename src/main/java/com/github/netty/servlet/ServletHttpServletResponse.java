@@ -1,11 +1,11 @@
 package com.github.netty.servlet;
 
-import com.github.netty.core.NettyHttpResponse;
+import com.github.netty.core.adapter.NettyHttpResponse;
 import com.github.netty.core.constants.HttpConstants;
 import com.github.netty.core.constants.HttpHeaderConstants;
 import com.github.netty.servlet.support.ServletOutputStreamListener;
 import com.github.netty.util.HttpHeaderUtil;
-import com.github.netty.util.TodoOptimize;
+import com.github.netty.util.obj.TodoOptimize;
 import com.google.common.base.Optional;
 import com.google.common.net.MediaType;
 import io.netty.channel.ChannelHandlerContext;
@@ -41,7 +41,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
      */
     public ServletHttpServletResponse(ChannelHandlerContext ctx, ServletHttpServletRequest httpServletRequest) {
         //Netty自带的http响应对象，初始化为200
-        this.nettyResponse = new NettyHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, false);
+        this.nettyResponse = new NettyHttpResponse(new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, false));
         this.nettyHeaders = nettyResponse.headers();
         this.outputStream = new ServletOutputStream(ctx, nettyResponse,HttpHeaderUtil.isKeepAlive(httpServletRequest.getNettyRequest()));
         outputStream.addStreamListener(new ServletOutputStreamListener(httpServletRequest,this));
@@ -228,12 +228,13 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
 
     @Override
     public int getStatus() {
-        return nettyResponse.getHttpStatus().code();
+        return nettyResponse.getStatus().code();
     }
 
     @Override
     public String getHeader(String name) {
-        return String.valueOf(nettyHeaders.get(name));
+        Object value = nettyHeaders.get(name);
+        return value == null? null : String.valueOf(value);
     }
 
     @Override

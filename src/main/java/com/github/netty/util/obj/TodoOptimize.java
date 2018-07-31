@@ -1,8 +1,8 @@
-package com.github.netty.util;
+package com.github.netty.util.obj;
 
 /**
  * Created by acer01 on 2018/7/15/015.
- * 代办
+ * 未完成的工作
  */
 public @interface TodoOptimize {
 

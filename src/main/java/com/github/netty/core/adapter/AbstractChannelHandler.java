@@ -4,19 +4,18 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 
 /**
+ *  用于兼容 netty4 与netty5
  * @author 84215
  */
-public class ChannelHandlerVersionAdapter<I> extends SimpleChannelInboundHandler<I> {
+public abstract class AbstractChannelHandler<I> extends SimpleChannelInboundHandler<I> {
 
     protected void channelRead0(ChannelHandlerContext ctx, I msg) throws Exception {
-        adaptMessageReceived(ctx,msg);
+        onMessageReceived(ctx,msg);
     }
 
     protected void messageReceived(ChannelHandlerContext ctx, I msg) throws Exception {
-        adaptMessageReceived(ctx,msg);
+        onMessageReceived(ctx,msg);
     }
 
-    protected void adaptMessageReceived(ChannelHandlerContext ctx, I msg) throws Exception {
-
-    }
+    protected abstract void onMessageReceived(ChannelHandlerContext ctx, I msg) throws Exception;
 }

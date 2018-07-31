@@ -1,12 +1,12 @@
 package com.github.netty.servlet;
 
-import com.github.netty.core.NettyHttpRequestWarpper;
+import com.github.netty.core.adapter.NettyHttpRequest;
 import com.github.netty.core.constants.HttpConstants;
 import com.github.netty.core.constants.HttpHeaderConstants;
 import com.github.netty.servlet.support.ServletEventListenerManager;
-import com.github.netty.util.ObjectUtil;
 import com.github.netty.util.ServletUtil;
-import com.github.netty.util.TodoOptimize;
+import com.github.netty.util.StringUtil;
+import com.github.netty.util.obj.TodoOptimize;
 import io.netty.handler.codec.http.HttpHeaders;
 
 import javax.servlet.*;
@@ -56,10 +56,10 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     private ServletContext servletContext;
     private ServletAsyncContext asyncContext;
 
-    private final NettyHttpRequestWarpper nettyRequest;
+    private final NettyHttpRequest nettyRequest;
     private final HttpHeaders nettyHeaders;
 
-    public ServletHttpServletRequest(ServletInputStream inputStream, ServletContext servletContext, NettyHttpRequestWarpper nettyRequest) {
+    public ServletHttpServletRequest(ServletInputStream inputStream, ServletContext servletContext, NettyHttpRequest nettyRequest) {
         this.nettyRequest = nettyRequest;
         this.nettyHeaders = nettyRequest.headers();
         this.attributeMap = null;
@@ -84,7 +84,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         return null;
     }
 
-    public NettyHttpRequestWarpper getNettyRequest() {
+    public NettyHttpRequest getNettyRequest() {
         return nettyRequest;
     }
 
@@ -120,7 +120,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     }
 
     private void decodeCookie(){
-        CharSequence value = getHeader(HttpHeaderConstants.COOKIE);
+        Object value = getHeader(HttpHeaderConstants.COOKIE);
         if (value == null) {
             return;
         }
@@ -190,7 +190,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     @Override
     public long getDateHeader(String name) throws IllegalArgumentException {
         String value = getHeader(name);
-        if(ObjectUtil.isEmpty(value)){
+        if(StringUtil.isEmpty(value)){
             return -1;
         }
 
@@ -203,7 +203,8 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String getHeader(String name) {
-        return String.valueOf(nettyHeaders.get(name));
+       Object value = nettyHeaders.get(name);
+        return value == null? null :String.valueOf(value);
     }
 
     @Override
@@ -332,7 +333,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         String newSessionId = newSessionId();
 
         Map<String,ServletHttpSession> httpSessionMap = servletContext.getHttpSessionMap();
-        if(ObjectUtil.isNotEmpty(oldSessionId)) {
+        if(StringUtil.isNotEmpty(oldSessionId)) {
             httpSessionMap.put(newSessionId, httpSessionMap.remove(oldSessionId));
         }
         sessionId = newSessionId;
@@ -370,14 +371,14 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String getRequestedSessionId() {
-        if(ObjectUtil.isNotEmpty(sessionId)){
+        if(StringUtil.isNotEmpty(sessionId)){
             return sessionId;
         }
 
         String sessionId = ServletUtil.getCookieValue(getCookies(),HttpConstants.JSESSION_ID_COOKIE);
-        if(ObjectUtil.isEmpty(sessionId)){
+        if(StringUtil.isEmpty(sessionId)){
             sessionId = getParameter(HttpConstants.JSESSION_ID_PARAMS);
-            if(ObjectUtil.isEmpty(sessionId)){
+            if(StringUtil.isEmpty(sessionId)){
                 sessionIdSource = HttpConstants.SESSION_ID_SOURCE_NOT_FOUND_CREATE;
                 sessionId = newSessionId();
             }else {
@@ -457,7 +458,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String getContentType() {
-        return getHeader(HttpHeaderConstants.CONTENT_TYPE.toString());
+        return getHeader(HttpHeaderConstants.CONTENT_TYPE);
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.github.netty.util;
 
+import com.github.netty.core.adapter.NettyHttpCookie;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.handler.codec.http.multipart.*;
@@ -22,12 +23,23 @@ public class ServletUtil {
 
     private static HttpDataFactory HTTP_DATA_FACTORY;
     private static final Method COOKIE_DECODER_METHOD;
+    /**
+     * The only date format permitted when generating HTTP headers.
+     */
+    private static final String RFC1123_DATE =
+            "EEE, dd MMM yyyy HH:mm:ss zzz";
+
+    private static final SimpleDateFormat[] FORMATS_TEMPLATE = {
+            new SimpleDateFormat(RFC1123_DATE, Locale.ENGLISH),
+            new SimpleDateFormat("EEEEEE, dd-MMM-yy HH:mm:ss zzz", Locale.ENGLISH),
+            new SimpleDateFormat("EEE MMMM d HH:mm:ss yyyy", Locale.ENGLISH)
+    };
 
     /**
      * SimpleDateFormat非线程安全，为了节省内存提高效率，把他放在ThreadLocal里
      * 用于设置HTTP响应头的时间信息
      */
-    private static final FastThreadLocal<DateFormat> FORMAT = new FastThreadLocal<DateFormat>() {
+    private static final FastThreadLocal<DateFormat> HTTP_DATE_FORMAT = new FastThreadLocal<DateFormat>() {
         private TimeZone timeZone = TimeZone.getTimeZone("GMT");
         @Override
         protected DateFormat initialValue() {
@@ -37,20 +49,8 @@ public class ServletUtil {
         }
     };
 
-    /**
-     * The only date format permitted when generating HTTP headers.
-     */
-    private static final String RFC1123_DATE =
-            "EEE, dd MMM yyyy HH:mm:ss zzz";
-
-    private static final SimpleDateFormat[] FORMATS_TEMPLATE = {
-            new SimpleDateFormat(RFC1123_DATE, Locale.getDefault()),
-            new SimpleDateFormat("EEEEEE, dd-MMM-yy HH:mm:ss zzz", Locale.getDefault()),
-            new SimpleDateFormat("EEE MMMM d HH:mm:ss yyyy", Locale.getDefault())
-    };
-
     static {
-        Class cookieDecoderClass = ReflectUtils.forName(
+        Class cookieDecoderClass = ReflectUtil.forName(
                 "io.netty.handler.codec.http.CookieDecoder",
                 "io.netty.handler.codec.http.ServerCookieDecoder"
         );
@@ -116,23 +116,41 @@ public class ServletUtil {
     }
 
     public static Cookie[] decodeCookie(String value){
-        Set<io.netty.handler.codec.http.Cookie> nettyCookieSet = (Set<io.netty.handler.codec.http.Cookie>) ReflectUtils.invokeMethod(null,COOKIE_DECODER_METHOD,value);
+        if(value == null){
+            return null;
+        }
+        Set<io.netty.handler.codec.http.Cookie> nettyCookieSet = (Set<io.netty.handler.codec.http.Cookie>) ReflectUtil.invokeMethod(null,COOKIE_DECODER_METHOD,value);
+        if(nettyCookieSet == null){
+            return null;
+        }
+
         io.netty.handler.codec.http.Cookie[] nettyCookieArr = nettyCookieSet.toArray(new io.netty.handler.codec.http.Cookie[nettyCookieSet.size()]);
         int size = nettyCookieArr.length;
         Cookie[] cookies = new Cookie[size];
+
+        NettyHttpCookie nettyHttpCookie = new NettyHttpCookie();
         for (int i=0; i< size; i++) {
             io.netty.handler.codec.http.Cookie nettyCookie = nettyCookieArr[i];
-            Cookie cookie = new Cookie(nettyCookie.name(),nettyCookie.value());
-            cookie.setComment(nettyCookie.comment());
-            String domain = nettyCookie.domain();
+            if(nettyCookie == null){
+                continue;
+            }
+
+            nettyHttpCookie.wrap(nettyCookie);
+
+            Cookie cookie = new Cookie(nettyHttpCookie.getName(),nettyHttpCookie.getValue());
+            String comment = nettyHttpCookie.getComment();
+            if(comment != null) {
+                cookie.setComment(comment);
+            }
+            String domain = nettyHttpCookie.getDomain();
             if(domain != null) {
                 cookie.setDomain(domain);
             }
             cookie.setHttpOnly(nettyCookie.isHttpOnly());
-            cookie.setMaxAge((int) nettyCookie.maxAge());
-            cookie.setPath(nettyCookie.path());
-            cookie.setVersion(nettyCookie.version());
-            cookie.setSecure(nettyCookie.isSecure());
+            cookie.setMaxAge((int) nettyHttpCookie.getMaxAge());
+            cookie.setPath(nettyHttpCookie.getPath());
+            cookie.setVersion(nettyHttpCookie.getVersion());
+            cookie.setSecure(nettyHttpCookie.isSecure());
 
             cookies[i] = cookie;
         }
@@ -196,8 +214,8 @@ public class ServletUtil {
     /**
      * @return 线程安全的获取当前时间格式化后的字符串
      */
-    public static CharSequence newDateGMT() {
-        return new AsciiString(FORMAT.get().format(new Date()));
+    public static String newDateGMT() {
+        return HTTP_DATE_FORMAT.get().format(new Date());
     }
 
 }

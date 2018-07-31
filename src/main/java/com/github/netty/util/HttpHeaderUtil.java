@@ -1,7 +1,7 @@
 package com.github.netty.util;
 
-import com.github.netty.core.NettyHttpRequestWarpper;
-import com.github.netty.core.NettyHttpResponse;
+import com.github.netty.core.adapter.NettyHttpRequest;
+import com.github.netty.core.adapter.NettyHttpResponse;
 import com.github.netty.core.constants.HttpHeaderConstants;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.*;
@@ -20,7 +20,7 @@ public class HttpHeaderUtil {
      * {@code "Connection"} header first and then the return value of
      * {@link HttpVersion#isKeepAliveDefault()}.
      */
-    public static boolean isKeepAlive(NettyHttpRequestWarpper message) {
+    public static boolean isKeepAlive(NettyHttpRequest message) {
         String connection = String.valueOf(message.headers().get(HttpHeaderConstants.CONNECTION));
         if (connection != null && HttpHeaderConstants.CLOSE.equalsIgnoreCase(connection)) {
             return false;
@@ -132,8 +132,8 @@ public class HttpHeaderUtil {
     private static int getWebSocketContentLength(HttpMessage message) {
         // WebSockset messages have constant content-lengths.
         HttpHeaders h = message.headers();
-        if (message instanceof NettyHttpRequestWarpper) {
-            NettyHttpRequestWarpper req = (NettyHttpRequestWarpper) message;
+        if (message instanceof NettyHttpRequest) {
+            NettyHttpRequest req = (NettyHttpRequest) message;
             if (HttpMethod.GET.equals(req.method()) &&
                     h.contains(HttpHeaderConstants.SEC_WEBSOCKET_KEY1) &&
                     h.contains(HttpHeaderConstants.SEC_WEBSOCKET_KEY2)) {
@@ -141,7 +141,7 @@ public class HttpHeaderUtil {
             }
         } else if (message instanceof NettyHttpResponse) {
             NettyHttpResponse res = (NettyHttpResponse) message;
-            if (res.getHttpStatus().code() == 101 &&
+            if (res.getStatus().code() == 101 &&
                     h.contains(HttpHeaderConstants.SEC_WEBSOCKET_ORIGIN) &&
                     h.contains(HttpHeaderConstants.SEC_WEBSOCKET_LOCATION)) {
                 return 16;
@@ -167,7 +167,7 @@ public class HttpHeaderUtil {
      * Returns {@code true} if and only if the specified message contains the
      * {@code "Expect: 100-continue"} header.
      */
-    public static boolean is100ContinueExpected(NettyHttpRequestWarpper message) {
+    public static boolean is100ContinueExpected(NettyHttpRequest message) {
         // Expect: 100-continue is for requests only.
         if (!(message instanceof HttpRequest)) {
             return false;

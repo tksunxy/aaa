@@ -1,6 +1,6 @@
 package com.github.netty.springboot;
 
-import com.github.netty.core.adapter.ChannelHandlerVersionAdapter;
+import com.github.netty.core.adapter.AbstractChannelHandler;
 import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletHttpServletResponse;
@@ -18,7 +18,7 @@ import javax.servlet.http.HttpServletResponse;
  *  2018/7/1/001
  */
 @ChannelHandler.Sharable
-public class NettyServletDispatcherHandler extends ChannelHandlerVersionAdapter<ServletHttpServletRequest> {
+public class NettyServletDispatcherHandler extends AbstractChannelHandler<ServletHttpServletRequest> {
 
     private ServletContext servletContext;
 
@@ -28,7 +28,7 @@ public class NettyServletDispatcherHandler extends ChannelHandlerVersionAdapter<
     }
 
     @Override
-    protected void adaptMessageReceived(ChannelHandlerContext ctx, ServletHttpServletRequest servletRequest) throws Exception {
+    protected void onMessageReceived(ChannelHandlerContext ctx, ServletHttpServletRequest servletRequest) throws Exception {
         HttpRequest nettyRequest = servletRequest.getNettyRequest();
         ServletHttpServletResponse servletResponse = newServletHttpServletResponse(ctx,servletRequest);
 
@@ -39,7 +39,7 @@ public class NettyServletDispatcherHandler extends ChannelHandlerVersionAdapter<
                 return;
             }
             dispatcher.dispatch(servletRequest, servletResponse, DispatcherType.REQUEST);
-        } finally {
+        }finally {
             if (!servletRequest.isAsyncStarted()) {
                 servletResponse.getOutputStream().close();
             }

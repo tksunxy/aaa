@@ -1,8 +1,9 @@
 package com.github.netty.servlet;
 
 import com.github.netty.servlet.support.StreamListener;
+import com.github.netty.util.ExceptionUtil;
 import com.github.netty.util.ObjectUtil;
-import com.github.netty.util.TodoOptimize;
+import com.github.netty.util.obj.TodoOptimize;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.channel.ChannelFuture;
@@ -131,6 +132,7 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream {
                             }
                         });
             }catch (Throwable e){
+                ExceptionUtil.printRootCauseStackTrace(e);
                 errorEvent(e);
             }
             closed = true;

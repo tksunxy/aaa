@@ -1,7 +1,7 @@
 package com.github.netty.servlet.support;
 
-import com.github.netty.core.NettyHttpRequestWarpper;
-import com.github.netty.core.NettyHttpResponse;
+import com.github.netty.core.adapter.NettyHttpRequest;
+import com.github.netty.core.adapter.NettyHttpResponse;
 import com.github.netty.core.constants.HttpConstants;
 import com.github.netty.core.constants.HttpHeaderConstants;
 import com.github.netty.servlet.ServletHttpServletRequest;
@@ -32,7 +32,7 @@ public class ServletOutputStreamListener implements StreamListener {
 
     @Override
     public void closeBefore(int totalLength) {
-        NettyHttpRequestWarpper nettyRequest = servletRequest.getNettyRequest();
+        NettyHttpRequest nettyRequest = servletRequest.getNettyRequest();
         NettyHttpResponse nettyResponse = servletResponse.getNettyResponse();
 
         settingResponse(nettyRequest,nettyResponse,servletRequest,servletResponse,totalLength);
@@ -53,8 +53,8 @@ public class ServletOutputStreamListener implements StreamListener {
      * @param servletResponse servlet响应
      * @param totalLength 总内容长度
      */
-    public void settingResponse(NettyHttpRequestWarpper nettyRequest,NettyHttpResponse nettyResponse,
-                                ServletHttpServletRequest servletRequest, ServletHttpServletResponse servletResponse,int totalLength) {
+    public void settingResponse(NettyHttpRequest nettyRequest, NettyHttpResponse nettyResponse,
+                                ServletHttpServletRequest servletRequest, ServletHttpServletResponse servletResponse, int totalLength) {
         String contentType = servletResponse.getContentType();
         String characterEncoding = servletResponse.getCharacterEncoding();
         List<Cookie> cookies = servletResponse.getCookies();
@@ -67,15 +67,15 @@ public class ServletOutputStreamListener implements StreamListener {
 
         HttpHeaders headers = nettyResponse.headers();
         if (null != contentType) {
-            String value = (null == characterEncoding) ? contentType : contentType + "; charset=" + characterEncoding; //Content Type 响应头的内容
+            String value = (null == characterEncoding) ? contentType : contentType + "; "+HttpHeaderConstants.CHARSET+"=" + characterEncoding; //Content Type 响应头的内容
             headers.set(HttpHeaderConstants.CONTENT_TYPE, value);
         }
-        CharSequence date = ServletUtil.newDateGMT();
-        headers.set(HttpHeaderConstants.DATE, date); // 时间日期响应头
+
+        headers.set(HttpHeaderConstants.DATE, ServletUtil.newDateGMT()); // 时间日期响应头
         headers.set(HttpHeaderConstants.SERVER, servletRequest.getServletContext().getServerInfo()); //服务器信息响应头
 
         // cookies处理
-//        long curTime = System.currentTimeMillis(); //用于根据maxAge计算Cookie的Expires
+        //long curTime = System.currentTimeMillis(); //用于根据maxAge计算Cookie的Expires
         //先处理Session ，如果是新Session需要通过Cookie写入
         if (servletRequest.getSession().isNew()) {
             String sessionCookieStr = HttpConstants.JSESSION_ID_COOKIE + "=" + servletRequest.getRequestedSessionId() + "; " +
@@ -87,6 +87,9 @@ public class ServletOutputStreamListener implements StreamListener {
         //其他业务或框架设置的cookie，逐条写入到响应头去
         if(cookies != null) {
             for (Cookie cookie : cookies) {
+                if(cookie == null){
+                    continue;
+                }
                 StringBuilder sb = new StringBuilder();
                 sb.append(cookie.getName()).append("=").append(cookie.getValue())
                         .append("; max-Age=").append(cookie.getMaxAge());

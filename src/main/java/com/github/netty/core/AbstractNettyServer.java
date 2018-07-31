@@ -148,6 +148,7 @@ public abstract class AbstractNettyServer implements Runnable{
         if(cause != null){
             PlatformDependent.throwException(cause);
         }
+        System.out.println("netty serverStart["+getPort()+"]...");
     }
 
     @Override

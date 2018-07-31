@@ -1,7 +1,7 @@
 package com.github.netty.springboot;
 
-import com.github.netty.core.NettyHttpRequestWarpper;
-import com.github.netty.core.adapter.ChannelHandlerVersionAdapter;
+import com.github.netty.core.adapter.NettyHttpRequest;
+import com.github.netty.core.adapter.AbstractChannelHandler;
 import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletInputStream;
@@ -15,10 +15,11 @@ import io.netty.handler.codec.http.*;
  * channel恢复时，关闭输入流，等待下一次连接到来
  * @author 84215
  */
-public class NettyServletCodecHandler extends ChannelHandlerVersionAdapter<HttpObject> {
+public class NettyServletCodecHandler extends AbstractChannelHandler<HttpObject> {
 
     private ServletContext servletContext;
-    private ServletInputStream inputStream; // FIXME this feels wonky, need a better approach
+    // FIXME this feels wonky, need a better approach
+    private ServletInputStream inputStream;
 
     public NettyServletCodecHandler(ServletContext servletContext) {
         this.servletContext = servletContext;
@@ -30,9 +31,14 @@ public class NettyServletCodecHandler extends ChannelHandlerVersionAdapter<HttpO
     }
 
     @Override
-    protected void adaptMessageReceived(ChannelHandlerContext ctx, HttpObject msg) throws Exception {
+    protected void onMessageReceived(ChannelHandlerContext ctx, HttpObject msg) throws Exception {
+        //EmptyLastHttpContent, DefaultLastHttpContent
+        if (msg instanceof HttpContent) {
+            inputStream.addContent((HttpContent) msg);
+        }
+
         if (msg instanceof HttpRequest) {
-            NettyHttpRequestWarpper request = new NettyHttpRequestWarpper((HttpRequest) msg);
+            NettyHttpRequest request = new NettyHttpRequest((HttpRequest) msg);
 
             if (HttpHeaderUtil.is100ContinueExpected(request)) { //请求头包含Expect: 100-continue
                 ctx.write(new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.CONTINUE), ctx.voidPromise());
@@ -42,10 +48,6 @@ public class NettyServletCodecHandler extends ChannelHandlerVersionAdapter<HttpO
 
             ctx.fireChannelRead(servletRequest);
         }
-
-        if (msg instanceof HttpContent) { //EmptyLastHttpContent, DefaultLastHttpContent
-            inputStream.addContent((HttpContent) msg);
-        }
     }
 
     @Override
@@ -53,7 +55,7 @@ public class NettyServletCodecHandler extends ChannelHandlerVersionAdapter<HttpO
         inputStream.close();
     }
 
-    private ServletHttpServletRequest newServletHttpServletRequest(NettyHttpRequestWarpper request){
+    private ServletHttpServletRequest newServletHttpServletRequest(NettyHttpRequest request){
         ServletHttpServletRequest servletRequest = new ServletHttpServletRequest(inputStream, servletContext, request);
 //        ProxyUtil.setEnableProxy(true);
 //        ServletHttpServletRequest servletRequest = ProxyUtil.newProxyByCglib(

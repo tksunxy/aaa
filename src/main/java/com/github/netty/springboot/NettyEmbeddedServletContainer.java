@@ -5,7 +5,7 @@ import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletFilterRegistration;
 import com.github.netty.servlet.ServletRegistration;
 import com.github.netty.servlet.support.ServletEventListenerManager;
-import com.github.netty.util.TodoOptimize;
+import com.github.netty.util.obj.TodoOptimize;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
@@ -92,7 +92,6 @@ public class NettyEmbeddedServletContainer extends AbstractNettyServer implement
         initServlet();
 
         serverThread.start();
-        System.out.println("启动成功 "+servletContext.getServerInfo()+"["+getPort()+"]...");
     }
 
     @Override

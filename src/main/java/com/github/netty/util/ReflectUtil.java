@@ -2,7 +2,6 @@ package com.github.netty.util;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.util.StringUtils;
 
 import java.lang.reflect.*;
 import java.util.List;
@@ -11,11 +10,11 @@ import java.util.Objects;
 /**
  * 反射工具类.
  * 提供调用getter/setter方法, 访问私有变量, 调用私有方法, 获取泛型类型Class, 被AOP过的真实类等工具函数.
- * @author blues
- * @version 2015-11-12
+ * @author acer01
+ *
  */
 @SuppressWarnings("rawtypes")
-public class ReflectUtils {
+public class ReflectUtil {
 
     private static final String POINT = ".";
 	
@@ -25,7 +24,7 @@ public class ReflectUtils {
 
 	private static final String CGLIB_CLASS_SEPARATOR = "$$";
 	
-	private static Logger logger = LoggerFactory.getLogger(ReflectUtils.class);
+	private static Logger logger = LoggerFactory.getLogger(ReflectUtil.class);
 
 	/**
 	 * 调用Getter方法.
@@ -33,8 +32,12 @@ public class ReflectUtils {
 	 */
 	public static Object invokeGetter(Object obj, String propertyName) {
 		Object object = obj;
-		for (String name : StringUtils.split(propertyName, POINT)){
-			String getterMethodName = GETTER_PREFIX + StringUtils.capitalize(name);
+		String[] splits = StringUtil.split(propertyName, POINT);
+		if(splits == null){
+			throw new RuntimeException("参数错误"); 
+		}
+		for (String name :splits){
+			String getterMethodName = GETTER_PREFIX + StringUtil.capitalize(name);
 			object = invokeMethod(object, getterMethodName, new Class[] {}, new Object[] {});
 		}
 		return object;
@@ -46,13 +49,16 @@ public class ReflectUtils {
 	 */
 	public static void invokeSetter(Object obj, String propertyName, Object value) {
 		Object object = obj;
-		String[] names = StringUtils.split(propertyName, ".");
+		String[] names = StringUtil.split(propertyName, ".");
+		if(names == null){
+			throw new RuntimeException("参数错误");
+		}
 		for (int i=0; i<names.length; i++){
 			if(i<names.length-1){
-				String getterMethodName = GETTER_PREFIX + StringUtils.capitalize(names[i]);
+				String getterMethodName = GETTER_PREFIX + StringUtil.capitalize(names[i]);
 				object = invokeMethod(object, getterMethodName, new Class[] {}, new Object[] {});
 			}else{
-				String setterMethodName = SETTER_PREFIX + StringUtils.capitalize(names[i]);
+				String setterMethodName = SETTER_PREFIX + StringUtil.capitalize(names[i]);
 				invokeMethodByName(object, setterMethodName, new Object[] { value });
 			}
 		}
@@ -156,7 +162,7 @@ public class ReflectUtils {
 	 * 只匹配函数名，如果有多个同名函数调用第一个。
 	 */
 	public static Object invokeMethodByName(final Object obj, final String methodName, final Object[] args) {
-		Method method = getAccessibleMethodByName(obj, methodName, args.length);
+		Method method = getAccessibleMethodByName(obj.getClass(), methodName, args.length);
 		if (method == null) {
 			throw new IllegalArgumentException("在 [" + obj.getClass() + "] 中，没有找到 [" + methodName + "] 方法 ");
 		}
@@ -231,10 +237,10 @@ public class ReflectUtils {
 	 * 只匹配函数名。
 	 * 用于方法需要被多次调用的情况. 先使用本函数先取得Method,然后调用Method.invoke(Object obj, Object... args)
 	 */
-	public static Method getAccessibleMethodByName(final Object obj, final String methodName, int argsNum) {
-		Objects.requireNonNull(obj, "object can't be null");
+	public static Method getAccessibleMethodByName(final Class clazz, final String methodName, int argsNum) {
+		Objects.requireNonNull(clazz, "object can't be null");
 		Objects.requireNonNull(methodName, "methodName can't be blank");
-		for (Class<?> searchType = obj.getClass(); searchType != Object.class; searchType = searchType.getSuperclass()) {
+		for (Class<?> searchType = clazz; searchType != Object.class; searchType = searchType.getSuperclass()) {
 			Method[] methods = searchType.getDeclaredMethods();
 			for (Method method : methods) {
                 Class<?>[]  types = method.getParameterTypes();

@@ -151,9 +151,8 @@ public class UrlMapper<T> {
             }else if(absoluteUri.startsWith(element.pattern)){
                 list.add(element.object);
             }
-
         }
-        return null;
+        return list;
     }
 
     private String toPath(String absolutePath){

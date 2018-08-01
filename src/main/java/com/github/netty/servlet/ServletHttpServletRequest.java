@@ -15,9 +15,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
+import java.net.*;
 import java.security.Principal;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -58,8 +56,9 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     private final NettyHttpRequest nettyRequest;
     private final HttpHeaders nettyHeaders;
+    private URI uri;
 
-    public ServletHttpServletRequest(ServletInputStream inputStream, ServletContext servletContext, NettyHttpRequest nettyRequest) {
+    public ServletHttpServletRequest(ServletInputStream inputStream, ServletContext servletContext, NettyHttpRequest nettyRequest){
         this.nettyRequest = nettyRequest;
         this.nettyHeaders = nettyRequest.headers();
         this.attributeMap = null;
@@ -510,13 +509,21 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String getScheme() {
-        return nettyRequest.protocolVersion().protocolName().toString();
+        return String.valueOf(nettyRequest.protocolVersion().protocolName()).toLowerCase();
     }
 
     @TodoOptimize("用于写cookie作用域, 可以实现跨域会话追踪")
     @Override
     public String getServerName() {
-        return servletContext.getServerSocketAddress().getHostName();
+        if(uri == null){
+            try {
+                uri = new URI(nettyRequest.getUri());
+            } catch (URISyntaxException e) {
+                return getHeader(HttpHeaderConstants.HOST);
+            }
+        }
+        return uri.getHost();
+//        return servletContext.getServerSocketAddress().getHostName();
     }
 
     @Override

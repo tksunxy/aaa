@@ -128,7 +128,9 @@ public class NettyHttpResponse implements HttpResponse,Wrapper<HttpResponse> {
 
     @Override
     public String toString() {
-        return source.toString();
+        return "NettyHttpResponse{" +
+                "sourceClass=" + sourceClass +
+                '}';
     }
 
 }

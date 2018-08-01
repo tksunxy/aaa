@@ -72,8 +72,19 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         this.usingReaderFlag = false;
     }
 
+    private InetSocketAddress getLocalAddress(){
+        SocketAddress socketAddress = nettyRequest.getChannel().localAddress();
+        if(socketAddress == null){
+            return null;
+        }
+        if(socketAddress instanceof InetSocketAddress){
+            return (InetSocketAddress) socketAddress;
+        }
+        return null;
+    }
+
     private InetSocketAddress getRemoteAddress(){
-        SocketAddress socketAddress = inputStream.getChannel().remoteAddress();
+        SocketAddress socketAddress = nettyRequest.getChannel().remoteAddress();
         if(socketAddress == null){
             return null;
         }
@@ -462,11 +473,6 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public ServletInputStream getInputStream() throws IOException {
-        if(usingReaderFlag){
-            throw new IllegalStateException("stream not double using");
-        }
-
-        usingReaderFlag = true;
         return inputStream;
     }
 
@@ -515,15 +521,11 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     @TodoOptimize("用于写cookie作用域, 可以实现跨域会话追踪")
     @Override
     public String getServerName() {
-        if(uri == null){
-            try {
-                uri = new URI(nettyRequest.getUri());
-            } catch (URISyntaxException e) {
-                return getHeader(HttpHeaderConstants.HOST);
-            }
+        InetSocketAddress inetSocketAddress = getLocalAddress();
+        if(inetSocketAddress != null) {
+            return inetSocketAddress.getHostName();
         }
-        return uri.getHost();
-//        return servletContext.getServerSocketAddress().getHostName();
+        return servletContext.getServerSocketAddress().getHostName();
     }
 
     @Override

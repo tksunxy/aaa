@@ -2,6 +2,7 @@ package com.github.netty.util;
 
 import com.github.netty.core.adapter.NettyHttpCookie;
 import com.github.netty.core.constants.HttpHeaderConstants;
+import io.netty.handler.codec.http.DefaultCookie;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.handler.codec.http.multipart.*;
@@ -24,6 +25,8 @@ public class ServletUtil {
 
     private static HttpDataFactory HTTP_DATA_FACTORY;
     private static final Method COOKIE_DECODER_METHOD;
+    private static final Method COOKIE_ENCODER_METHOD;
+
     /**
      * The only date format permitted when generating HTTP headers.
      */
@@ -55,16 +58,27 @@ public class ServletUtil {
                 "io.netty.handler.codec.http.CookieDecoder",
                 "io.netty.handler.codec.http.ServerCookieDecoder"
         );
-        if(cookieDecoderClass == null) {
-            throw new RuntimeException("netty版本错误");
+        Class cookieEncoderClass = ReflectUtil.forName(
+                "io.netty.handler.codec.http.CookieEncoder",
+                "io.netty.handler.codec.http.ServerCookieEncoder"
+        );
+
+        if(cookieDecoderClass == null || cookieEncoderClass == null) {
+            throw new RuntimeException("netty版本不兼容");
         }
+
         try {
             COOKIE_DECODER_METHOD = cookieDecoderClass.getDeclaredMethod("decode",String.class);
             if(COOKIE_DECODER_METHOD == null){
-                throw new RuntimeException("netty版本错误");
+                throw new RuntimeException("netty版本不兼容");
+            }
+
+            COOKIE_ENCODER_METHOD = cookieEncoderClass.getDeclaredMethod("encode", io.netty.handler.codec.http.Cookie.class);
+            if(COOKIE_ENCODER_METHOD == null){
+                throw new RuntimeException("netty版本不兼容");
             }
         } catch (NoSuchMethodException e) {
-            throw new RuntimeException("netty版本错误");
+            throw new RuntimeException("netty版本不兼容");
         }
     }
 
@@ -116,11 +130,16 @@ public class ServletUtil {
         return encoding.trim();
     }
 
+    public static String encodeCookie(io.netty.handler.codec.http.Cookie cookie){
+        String value = (String) ReflectUtil.invokeMethod(null,COOKIE_ENCODER_METHOD,cookie);
+        return value;
+    }
+
     public static Cookie[] decodeCookie(String value){
         if(value == null){
             return null;
         }
-        Set<io.netty.handler.codec.http.Cookie> nettyCookieSet = (Set<io.netty.handler.codec.http.Cookie>) ReflectUtil.invokeMethod(null,COOKIE_DECODER_METHOD,value);
+        Collection<io.netty.handler.codec.http.Cookie> nettyCookieSet = (Collection<io.netty.handler.codec.http.Cookie>) ReflectUtil.invokeMethod(null,COOKIE_DECODER_METHOD,value);
         if(nettyCookieSet == null){
             return null;
         }
@@ -137,25 +156,46 @@ public class ServletUtil {
             }
 
             nettyHttpCookie.wrap(nettyCookie);
-
-            Cookie cookie = new Cookie(nettyHttpCookie.getName(),nettyHttpCookie.getValue());
-            String comment = nettyHttpCookie.getComment();
-            if(comment != null) {
-                cookie.setComment(comment);
-            }
-            String domain = nettyHttpCookie.getDomain();
-            if(domain != null) {
-                cookie.setDomain(domain);
-            }
-            cookie.setHttpOnly(nettyCookie.isHttpOnly());
-            cookie.setMaxAge((int) nettyHttpCookie.getMaxAge());
-            cookie.setPath(nettyHttpCookie.getPath());
-            cookie.setVersion(nettyHttpCookie.getVersion());
-            cookie.setSecure(nettyHttpCookie.isSecure());
-
-            cookies[i] = cookie;
+            cookies[i] = toServletCookie(nettyHttpCookie);
         }
         return cookies;
+    }
+
+    public static Cookie toServletCookie(NettyHttpCookie nettyCookie){
+        Cookie cookie = new Cookie(nettyCookie.getName(), nettyCookie.getValue());
+        String comment = nettyCookie.getComment();
+        if(comment != null) {
+            cookie.setComment(comment);
+        }
+        String domain = nettyCookie.getDomain();
+        if(domain != null) {
+            cookie.setDomain(domain);
+        }
+        cookie.setHttpOnly(nettyCookie.isHttpOnly());
+        cookie.setMaxAge((int) nettyCookie.getMaxAge());
+        cookie.setPath(nettyCookie.getPath());
+        cookie.setVersion(nettyCookie.getVersion());
+        cookie.setSecure(nettyCookie.isSecure());
+        return cookie;
+    }
+
+    public static io.netty.handler.codec.http.Cookie toNettyCookie(Cookie cookie){
+        io.netty.handler.codec.http.Cookie nettyCookie = new DefaultCookie(cookie.getName(),cookie.getValue());
+        String comment = cookie.getComment();
+        if(comment != null) {
+            nettyCookie.setComment(comment);
+        }
+        String domain = cookie.getDomain();
+        if(domain != null) {
+            nettyCookie.setDomain(domain);
+        }
+        nettyCookie.setHttpOnly(nettyCookie.isHttpOnly());
+        nettyCookie.setMaxAge(cookie.getMaxAge());
+        nettyCookie.setPath(cookie.getPath());
+        nettyCookie.setVersion(cookie.getVersion());
+        nettyCookie.setSecure(cookie.getSecure());
+
+        return nettyCookie;
     }
 
     public static void decodeByBody(Map<String,String[]> parameterMap,HttpRequest httpRequest){

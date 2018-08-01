@@ -1,6 +1,7 @@
 package com.github.netty.springboot;
 
 import com.github.netty.core.AbstractNettyServer;
+import com.github.netty.core.HelloWorldHttp2Handler;
 import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletFilterRegistration;
 import com.github.netty.servlet.ServletRegistration;
@@ -13,8 +14,11 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
+import io.netty.handler.codec.http.HttpServerUpgradeHandler;
+import io.netty.handler.codec.http2.Http2ServerUpgradeCodec;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import io.netty.util.concurrent.EventExecutorGroup;
 import org.springframework.boot.context.embedded.EmbeddedServletContainer;
@@ -26,7 +30,9 @@ import javax.net.ssl.SSLException;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletException;
 import java.io.File;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  *
@@ -37,27 +43,24 @@ public class NettyEmbeddedServletContainer extends AbstractNettyServer implement
 
     private ServletContext servletContext;
     private EventExecutorGroup dispatcherExecutorGroup;
-    private final boolean enableSsl;
+    private boolean enableSsl;
     private SslContext sslContext;
     private ChannelHandler dispatcherHandler;
+    private ChannelHandler servletCodecHandler;
     private final Thread serverThread;
+    private Set<HttpServerUpgradeHandler.UpgradeCodec> httpServerUpgradeCodecSet;
 
     @TodoOptimize("ssl没测试能不能用")
     public NettyEmbeddedServletContainer(ServletContext servletContext,Ssl ssl,int bizThreadCount) throws SSLException {
         super(servletContext.getServerSocketAddress());
-
         this.servletContext = servletContext;
-        this.enableSsl = ssl != null && ssl.isEnabled();
-        if(enableSsl){
-            this.sslContext = newSslContext(ssl);
-        }
+        this.servletCodecHandler = new NettyServletCodecHandler(servletContext);
         this.dispatcherExecutorGroup = new DefaultEventExecutorGroup(bizThreadCount);
-        this.dispatcherHandler = new NettyServletDispatcherHandler(servletContext);
+        this.dispatcherHandler = new NettyServletDispatcherHandler();
         this.serverThread = new Thread(this);
-        serverThread.setName(servletContext.getServerInfo());
-        serverThread.setUncaughtExceptionHandler((thread,throwable)->{
-            //
-        });
+
+        configServerThread();
+        initSsl(ssl);
     }
 
     @Override
@@ -73,10 +76,18 @@ public class NettyEmbeddedServletContainer extends AbstractNettyServer implement
                     pipeline.addLast("SSL", new SslHandler(engine));
                 }
 
-                pipeline.addLast("HttpCodec", new HttpServerCodec(4096, 8192, 8192, false)); //HTTP编码解码Handler
-                pipeline.addLast("Aggregator", new HttpObjectAggregator(512 * 1024));  // HTTP聚合，设置最大消息值为512KB
-                pipeline.addLast("ServletCodec",new NettyServletCodecHandler(servletContext) ); //处理请求，读入数据，生成Request和Response对象
-                pipeline.addLast(dispatcherExecutorGroup, "Dispatcher", dispatcherHandler); //获取请求分发器，让对应的Servlet处理请求，同时处理404情况
+                HttpServerCodec httpServerCodec = new HttpServerCodec(4096, 8192, 8192, false);
+
+                //HTTP编码解码
+                pipeline.addLast("HttpCodec", httpServerCodec);
+                //HTTP聚合，设置最大消息值为512KB
+                pipeline.addLast("Aggregator", new HttpObjectAggregator(512 * 1024));
+                //分段写入, 防止响应数据过大
+                pipeline.addLast("ChunkedWrite",new ChunkedWriteHandler());
+                //生成servletRequest和servletResponse对象
+                pipeline.addLast("ServletCodec",servletCodecHandler);
+                //业务调度器, 让对应的Servlet处理请求
+                pipeline.addLast(dispatcherExecutorGroup, "Dispatcher", dispatcherHandler);
             }
         };
     }
@@ -153,6 +164,22 @@ public class NettyEmbeddedServletContainer extends AbstractNettyServer implement
         for(Map.Entry<String,ServletRegistration> entry : servletRegistrationMap.entrySet()){
             ServletRegistration registration = entry.getValue();
             registration.getServlet().destroy();
+        }
+    }
+
+    private void configServerThread() throws SSLException {
+
+
+        serverThread.setName(servletContext.getServerInfo());
+        serverThread.setUncaughtExceptionHandler((thread,throwable)->{
+            //
+        });
+    }
+
+    private void initSsl(Ssl ssl) throws SSLException {
+        this.enableSsl = ssl != null && ssl.isEnabled();
+        if(enableSsl){
+            this.sslContext = newSslContext(ssl);
         }
     }
 

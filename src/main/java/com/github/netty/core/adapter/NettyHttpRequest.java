@@ -1,6 +1,7 @@
 package com.github.netty.core.adapter;
 
 import com.github.netty.util.ReflectUtil;
+import io.netty.channel.Channel;
 import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.http.*;
 
@@ -19,14 +20,20 @@ public class NettyHttpRequest implements HttpRequest,Wrapper<HttpRequest>{
     private HttpRequest source;
     private Class sourceClass;
     private final Object lock = new Object();
-    
+    private Channel channel;
+
     private List<Method> getProtocolVersionMethodList;
     private List<Method> getMethodMethodList;
     private List<Method> getUriMethodList;
     private List<Method> getDecoderResultMethodList;
     
-    public NettyHttpRequest(HttpRequest source) {
+    public NettyHttpRequest(HttpRequest source,Channel channel) {
         wrap(source);
+        this.channel = Objects.requireNonNull(channel);
+    }
+
+    public Channel getChannel() {
+        return channel;
     }
 
     public HttpMethod getMethod() {
@@ -151,9 +158,11 @@ public class NettyHttpRequest implements HttpRequest,Wrapper<HttpRequest>{
         return source.equals(obj);
     }
 
+
     @Override
     public String toString() {
-        return source.toString();
+        return "NettyHttpRequest{" +
+                "sourceClass=" + sourceClass +
+                '}';
     }
-
 }

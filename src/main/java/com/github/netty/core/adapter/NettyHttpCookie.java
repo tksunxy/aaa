@@ -328,7 +328,9 @@ public class NettyHttpCookie implements Cookie,Wrapper<Cookie> {
 
     @Override
     public String toString() {
-        return source.toString();
+        return "NettyHttpCookie{" +
+                "sourceClass=" + sourceClass +
+                '}';
     }
-    
+
 }

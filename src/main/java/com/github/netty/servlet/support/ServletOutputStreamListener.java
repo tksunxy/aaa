@@ -1,5 +1,6 @@
 package com.github.netty.servlet.support;
 
+import com.github.netty.core.adapter.NettyHttpCookie;
 import com.github.netty.core.adapter.NettyHttpRequest;
 import com.github.netty.core.adapter.NettyHttpResponse;
 import com.github.netty.core.constants.HttpConstants;
@@ -55,22 +56,27 @@ public class ServletOutputStreamListener implements StreamListener {
      */
     public void settingResponse(NettyHttpRequest nettyRequest, NettyHttpResponse nettyResponse,
                                 ServletHttpServletRequest servletRequest, ServletHttpServletResponse servletResponse, int totalLength) {
-        String contentType = servletResponse.getContentType();
-        String characterEncoding = servletResponse.getCharacterEncoding();
-        List<Cookie> cookies = servletResponse.getCookies();
+        settingHeader(nettyRequest, nettyResponse, servletRequest, servletResponse, totalLength);
+    }
 
+
+    private void settingHeader(NettyHttpRequest nettyRequest, NettyHttpResponse nettyResponse,
+                               ServletHttpServletRequest servletRequest, ServletHttpServletResponse servletResponse,int totalLength){
         HttpHeaderUtil.setKeepAlive(nettyResponse, HttpHeaderUtil.isKeepAlive(nettyRequest));
 
         if (!HttpHeaderUtil.isKeepAlive(nettyRequest) && !HttpHeaderUtil.isContentLengthSet(nettyResponse)) {
             HttpHeaderUtil.setContentLength(nettyResponse, totalLength);
         }
 
+        String contentType = servletResponse.getContentType();
+        String characterEncoding = servletResponse.getCharacterEncoding();
+        List<Cookie> cookies = servletResponse.getCookies();
+
         HttpHeaders headers = nettyResponse.headers();
         if (null != contentType) {
             String value = (null == characterEncoding) ? contentType : contentType + "; "+HttpHeaderConstants.CHARSET+"=" + characterEncoding; //Content Type 响应头的内容
             headers.set(HttpHeaderConstants.CONTENT_TYPE, value);
         }
-
         headers.set(HttpHeaderConstants.DATE, ServletUtil.newDateGMT()); // 时间日期响应头
         headers.set(HttpHeaderConstants.SERVER, servletRequest.getServletContext().getServerInfo()); //服务器信息响应头
 
@@ -86,20 +92,13 @@ public class ServletOutputStreamListener implements StreamListener {
 
         //其他业务或框架设置的cookie，逐条写入到响应头去
         if(cookies != null) {
+            NettyHttpCookie nettyCookie = new NettyHttpCookie();
             for (Cookie cookie : cookies) {
+                nettyCookie.wrap(ServletUtil.toNettyCookie(cookie));
                 if(cookie == null){
                     continue;
                 }
-                StringBuilder sb = new StringBuilder();
-                sb.append(cookie.getName()).append("=").append(cookie.getValue())
-                        .append("; max-Age=").append(cookie.getMaxAge());
-                if (cookie.getPath() != null) {
-                    sb.append("; path=").append(cookie.getPath());
-                }
-                if (cookie.getDomain() != null) {
-                    sb.append("; domain=").append(cookie.getDomain());
-                }
-                headers.add(HttpHeaderConstants.SET_COOKIE, sb.toString());
+                headers.add(HttpHeaderConstants.SET_COOKIE, ServletUtil.encodeCookie(nettyCookie));
             }
         }
     }

@@ -2,7 +2,6 @@ package com.github.netty.servlet;
 
 import com.github.netty.util.ObjectUtil;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCountUtil;
@@ -22,17 +21,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class ServletInputStream extends javax.servlet.ServletInputStream {
 
-    private final Channel channel; //netty ChannelHandlerContext的channel
     private AtomicBoolean closed; //输入流是否已经关闭，保证线程安全
     private final BlockingQueue<HttpContent> queue; //HttpContent的队列，一次请求可能有多次加入
     private HttpContent current;
     private int currentLength;
     private ReadListener readListener;
 
-    public ServletInputStream(Channel channel) {
-        this.channel = ObjectUtil.checkNotNull(channel);
+    public ServletInputStream(HttpContent httpContent) {
         this.closed = new AtomicBoolean();
         queue = new LinkedBlockingQueue<>();
+        addContent(httpContent);
     }
 
     public void addContent(HttpContent httpContent) {
@@ -198,9 +196,7 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
                 if (current != null || !blocking) { //队列中读取到数据，或者readListener非空（非阻塞），则退出
                     break;
                 }
-                if (!channel.isActive()) {
-                    throw new IOException("Channel is not active");
-                }
+
             }
         }
     }
@@ -211,7 +207,4 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
         }
     }
 
-    Channel getChannel() {
-        return channel;
-    }
 }

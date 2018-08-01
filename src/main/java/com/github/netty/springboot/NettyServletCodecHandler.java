@@ -27,6 +27,7 @@ public class NettyServletCodecHandler extends AbstractChannelHandler<HttpObject>
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        super.channelActive(ctx);
         inputStream = new ServletInputStream(ctx.channel());
     }
 
@@ -52,6 +53,7 @@ public class NettyServletCodecHandler extends AbstractChannelHandler<HttpObject>
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        super.channelInactive(ctx);
         inputStream.close();
     }
 

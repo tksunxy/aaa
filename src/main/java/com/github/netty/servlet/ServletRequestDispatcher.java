@@ -10,11 +10,9 @@ import java.io.IOException;
  */
 public class ServletRequestDispatcher implements RequestDispatcher {
 
-    private ServletContext context;
     private FilterChain filterChain;
 
-    ServletRequestDispatcher(ServletContext context, FilterChain filterChain) {
-        this.context = context;
+    ServletRequestDispatcher(FilterChain filterChain) {
         this.filterChain = filterChain;
     }
 

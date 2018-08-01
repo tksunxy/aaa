@@ -38,17 +38,20 @@ public class UrlMapper<T> {
         Objects.requireNonNull(object);
         Objects.requireNonNull(objectName);
 
+        Element element;
+
         // 路径匹配
         if (urlPattern.endsWith("/*")) {
             String pattern = urlPattern.substring(0, urlPattern.length() - 1);
-            for (MapElement ms : urlPatternContext.wildcardObjectList) {
+            for (Element ms : urlPatternContext.wildcardObjectList) {
                 if (ms.pattern.equals(pattern)) {
                     throwsIf("URL Pattern('" + urlPattern + "') already exists!",singlePattern);
                 }
             }
-            MapElement newServlet = new MapElement(pattern, object, objectName);
-            urlPatternContext.wildcardObjectList.add(newServlet);
+            element = new Element(pattern, object, objectName);
+            urlPatternContext.wildcardObjectList.add(element);
             urlPatternContext.wildcardObjectList.sort((o1, o2) -> o2.pattern.compareTo(o1.pattern));
+            urlPatternContext.addElement(element);
             log.debug("Curretn Wildcard URL Pattern List = " + Arrays.toString(urlPatternContext.wildcardObjectList.toArray()));
             return;
         }
@@ -59,8 +62,9 @@ public class UrlMapper<T> {
             if (urlPatternContext.extensionObjectMap.get(pattern) != null) {
                 throwsIf("URL Pattern('" + urlPattern + "') already exists!",singlePattern);
             }
-            MapElement newServlet = new MapElement(pattern, object, objectName);
-            urlPatternContext.extensionObjectMap.put(pattern, newServlet);
+            element = new Element(pattern, object, objectName);
+            urlPatternContext.extensionObjectMap.put(pattern, element);
+            urlPatternContext.addElement(element);
             log.debug("Curretn Extension URL Pattern List = " + Arrays.toString(urlPatternContext.extensionObjectMap.keySet().toArray()));
             return;
         }
@@ -70,7 +74,9 @@ public class UrlMapper<T> {
             if (urlPatternContext.defaultObject != null) {
                 throwsIf("URL Pattern('" + urlPattern + "') already exists!",singlePattern);
             }
-            urlPatternContext.defaultObject = new MapElement("", object, objectName);
+            element = new Element("", object, objectName);
+            urlPatternContext.defaultObject = element;
+            urlPatternContext.addElement(element);
             return;
         }
 
@@ -84,8 +90,9 @@ public class UrlMapper<T> {
         if (urlPatternContext.exactObjectMap.get(pattern) != null) {
             throwsIf("URL Pattern('" + urlPattern + "') already exists!",singlePattern);
         }
-        MapElement newServlet = new MapElement(pattern, object, objectName);
-        urlPatternContext.exactObjectMap.put(pattern, newServlet);
+        element = new Element(pattern, object, objectName);
+        urlPatternContext.exactObjectMap.put(pattern, element);
+        urlPatternContext.addElement(element);
         log.debug("Curretn Exact URL Pattern List = " + Arrays.toString(urlPatternContext.exactObjectMap.keySet().toArray()));
     }
 
@@ -130,59 +137,80 @@ public class UrlMapper<T> {
         return mappingData == null? null : mappingData.objectName;
     }
 
-    public List<String> getMappingUrlPatternByObjectName(String objectName) {
+    public T getMappingObjectByUri(String absoluteUri) {
+        MappingData mappingData = getMapping(absoluteUri);
+        return mappingData == null? null : mappingData.object;
+    }
+
+    public List<T> getMappingObjectsByUri(String absoluteUri) {
+        List<T> list = new LinkedList<>();
+
+        for(Element element : urlPatternContext.totalObjectList){
+            if("*".equals(element.pattern) || "/".equals(element.pattern) || "/*".equals(element.pattern) || "/**".equals(element.pattern)){
+                list.add(element.object);
+            }else if(absoluteUri.startsWith(element.pattern)){
+                list.add(element.object);
+            }
+
+        }
         return null;
     }
 
-    private MappingData getMapping(String absolutePath) {
-        MapElement mapElement = null;
-
+    private String toPath(String absolutePath){
         // 处理ContextPath，获取访问的相对URI
-        boolean noServletPath = absolutePath.equals(contextPath) || absolutePath.equals(contextPath + "/");
+        boolean noContextPath = absolutePath.equals(contextPath) || absolutePath.equals(contextPath + "/");
         if (!absolutePath.startsWith(contextPath)) {
             return null;
         }
 
-        String path = noServletPath ? "/" : absolutePath.substring(contextPath.length());
+        String path = noContextPath ? "/" : absolutePath.substring(contextPath.length());
         //去掉查询字符串
         int queryInx = path.indexOf('?');
         if(queryInx > -1){
             path = path.substring(0, queryInx);
         }
+        return path;
+    }
+
+    private MappingData getMapping(String absolutePath) {
+        String path = toPath(absolutePath);
+        // 路径为空时，重定向到“/”
+        if(path == null || "/".equals(path)){
+            if (urlPatternContext.defaultObject == null) {
+                return null;
+            }
+            return new MappingData(urlPatternContext.defaultObject.object,urlPatternContext.defaultObject.objectName);
+        }
+
+        //TODO 暂不考虑JSP的处理
 
         // 优先进行精确匹配
-        mapElement = urlPatternContext.exactObjectMap.get(path);
-        if (mapElement != null) {
-            return new MappingData(mapElement.object,mapElement.objectName);
+        Element element = urlPatternContext.exactObjectMap.get(path);
+        if (element != null) {
+            return new MappingData(element.object,element.objectName);
         }
 
         // 然后进行路径匹配
         if (!path.endsWith("/")) {
             path = path + "/";
         }
-        for (MapElement ms : urlPatternContext.wildcardObjectList) {
+        for (Element ms : urlPatternContext.wildcardObjectList) {
             if (path.startsWith(ms.pattern)) {
-                mapElement = ms;
+                element = ms;
                 break;
             }
         }
-        if (mapElement != null) {
-            return new MappingData(mapElement.object,mapElement.objectName);
+        if (element != null) {
+            return new MappingData(element.object,element.objectName);
         }
 
-        //TODO 暂不考虑JSP的处理
-
-        // 路径为空时，重定向到“/”
-        if (noServletPath && urlPatternContext.defaultObject != null) {
-            return new MappingData(urlPatternContext.defaultObject.object,urlPatternContext.defaultObject.objectName);
-        }
 
         // 后缀名匹配
         int dotInx = path.lastIndexOf('.');
         path = path.substring(dotInx + 1);
-        mapElement = urlPatternContext.extensionObjectMap.get(path);
-        if (mapElement != null) {
-            return new MappingData(mapElement.object,mapElement.objectName);
+        element = urlPatternContext.extensionObjectMap.get(path);
+        if (element != null) {
+            return new MappingData(element.object,element.objectName);
         }
 
 
@@ -206,33 +234,29 @@ public class UrlMapper<T> {
         }
     }
 
-    public static void main(String[] args) {
-        UrlMapper urlMapper = new UrlMapper<String>("/hh",true);
-        urlMapper.addMapping("/sys/add","1","add");
-        urlMapper.addMapping("/db/get","2","get");
-
-        String name = urlMapper.getMappingObjectNameByUri("/hh/sys/add");
-        System.out.println();
-    }
-
-
     private class UrlPatternContext {
         //默认Servlet
-        MapElement defaultObject = null;
+        Element defaultObject = null;
         //精确匹配
-        Map<String, MapElement> exactObjectMap = new HashMap<>();
+        Map<String, Element> exactObjectMap = new HashMap<>();
         //路径匹配
-        List<MapElement> wildcardObjectList = new LinkedList<>();
+        List<Element> wildcardObjectList = new LinkedList<>();
         //扩展名匹配
-        Map<String, MapElement> extensionObjectMap = new HashMap<>();
+        Map<String, Element> extensionObjectMap = new HashMap<>();
+        //全部对象
+        List<Element> totalObjectList = new LinkedList<>();
+
+        public void addElement(Element mapElement){
+            totalObjectList.add(mapElement);
+        }
     }
 
-    private class MapElement {
+    private class Element {
         final String pattern;
         final T object;
         final String objectName;
         
-        MapElement(String pattern,T object, String objectName) {
+        Element(String pattern, T object, String objectName) {
             this.pattern = pattern;
             this.object = object;
             this.objectName = objectName;

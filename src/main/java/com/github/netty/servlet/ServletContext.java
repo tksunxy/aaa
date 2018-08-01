@@ -1,10 +1,12 @@
 package com.github.netty.servlet;
 
 import com.github.netty.core.constants.HttpConstants;
-import com.github.netty.util.obj.TodoOptimize;
-import com.github.netty.util.obj.UrlMapper;
 import com.github.netty.servlet.support.ServletEventListenerManager;
-import com.github.netty.util.*;
+import com.github.netty.util.MimeTypeUtil;
+import com.github.netty.util.NamespaceUtil;
+import com.github.netty.util.ObjectUtil;
+import com.github.netty.util.TypeUtil;
+import com.github.netty.util.obj.UrlMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,8 +44,6 @@ public class ServletContext implements javax.servlet.ServletContext {
 
     private ExecutorService asyncExecutorService;
 
-    @TodoOptimize("事件")
-    private List<EventListener> eventListenerList;
     private Set<SessionTrackingMode> sessionTrackingModeSet;
 
     private ServletEventListenerManager servletEventListenerManager;
@@ -68,7 +68,6 @@ public class ServletContext implements javax.servlet.ServletContext {
 
         this.contextPath = contextPath == null? "" : contextPath;
         this.defaultCharset = null;
-        this.eventListenerList = null;
         this.asyncExecutorService = null;
         this.sessionTrackingModeSet = null;
         this.serverSocketAddress = socketAddress;
@@ -131,6 +130,22 @@ public class ServletContext implements javax.servlet.ServletContext {
             defaultCharset = HttpConstants.DEFAULT_CHARSET;
         }
         return defaultCharset;
+    }
+
+    private List<Filter> matchFilterByPath(String path){
+        return filterUrlMapper.getMappingObjectsByUri(path);
+    }
+
+    private List<Filter> matchFilterByName(String servletName){
+        List<Filter> allNeedFilters = new ArrayList<>();
+        for (ServletFilterRegistration registration : filterRegistrationMap.values()) {
+            for(String name : registration.getServletNameMappings()){
+                if(servletName.equals(name)){
+                    allNeedFilters.add(registration.getFilter());
+                }
+            }
+        }
+        return allNeedFilters;
     }
 
     @Override
@@ -214,32 +229,36 @@ public class ServletContext implements javax.servlet.ServletContext {
 
     @Override
     public InputStream getResourceAsStream(String path) {
-        return getClass().getResourceAsStream(path);
+        return getClassLoader().getResourceAsStream(path);
     }
 
     @Override
     public ServletRequestDispatcher getRequestDispatcher(String path) {
-        String servletName = servletUrlMapper.getMappingObjectNameByUri(path);
-        return getNamedDispatcher(servletName);
+        try {
+            Servlet servlet = servletUrlMapper.getMappingObjectByUri(path);
+            List<Filter> allNeedFilters = matchFilterByPath(path);
+
+            FilterChain filterChain = new ServletFilterChain(this,servlet, allNeedFilters);
+            return new ServletRequestDispatcher(filterChain);
+        } catch (Exception e) {
+            logger.error("Throwing exception when getting Filter from ServletFilterRegistration of path " + path, e);
+            return null;
+        }
     }
 
     @Override
     public ServletRequestDispatcher getNamedDispatcher(String name) {
-        Servlet servlet;
         try {
-            servlet = null == name ? null : getServlet(name);
-            if (servlet == null) {
+            ServletRegistration servletRegistration = null == name ? null : getServletRegistration(name);
+            if (servletRegistration == null) {
                 return null;
             }
+            Servlet servlet = servletRegistration.getServlet();
+            List<Filter> allNeedFilters = matchFilterByName(name);
 
-            //TODO 过滤器的urlPatter解析
-            List<Filter> allNeedFilters = new ArrayList<>();
-            for (ServletFilterRegistration registration : filterRegistrationMap.values()) {
-                allNeedFilters.add(registration.getFilter());
-            }
             FilterChain filterChain = new ServletFilterChain(this,servlet, allNeedFilters);
-            return new ServletRequestDispatcher(this, filterChain);
-        } catch (ServletException e) {
+            return new ServletRequestDispatcher(filterChain);
+        } catch (Exception e) {
             logger.error("Throwing exception when getting Filter from ServletFilterRegistration of name " + name, e);
             return null;
         }
@@ -411,7 +430,7 @@ public class ServletContext implements javax.servlet.ServletContext {
     }
 
     @Override
-    public javax.servlet.ServletRegistration getServletRegistration(String servletName) {
+    public ServletRegistration getServletRegistration(String servletName) {
         return servletRegistrationMap.get(servletName);
     }
 

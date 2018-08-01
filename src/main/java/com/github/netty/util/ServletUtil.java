@@ -1,6 +1,7 @@
 package com.github.netty.util;
 
 import com.github.netty.core.adapter.NettyHttpCookie;
+import com.github.netty.core.constants.HttpHeaderConstants;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.handler.codec.http.multipart.*;
@@ -98,7 +99,7 @@ public class ServletUtil {
         if (contentType == null) {
             return null;
         }
-        int start = contentType.indexOf("charset=");
+        int start = contentType.indexOf(HttpHeaderConstants.CHARSET+"=");
         if (start < 0) {
             return null;
         }

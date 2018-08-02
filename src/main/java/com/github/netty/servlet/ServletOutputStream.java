@@ -114,7 +114,7 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream {
                 }
 
                 ctx.write(nettyResponse, ctx.voidPromise());
-                ctx.write(new DefaultLastHttpContent(compositeByteBuf))
+                ctx.writeAndFlush(new DefaultLastHttpContent(compositeByteBuf))
                         .addListener(new ChannelFutureListener() {
                             /**
                              * 写完后1.刷新 2.释放内存 3.关闭流
@@ -123,12 +123,14 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream {
                              */
                             @Override
                             public void operationComplete(ChannelFuture future) throws Exception {
-                                ctx.flush();
-
-                                for(StreamListener streamListener : streamListenerList) {
-                                    streamListener.closeAfter(compositeByteBuf);
+                                try {
+                                    for (StreamListener streamListener : streamListenerList) {
+                                        streamListener.closeAfter(compositeByteBuf);
+                                    }
+                                    future.channel().close();
+                                }catch (Throwable throwable){
+                                    ExceptionUtil.printRootCauseStackTrace(throwable);
                                 }
-                                future.channel().close();
                             }
                         });
             }catch (Throwable e){

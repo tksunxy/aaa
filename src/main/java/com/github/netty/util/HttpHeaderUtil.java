@@ -21,15 +21,17 @@ public class HttpHeaderUtil {
      * {@link HttpVersion#isKeepAliveDefault()}.
      */
     public static boolean isKeepAlive(NettyHttpRequest message) {
-        String connection = String.valueOf(message.headers().get(HttpHeaderConstants.CONNECTION));
-        if (connection != null && HttpHeaderConstants.CLOSE.equalsIgnoreCase(connection)) {
+        HttpHeaders headers = message.headers();
+
+        String connection = String.valueOf(headers.get(HttpHeaderConstants.CONNECTION));
+        if (connection != null && HttpHeaderConstants.CLOSE.toString().equalsIgnoreCase(connection)) {
             return false;
         }
 
         if (message.protocolVersion().isKeepAliveDefault()) {
-            return !HttpHeaderConstants.CLOSE.equalsIgnoreCase(connection);
+            return !HttpHeaderConstants.CLOSE.toString().equalsIgnoreCase(connection);
         } else {
-            return HttpHeaderConstants.KEEP_ALIVE.equalsIgnoreCase(connection);
+            return HttpHeaderConstants.KEEP_ALIVE.toString().equalsIgnoreCase(connection);
         }
     }
 
@@ -156,7 +158,7 @@ public class HttpHeaderUtil {
      * Sets the {@code "Content-Length"} header.
      */
     public static void setContentLength(HttpMessage message, long length) {
-        message.headers().set(HttpHeaderConstants.CONTENT_LENGTH, String.valueOf(length));
+        message.headers().set(HttpHeaderConstants.CONTENT_LENGTH, (CharSequence)String.valueOf(length));
     }
 
     public static boolean isContentLengthSet(HttpMessage m) {
@@ -183,7 +185,7 @@ public class HttpHeaderUtil {
         if (value == null) {
             return false;
         }
-        if (HttpHeaderConstants.CONTINUE.equalsIgnoreCase(String.valueOf(value))) {
+        if (HttpHeaderConstants.CONTINUE.toString().equalsIgnoreCase(String.valueOf(value))) {
             return true;
         }
 
@@ -213,7 +215,7 @@ public class HttpHeaderUtil {
      * @return True if transfer encoding is chunked, otherwise false
      */
     public static boolean isTransferEncodingChunked(HttpMessage message) {
-        return message.headers().contains(HttpHeaderConstants.TRANSFER_ENCODING, HttpHeaderConstants.CHUNKED, true);
+        return message.headers().contains(HttpHeaderConstants.TRANSFER_ENCODING,HttpHeaderConstants.CHUNKED, true);
     }
 
     public static void setTransferEncodingChunked(HttpMessage m, boolean chunked) {
@@ -228,14 +230,14 @@ public class HttpHeaderUtil {
             Iterator valuesIt = values.iterator();
             while (valuesIt.hasNext()) {
                 String value = String.valueOf(valuesIt.next());
-                if (HttpHeaderConstants.CHUNKED.equalsIgnoreCase(value)) {
+                if (HttpHeaderConstants.CHUNKED.toString().equalsIgnoreCase(value)) {
                     valuesIt.remove();
                 }
             }
             if (values.isEmpty()) {
                 m.headers().remove(HttpHeaderConstants.TRANSFER_ENCODING);
             } else {
-                m.headers().set(HttpHeaderConstants.TRANSFER_ENCODING, values);
+                m.headers().set( HttpHeaderConstants.TRANSFER_ENCODING, (Iterable) values);
             }
         }
     }

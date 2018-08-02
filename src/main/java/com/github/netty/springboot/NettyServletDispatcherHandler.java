@@ -5,6 +5,7 @@ import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletHttpServletResponse;
 import com.github.netty.servlet.ServletRequestDispatcher;
 import com.github.netty.servlet.support.HttpServletObject;
+import com.github.netty.util.ExceptionUtil;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 
@@ -31,9 +32,11 @@ public class NettyServletDispatcherHandler extends AbstractChannelHandler<HttpSe
                 return;
             }
             dispatcher.dispatch(httpServletRequest, httpServletResponse, DispatcherType.REQUEST);
+        }catch (Throwable throwable){
+            ExceptionUtil.printRootCauseStackTrace(throwable);
         }finally {
-            httpServletObject.getHttpServletRequest().getInputStream().close();
-            httpServletObject.getHttpServletResponse().getOutputStream().close();
+            httpServletResponse.getOutputStream().close();
+            httpServletRequest.getInputStream().close();
         }
     }
 

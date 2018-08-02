@@ -130,7 +130,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     }
 
     private void decodeCookie(){
-        Object value = getHeader(HttpHeaderConstants.COOKIE);
+        Object value = getHeader(HttpHeaderConstants.COOKIE.toString());
         if (value == null) {
             return;
         }
@@ -213,7 +213,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String getHeader(String name) {
-       Object value = nettyHeaders.get(name);
+       Object value = nettyHeaders.get((CharSequence) name);
         return value == null? null :String.valueOf(value);
     }
 
@@ -262,7 +262,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public Enumeration<String> getHeaders(String name) {
-        Collection collection = this.nettyHeaders.getAll(name);
+        Collection collection = this.nettyHeaders.getAll((CharSequence)name);
         List<String> headerList = new LinkedList<>();
         for(Object header : collection){
             headerList.add(header.toString());
@@ -468,7 +468,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String getContentType() {
-        return getHeader(HttpHeaderConstants.CONTENT_TYPE);
+        return getHeader(HttpHeaderConstants.CONTENT_TYPE.toString());
     }
 
     @Override
@@ -599,7 +599,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         }
 
         Locale locale;
-        String value = getHeader(HttpHeaderConstants.ACCEPT_LANGUAGE);
+        String value = getHeader(HttpHeaderConstants.ACCEPT_LANGUAGE.toString());
         if(value == null){
             locale = Locale.getDefault();
         }else {

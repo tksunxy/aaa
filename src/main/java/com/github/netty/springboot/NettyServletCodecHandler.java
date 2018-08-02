@@ -38,15 +38,7 @@ public class NettyServletCodecHandler extends AbstractChannelHandler<FullHttpReq
         ctx.fireChannelRead(httpServletObject);
     }
 
-    @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        super.channelActive(ctx);
-    }
 
-    @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        super.channelInactive(ctx);
-    }
 
     /**
      * 创建新的servlet请求对象

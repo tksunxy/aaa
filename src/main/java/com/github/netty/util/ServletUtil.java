@@ -39,6 +39,10 @@ public class ServletUtil {
             new SimpleDateFormat("EEE MMMM d HH:mm:ss yyyy", Locale.ENGLISH)
     };
 
+    public static boolean isLocalhost(String host){
+        return "0:0:0:0:0:0:0:1".equals(host) || "locahost".equals(host);
+    }
+
     /**
      * SimpleDateFormat非线程安全，为了节省内存提高效率，把他放在ThreadLocal里
      * 用于设置HTTP响应头的时间信息

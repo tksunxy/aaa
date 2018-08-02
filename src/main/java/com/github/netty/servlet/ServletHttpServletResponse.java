@@ -68,7 +68,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
 
     @Override
     public boolean containsHeader(String name) {
-        return nettyHeaders.contains(name);
+        return nettyHeaders.contains((CharSequence) name);
     }
 
     @Override
@@ -115,18 +115,18 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
     public void sendRedirect(String location) throws IOException {
         checkNotCommitted();
         nettyResponse.setStatus(HttpResponseStatus.FOUND);
-        nettyHeaders.set(HttpHeaderConstants.LOCATION, location);
+        nettyHeaders.set(HttpHeaderConstants.LOCATION, (CharSequence)location);
         outputStream.close();
     }
 
     @Override
     public void setDateHeader(String name, long date) {
-        nettyHeaders.set(name, String.valueOf(date));
+        nettyHeaders.set((CharSequence) name,(CharSequence) String.valueOf(date));
     }
 
     @Override
     public void addDateHeader(String name, long date) {
-        nettyHeaders.add(name, String.valueOf(date));
+        nettyHeaders.add((CharSequence)name, (CharSequence)String.valueOf(date));
     }
 
     @Override
@@ -140,13 +140,13 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
         if (setHeaderField(name, value)) {
             return;
         }
-        nettyHeaders.set(name, value);
+        nettyHeaders.set((CharSequence)name, (CharSequence)value);
     }
 
     private boolean setHeaderField(String name, String value) {
         char c = name.charAt(0);//减少判断的时间，提高效率
         if ('C' == c || 'c' == c) {
-            if (HttpHeaderConstants.CONTENT_TYPE.equalsIgnoreCase(name)) {
+            if (HttpHeaderConstants.CONTENT_TYPE.toString().equalsIgnoreCase(name)) {
                 setContentType(value);
                 return true;
             }
@@ -165,7 +165,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
         if (setHeaderField(name, value)) {
             return;
         }
-        nettyHeaders.add(name, value);
+        nettyHeaders.add((CharSequence)name, (CharSequence)value);
     }
 
     @Override
@@ -176,7 +176,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
         if (isCommitted()) {
             return;
         }
-        nettyHeaders.set(name, String.valueOf(value));
+        nettyHeaders.set((CharSequence)name, (CharSequence)String.valueOf(value));
     }
 
     @Override
@@ -187,7 +187,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
         if (isCommitted()) {
             return;
         }
-        nettyHeaders.add(name, String.valueOf(value));
+        nettyHeaders.add((CharSequence) name, (CharSequence) String.valueOf(value));
     }
 
     @Override
@@ -233,13 +233,13 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
 
     @Override
     public String getHeader(String name) {
-        Object value = nettyHeaders.get(name);
+        Object value = nettyHeaders.get((CharSequence) name);
         return value == null? null : String.valueOf(value);
     }
 
     @Override
     public Collection<String> getHeaders(String name) {
-        List list = nettyHeaders.getAll(name);
+        List list = nettyHeaders.getAll((CharSequence) name);
         List<String> stringList = new LinkedList<>();
         for(Object charSequence : list){
             stringList.add(String.valueOf(charSequence));

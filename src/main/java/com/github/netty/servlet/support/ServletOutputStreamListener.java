@@ -56,15 +56,10 @@ public class ServletOutputStreamListener implements StreamListener {
      */
     public void settingResponse(NettyHttpRequest nettyRequest, NettyHttpResponse nettyResponse,
                                 ServletHttpServletRequest servletRequest, ServletHttpServletResponse servletResponse, int totalLength) {
-        settingHeader(nettyRequest, nettyResponse, servletRequest, servletResponse, totalLength);
-    }
+        boolean isKeepAlive = HttpHeaderUtil.isKeepAlive(nettyRequest);
+        HttpHeaderUtil.setKeepAlive(nettyResponse, isKeepAlive);
 
-
-    private void settingHeader(NettyHttpRequest nettyRequest, NettyHttpResponse nettyResponse,
-                               ServletHttpServletRequest servletRequest, ServletHttpServletResponse servletResponse,int totalLength){
-        HttpHeaderUtil.setKeepAlive(nettyResponse, HttpHeaderUtil.isKeepAlive(nettyRequest));
-
-        if (!HttpHeaderUtil.isKeepAlive(nettyRequest) && !HttpHeaderUtil.isContentLengthSet(nettyResponse)) {
+        if (!isKeepAlive && !HttpHeaderUtil.isContentLengthSet(nettyResponse)) {
             HttpHeaderUtil.setContentLength(nettyResponse, totalLength);
         }
 
@@ -84,9 +79,14 @@ public class ServletOutputStreamListener implements StreamListener {
         //long curTime = System.currentTimeMillis(); //用于根据maxAge计算Cookie的Expires
         //先处理Session ，如果是新Session需要通过Cookie写入
         if (servletRequest.getSession().isNew()) {
+            String serverName = servletRequest.getServerName();
+
             String sessionCookieStr = HttpConstants.JSESSION_ID_COOKIE + "=" + servletRequest.getRequestedSessionId() + "; " +
                     "path=/; " ;
-//                    "domain=" + servletRequest.getServerName();
+            if(!ServletUtil.isLocalhost(serverName)){
+                sessionCookieStr += "domain=" + serverName;
+            }
+
             headers.add(HttpHeaderConstants.SET_COOKIE, sessionCookieStr);
         }
 

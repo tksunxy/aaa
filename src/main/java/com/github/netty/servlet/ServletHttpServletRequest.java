@@ -299,7 +299,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String getMethod() {
-        return nettyRequest.method().name().toString();
+        return nettyRequest.method().toString();
     }
 
 

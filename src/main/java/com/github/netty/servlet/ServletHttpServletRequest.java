@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.*;
+import java.nio.charset.Charset;
 import java.security.Principal;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -119,11 +120,12 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     private void decodeParameter(){
         Map<String,String[]> parameterMap = new HashMap<>(16);
-        ServletUtil.decodeByUrl(parameterMap, nettyRequest.uri());
+        Charset charset = servletContext.getDefaultCharset();
+        ServletUtil.decodeByUrl(parameterMap, nettyRequest.uri(),charset);
         this.decodeParameterByUrlFlag = true;
 
         if(HttpConstants.POST.equalsIgnoreCase(getMethod())){
-//            ServletUtil.decodeByBody(parameterMap,request);
+            ServletUtil.decodeByBody(parameterMap,nettyRequest,charset);
             this.decodeParameterByBodyFlag = true;
         }
         this.parameterMap = parameterMap;

@@ -11,10 +11,13 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.http.HttpContentCompressor;
+import io.netty.handler.codec.http.HttpContentDecompressor;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import io.netty.util.concurrent.EventExecutorGroup;
 import org.springframework.boot.context.embedded.EmbeddedServletContainer;
@@ -65,20 +68,28 @@ public class NettyEmbeddedServletContainer extends AbstractNettyServer implement
 
                 if (enableSsl) {
                     SSLEngine engine = sslContext.newEngine(ch.alloc());
-                    engine.setUseClientMode(false);//是否客户端
-                    pipeline.addLast("SSL", new SslHandler(engine));
+                    //是否客户端
+                    engine.setUseClientMode(false);
+                    pipeline.addLast("SSL", new SslHandler(engine,true));
                 }
 
-                HttpServerCodec httpServerCodec = new HttpServerCodec(4096, 8192, 8192, false);
 
                 //HTTP编码解码
-                pipeline.addLast("HttpCodec", httpServerCodec);
+                pipeline.addLast("HttpCodec", new HttpServerCodec(4096, 8192, 8192, false));
+
                 //HTTP聚合，设置最大消息值为512KB
                 pipeline.addLast("Aggregator", new HttpObjectAggregator(512 * 1024));
+
+                //内容压缩
+                pipeline.addLast("ContentCompressor", new HttpContentCompressor());
+                pipeline.addLast("ContentDecompressor", new HttpContentDecompressor());
+
                 //分段写入, 防止响应数据过大
-//                pipeline.addLast("ChunkedWrite",new ChunkedWriteHandler());
+                pipeline.addLast("ChunkedWrite",new ChunkedWriteHandler());
+
                 //生成servletRequest和servletResponse对象
                 pipeline.addLast("ServletCodec",servletCodecHandler);
+
                 //业务调度器, 让对应的Servlet处理请求
                 pipeline.addLast(dispatcherExecutorGroup, "Dispatcher", dispatcherHandler);
             }

@@ -5,6 +5,7 @@ import com.github.netty.core.adapter.NettyHttpResponse;
 import com.github.netty.core.constants.HttpHeaderConstants;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.*;
+import org.springframework.http.HttpStatus;
 
 import java.util.Iterator;
 import java.util.List;
@@ -21,10 +22,14 @@ public class HttpHeaderUtil {
      * {@link HttpVersion#isKeepAliveDefault()}.
      */
     public static boolean isKeepAlive(NettyHttpRequest message) {
-        HttpHeaders headers = message.headers();
+        HttpHeaders headers = message.unwrap().headers();
 
-        String connection = String.valueOf(headers.get(HttpHeaderConstants.CONNECTION));
-        if (connection != null && HttpHeaderConstants.CLOSE.toString().equalsIgnoreCase(connection)) {
+        Object connectionObj = headers.get(HttpHeaderConstants.CONNECTION);
+        if(connectionObj == null){
+            return false;
+        }
+        String connection = connectionObj.toString();
+        if (HttpHeaderConstants.CLOSE.toString().equalsIgnoreCase(connection)) {
             return false;
         }
 
@@ -143,12 +148,13 @@ public class HttpHeaderUtil {
             }
         } else if (message instanceof NettyHttpResponse) {
             NettyHttpResponse res = (NettyHttpResponse) message;
-            if (res.getStatus().code() == 101 &&
+            if (res.getStatus().code() == HttpStatus.SWITCHING_PROTOCOLS.value() &&
                     h.contains(HttpHeaderConstants.SEC_WEBSOCKET_ORIGIN) &&
                     h.contains(HttpHeaderConstants.SEC_WEBSOCKET_LOCATION)) {
                 return 16;
             }
         }
+
 
         // Not a web socket message
         return -1;

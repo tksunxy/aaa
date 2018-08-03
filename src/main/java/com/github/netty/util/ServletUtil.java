@@ -11,6 +11,7 @@ import io.netty.util.concurrent.FastThreadLocal;
 import javax.servlet.http.Cookie;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.nio.charset.Charset;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -103,8 +104,8 @@ public class ServletUtil {
         return null;
     }
 
-    public static void decodeByUrl(Map<String,String[]> parameterMap, String uri){
-        QueryStringDecoder decoder = new QueryStringDecoder(uri);
+    public static void decodeByUrl(Map<String,String[]> parameterMap, String uri, Charset charset){
+        QueryStringDecoder decoder = new QueryStringDecoder(uri,charset);
 
         Map<String, List<String>> parameterListMap = decoder.parameters();
         for(Map.Entry<String,List<String>> entry : parameterListMap.entrySet()){
@@ -202,30 +203,46 @@ public class ServletUtil {
         return nettyCookie;
     }
 
-    public static void decodeByBody(Map<String,String[]> parameterMap,HttpRequest httpRequest){
-        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(getHttpDataFactory(), httpRequest);
+    public static void decodeByBody(Map<String,String[]> parameterMap,HttpRequest httpRequest,Charset charset){
+        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(getHttpDataFactory(), httpRequest,charset);
 
         while (decoder.hasNext()){
-            InterfaceHttpData data = decoder.next();
-
-            /**
+            InterfaceHttpData interfaceData = decoder.next();
+            /*
              * HttpDataType有三种类型
              * Attribute, FileUpload, InternalAttribute
              */
-            if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.Attribute) {
-                Attribute attribute = (Attribute) data;
-                String name = attribute.getName();
-                String value;
-                try {
-                    value = attribute.getValue();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    value = "";
+            switch (interfaceData.getHttpDataType()){
+                case Attribute:{
+                    Attribute data = (Attribute) interfaceData;
+                    String name = data.getName();
+                    String value;
+                    try {
+                        value = data.getValue();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        value = "";
+                    }
+                    parameterMap.put(name, new String[]{value});
+                    break;
                 }
-                parameterMap.put(name, new String[]{value});
-            }
-        }
+                case FileUpload:{
+                    FileUpload data = (FileUpload) interfaceData;
 
+                    break;
+                }
+                case InternalAttribute:{
+//                    InternalAttribute data = (InternalAttribute) interfaceData;
+
+                    break;
+                }
+                default:{
+
+                    break;
+                }
+            }
+
+        }
         decoder.destroy();
     }
 

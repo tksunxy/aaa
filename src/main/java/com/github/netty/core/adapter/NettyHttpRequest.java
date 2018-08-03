@@ -1,6 +1,7 @@
 package com.github.netty.core.adapter;
 
 import com.github.netty.util.ReflectUtil;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.http.*;
@@ -15,9 +16,9 @@ import java.util.Objects;
  * @author acer01
  * 2018/7/28/028
  */
-public class NettyHttpRequest implements HttpRequest,Wrapper<HttpRequest>{
+public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest>{
 
-    private HttpRequest source;
+    private FullHttpRequest source;
     private Class sourceClass;
     private final Object lock = new Object();
     private Channel channel;
@@ -26,8 +27,11 @@ public class NettyHttpRequest implements HttpRequest,Wrapper<HttpRequest>{
     private List<Method> getMethodMethodList;
     private List<Method> getUriMethodList;
     private List<Method> getDecoderResultMethodList;
-    
-    public NettyHttpRequest(HttpRequest source,Channel channel) {
+    private List<Method> touchMethodList;
+    private List<Method> touch1MethodList;
+    private List<Method> copyMethodList;
+
+    public NettyHttpRequest(FullHttpRequest source,Channel channel) {
         wrap(source);
         this.channel = Objects.requireNonNull(channel);
     }
@@ -92,20 +96,110 @@ public class NettyHttpRequest implements HttpRequest,Wrapper<HttpRequest>{
         return (DecoderResult) ReflectUtil.invokeMethodOnce(source,getDecoderResultMethodList);
     }
 
+
+    public FullHttpRequest touch() {
+        if(touchMethodList == null){
+            synchronized (lock) {
+                if(touchMethodList == null) {
+                    touchMethodList = Arrays.asList(
+                            ReflectUtil.getAccessibleMethodByName(sourceClass, "touch",0)
+                    );
+                }
+            }
+        }
+        return (FullHttpRequest) ReflectUtil.invokeMethodOnce(source,touchMethodList);
+    }
+
+    public FullHttpRequest touch(Object hint) {
+        if(touch1MethodList == null){
+            synchronized (lock) {
+                if(touch1MethodList == null) {
+                    touch1MethodList = Arrays.asList(
+                            ReflectUtil.getAccessibleMethodByName(sourceClass, "touch",1)
+                    );
+                }
+            }
+        }
+        return (FullHttpRequest) ReflectUtil.invokeMethodOnce(source,touch1MethodList,hint);
+    }
+
+    public FullHttpRequest copy(ByteBuf newContent) {
+        if(copyMethodList == null){
+            synchronized (lock) {
+                if(copyMethodList == null) {
+                    copyMethodList = Arrays.asList(
+                            ReflectUtil.getAccessibleMethodByName(sourceClass, "copy",1)
+                    );
+                }
+            }
+        }
+        return (FullHttpRequest) ReflectUtil.invokeMethodOnce(source,copyMethodList,newContent);
+    }
+
+    public FullHttpRequest duplicate() {
+        HttpContent httpContent =  source.duplicate();
+        if(httpContent instanceof FullHttpRequest){
+            return (FullHttpRequest) httpContent;
+        }
+        return null;
+    }
+
     @Override
-    public HttpRequest setMethod(HttpMethod method) {
+    public FullHttpRequest setMethod(HttpMethod method) {
          source.setMethod(method);
          return this;
     }
 
     @Override
-    public HttpRequest setUri(String uri) {
+    public FullHttpRequest setUri(String uri) {
          source.setUri(uri);
          return this;
     }
 
     @Override
-    public HttpRequest setProtocolVersion(HttpVersion version) {
+    public HttpHeaders trailingHeaders() {
+        return source.trailingHeaders();
+    }
+
+    @Override
+    public ByteBuf content() {
+        return source.content();
+    }
+
+    @Override
+    public FullHttpRequest copy() {
+        return source.copy();
+    }
+
+    @Override
+    public FullHttpRequest retain(int increment) {
+        source.retain(increment);
+        return this;
+    }
+
+    @Override
+    public boolean release() {
+        return source.release();
+    }
+
+    @Override
+    public boolean release(int decrement) {
+        return source.release(decrement);
+    }
+
+    @Override
+    public int refCnt() {
+        return source.refCnt();
+    }
+
+    @Override
+    public FullHttpRequest retain() {
+         source.retain();
+         return this;
+    }
+
+    @Override
+    public FullHttpRequest setProtocolVersion(HttpVersion version) {
         source.setProtocolVersion(version);
         return this;
     }
@@ -137,14 +231,14 @@ public class NettyHttpRequest implements HttpRequest,Wrapper<HttpRequest>{
     }
 
     @Override
-    public void wrap(HttpRequest source) {
+    public void wrap(FullHttpRequest source) {
         Objects.requireNonNull(source);
         this.source = source;
         this.sourceClass = source.getClass();
     }
 
     @Override
-    public HttpRequest unwrap() {
+    public FullHttpRequest unwrap() {
         return source;
     }
 

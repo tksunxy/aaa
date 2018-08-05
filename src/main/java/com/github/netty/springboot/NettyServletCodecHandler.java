@@ -2,11 +2,12 @@ package com.github.netty.springboot;
 
 import com.github.netty.core.adapter.AbstractChannelHandler;
 import com.github.netty.core.adapter.NettyHttpRequest;
+import com.github.netty.core.support.PartialPooledByteBufAllocator;
 import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletHttpServletResponse;
-import com.github.netty.servlet.ServletInputStream;
 import com.github.netty.servlet.support.HttpServletObject;
+import com.github.netty.util.ProxyUtil;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -30,15 +31,14 @@ public class NettyServletCodecHandler extends AbstractChannelHandler<FullHttpReq
     @Override
     protected void onMessageReceived(ChannelHandlerContext ctx, FullHttpRequest fullHttpRequest) throws Exception {
         //EmptyLastHttpContent, DefaultLastHttpContent
+        ChannelHandlerContext ctxWrap = PartialPooledByteBufAllocator.forceDirectAllocator(ctx);
 
-        ServletHttpServletRequest servletRequest = newServletHttpServletRequest(fullHttpRequest,ctx.channel());
-        ServletHttpServletResponse servletResponse = newServletHttpServletResponse(ctx,servletRequest);
+        ServletHttpServletRequest servletRequest = newServletHttpServletRequest(fullHttpRequest,ctxWrap.channel());
+        ServletHttpServletResponse servletResponse = newServletHttpServletResponse(ctxWrap,servletRequest);
         HttpServletObject httpServletObject = new HttpServletObject(servletRequest,servletResponse);
 
-        ctx.fireChannelRead(httpServletObject);
+        ctxWrap.fireChannelRead(httpServletObject);
     }
-
-
 
     /**
      * 创建新的servlet请求对象
@@ -47,11 +47,16 @@ public class NettyServletCodecHandler extends AbstractChannelHandler<FullHttpReq
      * @return servlet请求对象
      */
     private ServletHttpServletRequest newServletHttpServletRequest(FullHttpRequest fullHttpRequest,Channel channel){
-        ServletInputStream servletInputStream = new ServletInputStream(fullHttpRequest);
         NettyHttpRequest nettyRequest = new NettyHttpRequest(fullHttpRequest,channel);
-
-        ServletHttpServletRequest servletRequest = new ServletHttpServletRequest(servletInputStream, servletContext, nettyRequest);
-        return servletRequest;
+        if(ProxyUtil.isEnableProxy()){
+            return ProxyUtil.newProxyByCglib(
+                    ServletHttpServletRequest.class,
+                    new Class[]{ServletContext.class,NettyHttpRequest.class},
+                    new Object[]{servletContext,nettyRequest}
+            );
+        }else {
+            return new ServletHttpServletRequest(servletContext,nettyRequest);
+        }
     }
 
     /**
@@ -61,8 +66,14 @@ public class NettyServletCodecHandler extends AbstractChannelHandler<FullHttpReq
      * @return servlet响应对象
      */
     private ServletHttpServletResponse newServletHttpServletResponse(ChannelHandlerContext ctx, ServletHttpServletRequest servletRequest){
-        ServletHttpServletResponse servletResponse = new ServletHttpServletResponse(ctx,servletRequest);
-        return servletResponse;
+        if(ProxyUtil.isEnableProxy()){
+            return ProxyUtil.newProxyByCglib(
+                    ServletHttpServletResponse.class,
+                    new Class[]{ChannelHandlerContext.class,ServletHttpServletRequest.class},
+                    new Object[]{ctx,servletRequest});
+        }else {
+            return new ServletHttpServletResponse(ctx,servletRequest);
+        }
     }
 
 }

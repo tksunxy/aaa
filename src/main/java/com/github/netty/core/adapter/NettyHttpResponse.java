@@ -1,5 +1,6 @@
 package com.github.netty.core.adapter;
 
+import com.github.netty.core.constants.VersionConstants;
 import com.github.netty.util.ReflectUtil;
 import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.http.*;
@@ -29,6 +30,9 @@ public class NettyHttpResponse implements HttpResponse,Wrapper<HttpResponse> {
     }
 
     public HttpResponseStatus getStatus() {
+        if(!VersionConstants.isEnableVersionAdapter()){
+            return source.getStatus();
+        }
         if(getStatusMethodList == null){
             synchronized (lock) {
                 if(getStatusMethodList == null) {
@@ -43,6 +47,9 @@ public class NettyHttpResponse implements HttpResponse,Wrapper<HttpResponse> {
     }
 
     public HttpVersion getProtocolVersion() {
+        if(!VersionConstants.isEnableVersionAdapter()){
+            return source.getProtocolVersion();
+        }
         if(getProtocolVersionMethodList == null){
             synchronized (lock) {
                 if(getProtocolVersionMethodList == null) {
@@ -57,6 +64,9 @@ public class NettyHttpResponse implements HttpResponse,Wrapper<HttpResponse> {
     }
 
     public DecoderResult getDecoderResult() {
+        if(!VersionConstants.isEnableVersionAdapter()){
+            return source.getDecoderResult();
+        }
         if(getDecoderResultMethodList == null){
             synchronized (lock) {
                 if(getDecoderResultMethodList == null) {

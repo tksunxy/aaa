@@ -16,6 +16,7 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  *
@@ -24,7 +25,8 @@ import java.util.*;
  */
 public class ServletUtil {
 
-    private static HttpDataFactory HTTP_DATA_FACTORY;
+    private static final Map<String,HttpDataFactory> HTTP_DATA_FACTORY_MAP = new ConcurrentHashMap<>();
+
     private static final Method COOKIE_DECODER_METHOD;
     private static final Method COOKIE_ENCODER_METHOD;
 
@@ -204,7 +206,8 @@ public class ServletUtil {
     }
 
     public static void decodeByBody(Map<String,String[]> parameterMap,HttpRequest httpRequest,Charset charset){
-        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(getHttpDataFactory(), httpRequest,charset);
+        HttpDataFactory factory = getHttpDataFactory(charset);
+        HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(factory, httpRequest,charset);
 
         while (decoder.hasNext()){
             InterfaceHttpData interfaceData = decoder.next();
@@ -262,15 +265,20 @@ public class ServletUtil {
         return date.getTime();
     }
 
-    private static HttpDataFactory getHttpDataFactory(){
-        if(HTTP_DATA_FACTORY == null){
-            synchronized (ServletUtil.class) {
-                if(HTTP_DATA_FACTORY == null) {
-                    HTTP_DATA_FACTORY = new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE); //Disk
+    private static HttpDataFactory getHttpDataFactory(Charset charset){
+        String charsetName = charset.name();
+        HttpDataFactory factory = HTTP_DATA_FACTORY_MAP.get(charsetName);
+        if(factory == null){
+            synchronized (HTTP_DATA_FACTORY_MAP) {
+                factory = HTTP_DATA_FACTORY_MAP.get(charsetName);
+                if(factory == null) {
+                    //Disk false
+                    factory = new DefaultHttpDataFactory(false, charset);
+                    HTTP_DATA_FACTORY_MAP.put(charsetName, factory);
                 }
             }
         }
-        return HTTP_DATA_FACTORY;
+        return factory;
     }
 
     /**

@@ -15,6 +15,7 @@ import io.netty.util.ReferenceCountUtil;
 
 import javax.servlet.http.Cookie;
 import java.util.List;
+import java.util.StringJoiner;
 
 /**
  *
@@ -79,15 +80,18 @@ public class ServletOutputStreamListener implements StreamListener {
         //long curTime = System.currentTimeMillis(); //用于根据maxAge计算Cookie的Expires
         //先处理Session ，如果是新Session需要通过Cookie写入
         if (servletRequest.getSession().isNew()) {
-            String serverName = servletRequest.getServerName();
+            StringJoiner cookieStrJoiner = new StringJoiner("; ");
+            cookieStrJoiner.add(HttpConstants.JSESSION_ID_COOKIE + "=" + servletRequest.getRequestedSessionId());
+            cookieStrJoiner.add("path=/");
+            cookieStrJoiner.add("secure");
+            cookieStrJoiner.add("HttpOnly");
 
-            String sessionCookieStr = HttpConstants.JSESSION_ID_COOKIE + "=" + servletRequest.getRequestedSessionId() + "; " +
-                    "path=/; " ;
+            String serverName = servletRequest.getServerName();
             if(!ServletUtil.isLocalhost(serverName)){
-                sessionCookieStr += "domain=" + serverName;
+                cookieStrJoiner.add("domain=" + serverName);
             }
 
-            headers.add(HttpHeaderConstants.SET_COOKIE, sessionCookieStr);
+            headers.add(HttpHeaderConstants.SET_COOKIE, cookieStrJoiner.toString());
         }
 
         //其他业务或框架设置的cookie，逐条写入到响应头去

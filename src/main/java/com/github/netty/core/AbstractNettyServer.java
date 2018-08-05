@@ -1,9 +1,12 @@
 package com.github.netty.core;
 
-import com.github.netty.util.*;
+import com.github.netty.core.support.PartialPooledByteBufAllocator;
+import com.github.netty.util.ExceptionUtil;
+import com.github.netty.util.HostUtil;
+import com.github.netty.util.NamespaceUtil;
+import com.github.netty.util.ProxyUtil;
 import io.netty.bootstrap.ChannelFactory;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.*;
 import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollEventLoopGroup;
@@ -69,9 +72,12 @@ public abstract class AbstractNettyServer implements Runnable{
     protected EventLoopGroup newBossEventLoopGroup() {
         EventLoopGroup boss;
         if(enableEpoll){
-            boss = new EpollEventLoopGroup(1);
+            EpollEventLoopGroup epollBoss = new EpollEventLoopGroup(1);
+            epollBoss.setIoRatio(100);
+            boss = epollBoss;
         }else {
             NioEventLoopBossGroup jdkBoss = new NioEventLoopBossGroup(1);
+            jdkBoss.setIoRatio(100);
             boss = ProxyUtil.newProxyByJdk(jdkBoss, jdkBoss.toString(), true);
         }
         return boss;
@@ -92,16 +98,22 @@ public abstract class AbstractNettyServer implements Runnable{
     @Override
     public final void run() {
         try {
-
             bootstrap
                     .group(boss, worker)
                     .channelFactory(channelFactory)
                     .childHandler(initializerChannelHandler)
-                    .option(ChannelOption.TCP_NODELAY, true)
+                    //允许在同一端口上启动同一服务器的多个实例，只要每个实例捆绑一个不同的本地IP地址即可
                     .option(ChannelOption.SO_REUSEADDR, true)
-                    .option(ChannelOption.SO_BACKLOG, 128) // determining the number of connections queued
-                    .childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
-                    .childOption(ChannelOption.SO_KEEPALIVE, Boolean.TRUE);
+                    //用于构造服务端套接字ServerSocket对象，标识当服务器请求处理线程全满时，用于临时存放已完成三次握手的请求的队列的最大长度
+//                    .option(ChannelOption.SO_BACKLOG, 128) // determining the number of connections queued
+
+                    //禁用Nagle算法，即数据包立即发送出去 (在TCP_NODELAY模式下，假设有3个小包要发送，第一个小包发出后，接下来的小包需要等待之前的小包被ack，在这期间小包会合并，直到接收到之前包的ack后才会发生)
+                    .childOption(ChannelOption.TCP_NODELAY, true)
+                    //开启TCP/IP协议实现的心跳机制
+                    .childOption(ChannelOption.SO_KEEPALIVE, false)
+                    //netty的默认内存分配器
+                    .childOption(ChannelOption.ALLOCATOR, PartialPooledByteBufAllocator.INSTANCE);
+//                    .childOption(ChannelOption.ALLOCATOR, ByteBufAllocator.DEFAULT);
 
             ChannelFuture channelFuture = bootstrap.bind(socketAddress);
             //堵塞

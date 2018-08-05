@@ -2,16 +2,10 @@ package com.github.netty.servlet;
 
 import com.github.netty.util.ObjectUtil;
 import io.netty.buffer.ByteBuf;
-import io.netty.handler.codec.http.HttpContent;
-import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCountUtil;
 
 import javax.servlet.ReadListener;
 import java.io.IOException;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 
 /**
@@ -21,25 +15,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class ServletInputStream extends javax.servlet.ServletInputStream {
 
-    private AtomicBoolean closed; //输入流是否已经关闭，保证线程安全
-    private final BlockingQueue<HttpContent> queue; //HttpContent的队列，一次请求可能有多次加入
-    private HttpContent current;
-    private int currentLength;
+    private boolean closed; //输入流是否已经关闭，保证线程安全
+    private ByteBuf content;
     private ReadListener readListener;
 
-    public ServletInputStream(HttpContent httpContent) {
-        this.closed = new AtomicBoolean();
-        queue = new LinkedBlockingQueue<>();
-        addContent(httpContent);
+    private int contentLength;
+
+    public ServletInputStream(ByteBuf content) {
+        this.closed = false;
+        this.content = content;
+        this.contentLength = content.capacity();
     }
 
-    public void addContent(HttpContent httpContent) {
-        checkNotClosed();
-        queue.offer(httpContent.retain());
-    }
-
-    public int getCurrentLength() {
-        return currentLength;
+    public int getContentLength() {
+        return contentLength;
     }
 
     @Override
@@ -55,14 +44,7 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
     @Override
     public boolean isFinished() {
         checkNotClosed();
-        return isLastContent() && current.content().readableBytes() == 0;
-    }
-
-    /**
-     * 已经传入本次请求所有HttpContent
-     */
-    private boolean isLastContent() {
-        return current instanceof LastHttpContent;
+        return content.readableBytes() == 0;
     }
 
     /**
@@ -71,7 +53,7 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
     @Override
     public boolean isReady() {
         checkNotClosed();
-        return (current != null && current.content().readableBytes() > 0) || !queue.isEmpty();
+        return content.readableBytes() > 0;
     }
 
     @Override
@@ -87,7 +69,6 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
     @Override
     public long skip(long n) throws IOException {
         checkNotClosed();
-        ByteBuf content = current.content();
         long skipLen = Math.min(content.readableBytes(), n); //实际可以跳过的字节数
         content.skipBytes((int) skipLen);
         return skipLen;
@@ -98,38 +79,17 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
      */
     @Override
     public int available() throws IOException {
-        return null == current ? 0 : current.content().readableBytes();
+        return null == content ? 0 : content.readableBytes();
     }
 
     @Override
     public void close() throws IOException {
-        if (closed.compareAndSet(false, true)) {
-            closeHttpContentQueue();
-            closeCurrentHttpContent();
+        if (closed) {
+            return;
         }
-    }
-
-    /**
-     * 关闭当前HttpContent
-     */
-    private void closeCurrentHttpContent() {
-        if(current != null && current.refCnt() > 0){
-            ReferenceCountUtil.safeRelease(current);
-            current = null;
+        if(content != null && content.refCnt() > 0){
+            ReferenceCountUtil.safeRelease(content);
         }
-    }
-
-    /**
-     * 关闭HttpContent队列
-     */
-    private void closeHttpContentQueue() {
-        while(!queue.isEmpty()){
-            HttpContent content = queue.poll();
-            if(content != null && content.refCnt() > 0){
-                ReferenceCountUtil.safeRelease(content);
-            }
-        }
-        queue.clear();
     }
 
     /**
@@ -142,7 +102,6 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
         if (0 == len) {
             return 0;
         }
-        poll();
         if (isFinished()) {
             return -1;
         }
@@ -157,7 +116,6 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
      */
     @Override
     public int read() throws IOException {
-        poll();
         if (isFinished()) {
             return -1;
         }
@@ -168,7 +126,6 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
      * 从current的HttpContent中读取length个字节
      */
     private ByteBuf readContent(int length) {
-        ByteBuf content = current.content();
         if (length < content.readableBytes()) {
             return content.readSlice(length);
         } else {
@@ -176,33 +133,8 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
         }
     }
 
-    /**
-     * 如果没有可读字节了，从HttpContent队列中获取一个到current中
-     * 如果readListener非空，则非阻塞，读不到数据也直接返回
-     * @throws IOException channel非激活状态
-     */
-    private void poll() throws IOException {
-        checkNotClosed();
-        if (null == current || current.content().readableBytes() == 0) {
-            boolean blocking = null == readListener;
-            while (!isLastContent()) { //current为空，或者current不是当前请求最后一个HttpContent
-                try {
-                    current = queue.poll(1000, TimeUnit.NANOSECONDS);
-                } catch (InterruptedException ignored) {
-                }
-                if(current != null){
-                    this.currentLength = current.content().readableBytes();
-                }
-                if (current != null || !blocking) { //队列中读取到数据，或者readListener非空（非阻塞），则退出
-                    break;
-                }
-
-            }
-        }
-    }
-
     private void checkNotClosed() {
-        if (closed.get()) {
+        if (closed) {
             throw new IllegalStateException("Stream is closed");
         }
     }

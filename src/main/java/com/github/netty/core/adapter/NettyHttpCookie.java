@@ -1,5 +1,6 @@
 package com.github.netty.core.adapter;
 
+import com.github.netty.core.constants.VersionConstants;
 import com.github.netty.util.ReflectUtil;
 import io.netty.handler.codec.http.Cookie;
 
@@ -40,6 +41,9 @@ public class NettyHttpCookie implements Cookie,Wrapper<Cookie> {
     }
 
     public String getName() {
+        if(!VersionConstants.isEnableVersionAdapter()){
+            return source.getName();
+        }
         if(getNameMethodList == null){
             synchronized (lock) {
                 if(getNameMethodList == null) {
@@ -54,6 +58,9 @@ public class NettyHttpCookie implements Cookie,Wrapper<Cookie> {
     }
 
     public String getValue() {
+        if(!VersionConstants.isEnableVersionAdapter()){
+            return source.getValue();
+        }
         if(getValueMethodList == null){
             synchronized (lock) {
                 if(getValueMethodList == null) {
@@ -68,6 +75,9 @@ public class NettyHttpCookie implements Cookie,Wrapper<Cookie> {
     }
 
     public String getDomain() {
+        if(!VersionConstants.isEnableVersionAdapter()){
+            return source.getDomain();
+        }
         if(getDomainMethodList == null){
             synchronized (lock) {
                 if(getDomainMethodList == null) {
@@ -82,6 +92,9 @@ public class NettyHttpCookie implements Cookie,Wrapper<Cookie> {
     }
 
     public String getPath() {
+        if(!VersionConstants.isEnableVersionAdapter()){
+            return source.getPath();
+        }
         if(getPathMethodList == null){
             synchronized (lock) {
                 if(getPathMethodList == null) {
@@ -96,6 +109,9 @@ public class NettyHttpCookie implements Cookie,Wrapper<Cookie> {
     }
 
     public String getComment() {
+        if(!VersionConstants.isEnableVersionAdapter()){
+            return source.getComment();
+        }
         if(getCommentMethodList == null){
             synchronized (lock) {
                 if(getCommentMethodList == null) {
@@ -110,6 +126,9 @@ public class NettyHttpCookie implements Cookie,Wrapper<Cookie> {
     }
   
     public long getMaxAge() {
+        if(!VersionConstants.isEnableVersionAdapter()){
+            return source.getMaxAge();
+        }
         if(getMaxAgeMethodList == null){
             synchronized (lock) {
                 if(getMaxAgeMethodList == null) {
@@ -124,6 +143,9 @@ public class NettyHttpCookie implements Cookie,Wrapper<Cookie> {
     }
 
     public int getVersion() {
+        if(!VersionConstants.isEnableVersionAdapter()){
+            return source.getVersion();
+        }
         if(getVersionAgeMethodList == null){
             synchronized (lock) {
                 if(getVersionAgeMethodList == null) {
@@ -138,6 +160,9 @@ public class NettyHttpCookie implements Cookie,Wrapper<Cookie> {
     }
 
     public String getCommentUrl() {
+        if(!VersionConstants.isEnableVersionAdapter()){
+            return source.getCommentUrl();
+        }
         if(getCommentUrlMethodList == null){
             synchronized (lock) {
                 if(getCommentUrlMethodList == null) {
@@ -152,6 +177,9 @@ public class NettyHttpCookie implements Cookie,Wrapper<Cookie> {
     }
 
     public Set<Integer> getPorts() {
+        if(!VersionConstants.isEnableVersionAdapter()){
+            return source.getPorts();
+        }
         if(getPortsMethodList == null){
             synchronized (lock) {
                 if(getPortsMethodList == null) {
@@ -166,6 +194,9 @@ public class NettyHttpCookie implements Cookie,Wrapper<Cookie> {
     }
 
     public String rawValue() {
+//        if(!VersionConstants.isEnableVersionAdapter()){
+//            return source.rawValue();
+//        }
         if(getRawValueMethodList == null){
             synchronized (lock) {
                 if(getRawValueMethodList == null) {
@@ -179,6 +210,9 @@ public class NettyHttpCookie implements Cookie,Wrapper<Cookie> {
     }
 
     public void setRawValue(String rawValue) {
+//        if(!VersionConstants.isEnableVersionAdapter()){
+//            return source.setRawValue(rawValue);
+//        }
         if(setRawValueMethodList == null){
             synchronized (lock) {
                 if(setRawValueMethodList == null) {
@@ -245,6 +279,16 @@ public class NettyHttpCookie implements Cookie,Wrapper<Cookie> {
     }
 
     @Override
+    public boolean wrap() {
+        return source.wrap();
+    }
+
+    @Override
+    public void setWrap(boolean b) {
+        source.setWrap(b);
+    }
+
+    @Override
     public void setDomain(String s) {
         source.setDomain(s);
     }
@@ -299,8 +343,11 @@ public class NettyHttpCookie implements Cookie,Wrapper<Cookie> {
         source.setPorts(iterable);
     }
 
-    @Override
     public int compareTo(Cookie o) {
+        return source.compareTo(o);
+    }
+
+    public int compareTo(io.netty.handler.codec.http.cookie.Cookie o) {
         return source.compareTo(o);
     }
 

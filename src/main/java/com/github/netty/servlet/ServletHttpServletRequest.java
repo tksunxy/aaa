@@ -4,10 +4,12 @@ import com.github.netty.core.adapter.NettyHttpRequest;
 import com.github.netty.core.constants.HttpConstants;
 import com.github.netty.core.constants.HttpHeaderConstants;
 import com.github.netty.servlet.support.ServletEventListenerManager;
+import com.github.netty.util.HttpHeaderUtil;
+import com.github.netty.util.ObjectUtil;
 import com.github.netty.util.ServletUtil;
 import com.github.netty.util.StringUtil;
-import com.github.netty.util.obj.TodoOptimize;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.util.concurrent.DefaultEventExecutorGroup;
 
 import javax.servlet.*;
 import javax.servlet.http.*;
@@ -15,11 +17,15 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
-import java.net.*;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.nio.charset.Charset;
 import java.security.Principal;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 
 import static com.github.netty.util.ObjectUtil.NULL;
 
@@ -30,6 +36,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     public static final String DISPATCHER_TYPE = ServletRequestDispatcher.class.getName().concat(".DISPATCHER_TYPE");
 
+    private String scheme;
     private String servletPath;
     private String queryString;
     private String pathInfo;
@@ -57,13 +64,12 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     private final NettyHttpRequest nettyRequest;
     private final HttpHeaders nettyHeaders;
-    private URI uri;
 
-    public ServletHttpServletRequest(ServletInputStream inputStream, ServletContext servletContext, NettyHttpRequest nettyRequest){
+    public ServletHttpServletRequest(ServletContext servletContext, NettyHttpRequest nettyRequest){
         this.nettyRequest = nettyRequest;
         this.nettyHeaders = nettyRequest.headers();
         this.attributeMap = null;
-        this.inputStream = inputStream;
+        this.inputStream = new ServletInputStream(nettyRequest.content().copy());;
         this.servletContext = servletContext;
         this.asyncSupportedFlag = true;
         this.decodeParameterByUrlFlag = false;
@@ -118,13 +124,32 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
        this.characterEncoding = characterEncoding;
     }
 
+    /**
+     * 解析参数规范
+     *
+     * getParameterValues方法返回一个String对象的数组，包含了与参数名称相关的所有参数值。getParameter
+     * 方法的返回值必须是getParameterValues方法返回的String对象数组中的第一个值。getParameterMap方法
+     * 返回请求参数的一个java.util.Map对象，其中以参数名称作为map键，参数值作为map值。
+     *  查询字符串和POST请求的数据被汇总到请求参数集合中。查询字符串数据在POST数据之前发送。例如，
+     * 如果请求由查询字符串a =hello 和POST数据a=goodbye&a=world 组成，得到的参数集合顺序将是 =(hello,goodbye,world)。
+     * 这些API不会暴露GET请求（HTTP 1.1所定义的）的路径参数。他们必须从getRequestURI方法或getPathInfo
+     * 方法返回的字符串值中解析。
+     *
+     * 以下是在POST表单数据填充到参数集前必须满足的条件：
+     * 1。该请求是一个HTTP或HTTPS请求。
+     * 2。HTTP方法是POST。
+     * 3。内容类型是application/x-www-form-urlencoded。
+     * 4。该servlet已经对request对象的任意getParameter方法进行了初始调用。
+     * 如果不满足这些条件，而且参数集中不包括POST表单数据，那么servlet必须可以通过request对象的输入
+     * 流得到POST数据。如果满足这些条件，那么从request对象的输入流中直接读取POST数据将不再有效。
+     */
     private void decodeParameter(){
         Map<String,String[]> parameterMap = new HashMap<>(16);
         Charset charset = servletContext.getDefaultCharset();
         ServletUtil.decodeByUrl(parameterMap, nettyRequest.uri(),charset);
         this.decodeParameterByUrlFlag = true;
 
-        if(HttpConstants.POST.equalsIgnoreCase(getMethod())){
+        if(HttpConstants.POST.equalsIgnoreCase(getMethod()) && HttpHeaderUtil.isFormUrlEncoder(getContentType())){
             ServletUtil.decodeByBody(parameterMap,nettyRequest,charset);
             this.decodeParameterByBodyFlag = true;
         }
@@ -165,6 +190,30 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         return UUID.randomUUID().toString().replace("-","");
     }
 
+    public static void main(String[] args) throws InterruptedException {
+       long c=  System.currentTimeMillis();
+
+        ExecutorService executorService = new DefaultEventExecutorGroup(50);
+
+        CountDownLatch latch= new CountDownLatch(10000);
+        for(int i=0; i<10000; i++){
+            final int finalI = i;
+            executorService.execute(new Runnable() {
+                @Override
+                public void run() {
+                    long c1=  System.currentTimeMillis();
+                    UUID.randomUUID().toString().replace("-","");
+                    long c2 = System.currentTimeMillis()-c1;
+                    if(c2 > 50) {
+//                        System.out.println(finalI + "-" + c2);
+                    }
+                    latch.countDown();
+                }
+            });
+        }
+        latch.await();
+        System.out.println(System.currentTimeMillis()-c);;
+    }
     private ServletHttpSession newHttpSession(String sessionId){
         ServletHttpSession session = new ServletHttpSession(sessionId, servletContext,servletContext.getSessionCookieConfig());
         session.access();
@@ -213,6 +262,19 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         return timestamp;
     }
 
+    /**
+     * getHeader方法返回给定头名称的头。多个头可以具有相同的名称，例如HTTP请求中的Cache-Control头。
+     * 如果多个头的名称相同，getHeader方法返回请求中的第一个头。getHeaders方法允许访问所有与特定头名
+     * 称相关的头值，返回一个String对象的枚举。
+     * 头可包含由String形式的int或Date数据。HttpServletRequest接口提供如下方便的方法访问这些类型的头
+     * 数据：头可包含由String形式的int或Date数据。HttpServletRequest接口提供如下方便的方法访问这些类型的头
+     *  getIntHeader
+     *  getDateHeader
+     * 如果getIntHeader方法不能转换为int的头值，则抛出NumberFormatException异常。如果getDateHeader方
+     * 法不能把头转换成一个Date对象，则抛出IllegalArgumentException异常。
+     * @param name
+     * @return
+     */
     @Override
     public String getHeader(String name) {
        Object value = nettyHeaders.get((CharSequence) name);
@@ -229,15 +291,41 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         return Collections.enumeration(nameList);
     }
 
+    /**
+     * 摘抄tomcat的实现
+     * @return
+     */
     @Override
     public StringBuffer getRequestURL() {
-        return new StringBuffer(nettyRequest.getUri());
+        StringBuffer url = new StringBuffer();
+        String scheme = getScheme();
+        int port = getServerPort();
+        if (port < 0){
+            port = 80; // Work around java.net.URL bug
+        }
+
+        url.append(scheme);
+        url.append("://");
+        url.append(getServerName());
+        if ((HttpConstants.HTTP.equals(scheme) && (port != HttpConstants.HTTP_PORT))
+                || (HttpConstants.HTTPS.equals(scheme) && (port != HttpConstants.HTTPS_PORT))) {
+            url.append(':');
+            url.append(port);
+        }
+        url.append(getRequestURI());
+        return url;
     }
 
     //TODO ServletPath和PathInfo应该是互补的，根据URL-Pattern匹配的路径不同而不同
     // 现在把PathInfo恒为null，ServletPath恒为uri-contextPath
     // 可以满足SpringBoot的需求，但不满足ServletPath和PathInfo的语义
     // 需要在RequestUrlPatternMapper匹配的时候设置,new NettyRequestDispatcher的时候传入MapperData
+
+    /**
+     * PathInfo：请求路径的一部分，不属于Context Path或Servlet Path。如果没有额外的路径，它要么是null，
+     * 要么是以'/'开头的字符串。
+     * @return
+     */
     @Override
     public String getPathInfo() {
         checkAndParsePaths();
@@ -256,6 +344,11 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         return this.requestUri;
     }
 
+    /**
+     * Servlet Path：路径部分直接与激活请求的映射对应。这个路径以“/”字符开头，如果请求与“/ *”或“”模式
+     * 匹配，在这种情况下，它是一个空字符串。
+     * @return
+     */
     @Override
     public String getServletPath() {
         checkAndParsePaths();
@@ -303,6 +396,11 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     }
 
 
+    /**
+     * Context Path：与ServletContext相关联的路径前缀是这个servlet的一部分。如果这个上下文是基于Web
+     * 服务器的URL命名空间基础上的“默认”上下文，那么这个路径将是一个空字符串。否则，如果上下文不是
+     * 基于服务器的命名空间，那么这个路径以/字符开始，但不以/字符结束
+     */
     @Override
     public String getContextPath() {
         return servletContext.getContextPath();
@@ -320,9 +418,9 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         if(session == null){
             if(create) {
                 session = newHttpSession(sessionId);
-                if(isRequestedSessionIdValid()) {
+//                if(isRequestedSessionIdValid()) {
                     sessionMap.put(sessionId, session);
-                }
+//                }
             }
         }else {
             session.access().setNewSessionFlag(false);
@@ -389,12 +487,14 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
         String sessionId = ServletUtil.getCookieValue(getCookies(),HttpConstants.JSESSION_ID_COOKIE);
         if(StringUtil.isEmpty(sessionId)){
-            sessionId = getParameter(HttpConstants.JSESSION_ID_PARAMS);
-            if(StringUtil.isEmpty(sessionId)){
+            String queryString = getQueryString();
+            boolean isUrlCookie = queryString != null && queryString.contains(HttpConstants.JSESSION_ID_PARAMS);
+            if(isUrlCookie) {
+                sessionIdSource = HttpConstants.SESSION_ID_SOURCE_URL;
+                sessionId = getParameter(HttpConstants.JSESSION_ID_PARAMS);
+            }else {
                 sessionIdSource = HttpConstants.SESSION_ID_SOURCE_NOT_FOUND_CREATE;
                 sessionId = newSessionId();
-            }else {
-                sessionIdSource = HttpConstants.SESSION_ID_SOURCE_URL;
             }
         }else {
             sessionIdSource = HttpConstants.SESSION_ID_SOURCE_COOKIE;
@@ -465,7 +565,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public long getContentLengthLong() {
-        return inputStream.getCurrentLength();
+        return inputStream.getContentLength();
     }
 
     @Override
@@ -517,10 +617,12 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String getScheme() {
-        return String.valueOf(nettyRequest.protocolVersion().protocolName()).toLowerCase();
+        if(scheme == null){
+            scheme = String.valueOf(nettyRequest.protocolVersion().protocolName()).toLowerCase();
+        }
+        return scheme;
     }
 
-    @TodoOptimize("用于写cookie作用域, 可以实现跨域会话追踪")
     @Override
     public String getServerName() {
         InetSocketAddress inetSocketAddress = getLocalAddress();
@@ -573,7 +675,14 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public void setAttribute(String name, Object object) {
-        Object oldObject = getAttributeMap().put(name,object == null?NULL:object);
+        ObjectUtil.checkNotNull(name);
+
+        if(object == null){
+            removeAttribute(name);
+            return;
+        }
+
+        Object oldObject = getAttributeMap().put(name,object);
 
         ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
         if(listenerManager.hasServletRequestAttributeListener()){
@@ -621,7 +730,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public boolean isSecure() {
-        return HttpConstants.HTTPS.equalsIgnoreCase(getScheme());
+        return HttpConstants.HTTPS.equals(getScheme());
     }
 
     @Override

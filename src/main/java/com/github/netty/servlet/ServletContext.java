@@ -73,11 +73,11 @@ public class ServletContext implements javax.servlet.ServletContext {
         this.serverSocketAddress = socketAddress;
         this.classLoader = classLoader;
 
-        this.httpSessionMap = new ConcurrentHashMap<>();
-        this.attributeMap = new ConcurrentHashMap<>();
-        this.initParamMap = new ConcurrentHashMap<>();
-        this.servletRegistrationMap = new ConcurrentHashMap<>();
-        this.filterRegistrationMap = new ConcurrentHashMap<>();
+        this.httpSessionMap = new ConcurrentHashMap<>(128);
+        this.attributeMap = new ConcurrentHashMap<>(16);
+        this.initParamMap = new ConcurrentHashMap<>(16);
+        this.servletRegistrationMap = new ConcurrentHashMap<>(8);
+        this.filterRegistrationMap = new ConcurrentHashMap<>(8);
         this.servletUrlMapper = new UrlMapper<>(contextPath,true);
         this.filterUrlMapper = new UrlMapper<>(contextPath,false);
         this.servletEventListenerManager = new ServletEventListenerManager();
@@ -356,6 +356,13 @@ public class ServletContext implements javax.servlet.ServletContext {
 
     @Override
     public void setAttribute(String name, Object object) {
+        ObjectUtil.checkNotNull(name);
+
+        if(object == null){
+            removeAttribute(name);
+            return;
+        }
+
         Object oldObject = attributeMap.put(name,object);
 
         ServletEventListenerManager listenerManager = getServletEventListenerManager();

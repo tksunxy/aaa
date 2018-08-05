@@ -6,15 +6,15 @@ import com.github.netty.core.constants.HttpHeaderConstants;
 import com.github.netty.servlet.support.ServletOutputStreamListener;
 import com.github.netty.util.HttpHeaderUtil;
 import com.github.netty.util.obj.TodoOptimize;
-import com.google.common.base.Optional;
-import com.google.common.net.MediaType;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.DefaultHttpResponse;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpVersion;
 
 import javax.servlet.http.Cookie;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.nio.charset.Charset;
 import java.util.*;
 
 /**
@@ -198,16 +198,25 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
         if (hasWriter()) {
             return;
         }
-        if (null == type) {
+        if (null == type || type.isEmpty()) {
             contentType = null;
             return;
         }
-        MediaType mediaType = MediaType.parse(type);
-        Optional<Charset> charset = mediaType.charset();
-        if (charset.isPresent()) {
-            setCharacterEncoding(charset.get().name());
+
+        String[] typeAndCharset = type.split(";");
+        if(typeAndCharset.length > 0){
+            contentType = typeAndCharset[0];
+            if(typeAndCharset.length > 1){
+                setCharacterEncoding(typeAndCharset[1]);
+            }
         }
-        contentType = mediaType.type() + '/' + mediaType.subtype();
+
+//        MediaType mediaType = MediaTypeUtil.parse(type);
+//        Optional<Charset> charset = mediaType.charset();
+//        if (charset.isPresent()) {
+//            setCharacterEncoding(charset.get().name());
+//        }
+//        contentType = mediaType.type() + '/' + mediaType.subtype();
     }
 
     @Override
@@ -289,18 +298,26 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
 
     private void checkState(boolean isTrue, String errorMessage) {
         if(isTrue) {
-            throw new IllegalStateException(String.valueOf(errorMessage));
+            throw new IllegalStateException(errorMessage);
         }
     }
 
     @Override
     public void setContentLength(int len) {
-        HttpHeaderUtil.setContentLength(nettyResponse, len);
+        setContentLengthLong(len);
     }
 
     @Override
     public void setContentLengthLong(long len) {
         HttpHeaderUtil.setContentLength(nettyResponse, len);
+
+        if(len > 0 && outputStream.getContentLength() > 0){
+            try {
+                outputStream.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     @Override

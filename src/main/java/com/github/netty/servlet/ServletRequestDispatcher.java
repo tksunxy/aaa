@@ -1,6 +1,7 @@
 package com.github.netty.servlet;
 
 import javax.servlet.*;
+import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 
 /**
@@ -18,15 +19,32 @@ public class ServletRequestDispatcher implements RequestDispatcher {
 
     @Override
     public void forward(ServletRequest request, ServletResponse response) throws ServletException, IOException {
-        DispatcherType dispatcherType = DispatcherType.FORWARD;
-        request.setAttribute(ServletHttpServletRequest.DISPATCHER_TYPE,dispatcherType);
-        dispatch(request,response,dispatcherType);
+        if(request instanceof HttpServletRequest) {
+            final HttpServletRequest httpRequest = (HttpServletRequest) request;
+            httpRequest.setAttribute(FORWARD_CONTEXT_PATH, httpRequest.getContextPath());
+            httpRequest.setAttribute(FORWARD_PATH_INFO, httpRequest.getPathInfo());
+            httpRequest.setAttribute(FORWARD_QUERY_STRING, httpRequest.getQueryString());
+            httpRequest.setAttribute(FORWARD_REQUEST_URI, httpRequest.getRequestURI());
+            httpRequest.setAttribute(FORWARD_SERVLET_PATH, httpRequest.getServletPath());
+        }
+
+        dispatch(request,response,DispatcherType.FORWARD);
         // TODO implement
     }
 
     @Override
     public void include(ServletRequest request, ServletResponse response) throws ServletException, IOException {
         request.setAttribute(ServletHttpServletRequest.DISPATCHER_TYPE, DispatcherType.INCLUDE);
+
+        if(request instanceof HttpServletRequest) {
+            final HttpServletRequest httpRequest = (HttpServletRequest) request;
+            httpRequest.setAttribute(INCLUDE_CONTEXT_PATH, httpRequest.getContextPath());
+            httpRequest.setAttribute(INCLUDE_PATH_INFO, httpRequest.getPathInfo());
+            httpRequest.setAttribute(INCLUDE_QUERY_STRING, httpRequest.getQueryString());
+            httpRequest.setAttribute(INCLUDE_REQUEST_URI, httpRequest.getRequestURI());
+            httpRequest.setAttribute(INCLUDE_SERVLET_PATH, httpRequest.getServletPath());
+        }
+
         // TODO implement
     }
 

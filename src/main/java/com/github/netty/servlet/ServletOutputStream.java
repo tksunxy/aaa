@@ -98,6 +98,21 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream {
         checkClosed();
     }
 
+    public int getContentLength(){
+        return compositeByteBuf.capacity();
+    }
+
+    /**
+     * 结束响应对象
+     * 当响应被关闭时，容器必须立即刷出响应缓冲区中的所有剩余的内容到客户端。
+     * 以下事件表明servlet满足了请求且响应对象即将关闭：
+     * ■servlet的service方法终止。
+     * ■响应的setContentLength或setContentLengthLong方法指定了大于零的内容量，且已经写入到响应。
+     * ■sendError 方法已调用。
+     * ■sendRedirect 方法已调用。
+     * ■AsyncContext 的complete 方法已调用
+     * @throws IOException
+     */
     @Override
     public void close() throws IOException {
         synchronized (syncLock) {

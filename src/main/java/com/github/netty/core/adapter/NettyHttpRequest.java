@@ -1,5 +1,6 @@
 package com.github.netty.core.adapter;
 
+import com.github.netty.core.constants.VersionConstants;
 import com.github.netty.util.ReflectUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -41,6 +42,9 @@ public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest
     }
 
     public HttpMethod getMethod() {
+        if(!VersionConstants.isEnableVersionAdapter()){
+            return source.getMethod();
+        }
         if(getMethodMethodList == null){
             synchronized (lock) {
                 if(getMethodMethodList == null) {
@@ -55,6 +59,9 @@ public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest
     }
 
     public String getUri() {
+        if(!VersionConstants.isEnableVersionAdapter()){
+            return source.getUri();
+        }
         if(getUriMethodList == null){
             synchronized (lock) {
                 if(getUriMethodList == null) {
@@ -69,6 +76,9 @@ public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest
     }
 
     public HttpVersion getProtocolVersion() {
+        if(!VersionConstants.isEnableVersionAdapter()){
+            return source.getProtocolVersion();
+        }
         if(getProtocolVersionMethodList == null){
             synchronized (lock) {
                 if(getProtocolVersionMethodList == null) {
@@ -83,6 +93,9 @@ public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest
     }
 
     public DecoderResult getDecoderResult() {
+        if(!VersionConstants.isEnableVersionAdapter()){
+            return source.getDecoderResult();
+        }
         if(getDecoderResultMethodList == null){
             synchronized (lock) {
                 if(getDecoderResultMethodList == null) {
@@ -98,6 +111,9 @@ public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest
 
 
     public FullHttpRequest touch() {
+        if(!VersionConstants.isEnableVersionAdapter()){
+            return source.touch();
+        }
         if(touchMethodList == null){
             synchronized (lock) {
                 if(touchMethodList == null) {
@@ -111,6 +127,9 @@ public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest
     }
 
     public FullHttpRequest touch(Object hint) {
+        if(!VersionConstants.isEnableVersionAdapter()){
+            return source.touch(hint);
+        }
         if(touch1MethodList == null){
             synchronized (lock) {
                 if(touch1MethodList == null) {
@@ -124,6 +143,9 @@ public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest
     }
 
     public FullHttpRequest copy(ByteBuf newContent) {
+//        if(!VersionConstants.isEnableVersionAdapter()){
+//            return source.copy(newContent);
+//        }
         if(copyMethodList == null){
             synchronized (lock) {
                 if(copyMethodList == null) {
@@ -142,6 +164,14 @@ public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest
             return (FullHttpRequest) httpContent;
         }
         return null;
+    }
+
+    public FullHttpRequest retainedDuplicate() {
+        return source.retainedDuplicate();
+    }
+
+    public FullHttpRequest replace(ByteBuf byteBuf) {
+        return source.replace(byteBuf);
     }
 
     @Override

@@ -1,6 +1,7 @@
 package com.github.netty;
 
 import com.github.netty.springboot.NettyEmbeddedServletContainerFactory;
+import com.github.netty.util.ProxyUtil;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -13,9 +14,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 
 
@@ -33,17 +31,22 @@ public class TestApplication {
 
     @RequestMapping("/hello")
     public Object hello(@RequestParam Map o, HttpSession session, HttpServletRequest request, HttpServletResponse response){
-        List list = new LinkedList<>();
-        for(int i=0; i<100; i++){
-            Map map = new HashMap<>();
-            StringBuilder sb = new StringBuilder();
-            for(int j=0; j<500;j++){
-                sb.append(j);
-            }
-            map.put("fd1",sb);
-            list.add(map);
-        }
-        return list;
+//        try {
+//            Thread.sleep(10);
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
+//        List list = new LinkedList<>();
+//        for(int i=0; i<100; i++){
+//            Map map = new HashMap<>();
+//            StringBuilder sb = new StringBuilder();
+//            for(int j=0; j<500;j++){
+//                sb.append(j);
+//            }
+//            map.put("fd1",sb);
+//            list.add(map);
+//        }
+        return "";
     }
 
 
@@ -53,6 +56,7 @@ public class TestApplication {
      * @throws IOException io异常
      */
     public static void main(String[] args) throws IOException {
+        ProxyUtil.setEnableProxy(false);
         ConfigurableApplicationContext context = SpringApplication.run(TestApplication.class, args);
     }
 

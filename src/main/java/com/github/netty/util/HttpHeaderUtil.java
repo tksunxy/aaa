@@ -15,6 +15,13 @@ import java.util.List;
  */
 public class HttpHeaderUtil {
 
+    public static boolean isFormUrlEncoder(String contentType) {
+        if(contentType == null){
+            return false;
+        }
+        return "application/x-www-form-urlencoded".equals(contentType.toLowerCase());
+    }
+
     /**
      * Returns {@code true} if and only if the connection can remain open and
      * thus 'kept alive'.  This methods respects the value of the

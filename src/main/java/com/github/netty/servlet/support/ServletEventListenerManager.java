@@ -30,7 +30,11 @@ public class ServletEventListenerManager {
             return;
         }
         for(ServletContextAttributeListener listener : servletContextAttributeListenerList){
-            listener.attributeAdded(event);
+            try {
+                listener.attributeAdded(event);
+            }catch (Throwable throwable){
+                throwable.printStackTrace();
+            }
         }
     }
 
@@ -39,7 +43,11 @@ public class ServletEventListenerManager {
             return;
         }
         for(ServletContextAttributeListener listener : servletContextAttributeListenerList){
-            listener.attributeRemoved(event);
+            try {
+                listener.attributeRemoved(event);
+            }catch (Throwable throwable){
+                throwable.printStackTrace();
+            }
         }
     }
 
@@ -48,7 +56,11 @@ public class ServletEventListenerManager {
             return;
         }
         for(ServletContextAttributeListener listener : servletContextAttributeListenerList){
-            listener.attributeReplaced(event);
+            try {
+                listener.attributeReplaced(event);
+            }catch (Throwable throwable){
+                throwable.printStackTrace();
+            }
         }
     }
 
@@ -57,7 +69,11 @@ public class ServletEventListenerManager {
             return;
         }
         for(ServletRequestListener listener : servletRequestListenerList){
-            listener.requestInitialized(event);
+            try {
+                listener.requestInitialized(event);
+            }catch (Throwable throwable){
+                throwable.printStackTrace();
+            }
         }
     }
 
@@ -66,7 +82,11 @@ public class ServletEventListenerManager {
             return;
         }
         for(ServletRequestListener listener : servletRequestListenerList){
-            listener.requestDestroyed(event);
+            try {
+                listener.requestDestroyed(event);
+            }catch (Throwable throwable){
+                throwable.printStackTrace();
+            }
         }
     }
 
@@ -75,7 +95,11 @@ public class ServletEventListenerManager {
             return;
         }
         for(ServletRequestAttributeListener listener : servletRequestAttributeListenerList){
-            listener.attributeAdded(event);
+            try {
+                listener.attributeAdded(event);
+            }catch (Throwable throwable){
+                throwable.printStackTrace();
+            }
         }
     }
 
@@ -84,7 +108,11 @@ public class ServletEventListenerManager {
             return;
         }
         for(ServletRequestAttributeListener listener : servletRequestAttributeListenerList){
-            listener.attributeRemoved(event);
+            try {
+                listener.attributeRemoved(event);
+            }catch (Throwable throwable){
+                throwable.printStackTrace();
+            }
         }
     }
 
@@ -93,7 +121,11 @@ public class ServletEventListenerManager {
             return;
         }
         for(ServletRequestAttributeListener listener : servletRequestAttributeListenerList){
-            listener.attributeReplaced(event);
+            try {
+                listener.attributeReplaced(event);
+            }catch (Throwable throwable){
+                throwable.printStackTrace();
+            }
         }
     }
 
@@ -102,7 +134,11 @@ public class ServletEventListenerManager {
             return;
         }
         for(HttpSessionIdListener listener : httpSessionIdListenerList){
-            listener.sessionIdChanged(event,oldSessionId);
+            try {
+                listener.sessionIdChanged(event,oldSessionId);
+            }catch (Throwable throwable){
+                throwable.printStackTrace();
+            }
         }
     }
 
@@ -111,7 +147,11 @@ public class ServletEventListenerManager {
             return;
         }
         for(HttpSessionAttributeListener listener : httpSessionAttributeListenerList){
-            listener.attributeAdded(event);
+            try {
+                listener.attributeAdded(event);
+            }catch (Throwable throwable){
+                throwable.printStackTrace();
+            }
         }
     }
 
@@ -120,7 +160,11 @@ public class ServletEventListenerManager {
             return;
         }
         for(HttpSessionAttributeListener listener : httpSessionAttributeListenerList){
-            listener.attributeRemoved(event);
+            try {
+                listener.attributeRemoved(event);
+            }catch (Throwable throwable){
+                throwable.printStackTrace();
+            }
         }
     }
 
@@ -129,7 +173,11 @@ public class ServletEventListenerManager {
             return;
         }
         for(HttpSessionAttributeListener listener : httpSessionAttributeListenerList){
-            listener.attributeReplaced(event);
+            try {
+                listener.attributeReplaced(event);
+            }catch (Throwable throwable){
+                throwable.printStackTrace();
+            }
         }
     }
 
@@ -138,7 +186,11 @@ public class ServletEventListenerManager {
             return;
         }
         for(HttpSessionListener listener : httpSessionListenerList){
-            listener.sessionCreated(event);
+            try {
+                listener.sessionCreated(event);
+            }catch (Throwable throwable){
+                throwable.printStackTrace();
+            }
         }
     }
 
@@ -147,7 +199,11 @@ public class ServletEventListenerManager {
             return;
         }
         for(HttpSessionListener listener : httpSessionListenerList){
-            listener.sessionDestroyed(event);
+            try {
+                listener.sessionDestroyed(event);
+            }catch (Throwable throwable){
+                throwable.printStackTrace();
+            }
         }
     }
 
@@ -156,7 +212,11 @@ public class ServletEventListenerManager {
             return;
         }
         for(ServletContextListener listener : servletContextListenerList){
-            listener.contextInitialized(event);
+            try {
+                listener.contextInitialized(event);
+            }catch (Throwable throwable){
+                throwable.printStackTrace();
+            }
         }
     }
 
@@ -165,7 +225,11 @@ public class ServletEventListenerManager {
             return;
         }
         for(ServletContextListener listener : servletContextListenerList){
-            listener.contextDestroyed(event);
+            try {
+                listener.contextDestroyed(event);
+            }catch (Throwable throwable){
+                throwable.printStackTrace();
+            }
         }
     }
 

@@ -5,21 +5,17 @@ import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletFilterRegistration;
 import com.github.netty.servlet.ServletRegistration;
 import com.github.netty.servlet.support.ServletEventListenerManager;
+import com.github.netty.util.ProxyUtil;
 import com.github.netty.util.obj.TodoOptimize;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.http.HttpContentCompressor;
-import io.netty.handler.codec.http.HttpContentDecompressor;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
-import io.netty.handler.stream.ChunkedWriteHandler;
-import io.netty.util.concurrent.DefaultEventExecutorGroup;
-import io.netty.util.concurrent.EventExecutorGroup;
 import org.springframework.boot.context.embedded.EmbeddedServletContainer;
 import org.springframework.boot.context.embedded.EmbeddedServletContainerException;
 import org.springframework.boot.context.embedded.Ssl;
@@ -30,6 +26,8 @@ import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletException;
 import java.io.File;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  *
@@ -39,7 +37,6 @@ import java.util.Map;
 public class NettyEmbeddedServletContainer extends AbstractNettyServer implements EmbeddedServletContainer {
 
     private ServletContext servletContext;
-    private EventExecutorGroup dispatcherExecutorGroup;
     private boolean enableSsl;
     private SslContext sslContext;
     private ChannelHandler dispatcherHandler;
@@ -51,8 +48,8 @@ public class NettyEmbeddedServletContainer extends AbstractNettyServer implement
         super(servletContext.getServerSocketAddress());
         this.servletContext = servletContext;
         this.servletCodecHandler = new NettyServletCodecHandler(servletContext);
-        this.dispatcherExecutorGroup = new DefaultEventExecutorGroup(bizThreadCount);
-        this.dispatcherHandler = new NettyServletDispatcherHandler();
+        ExecutorService dispatcherExecutor = Executors.newFixedThreadPool(bizThreadCount);
+        this.dispatcherHandler = new NettyServletDispatcherHandler(dispatcherExecutor);
         this.serverThread = new Thread(this);
 
         configServerThread();
@@ -81,17 +78,17 @@ public class NettyEmbeddedServletContainer extends AbstractNettyServer implement
                 pipeline.addLast("Aggregator", new HttpObjectAggregator(512 * 1024));
 
                 //内容压缩
-                pipeline.addLast("ContentCompressor", new HttpContentCompressor());
-                pipeline.addLast("ContentDecompressor", new HttpContentDecompressor());
+//                pipeline.addLast("ContentCompressor", new HttpContentCompressor());
+//                pipeline.addLast("ContentDecompressor", new HttpContentDecompressor());
 
                 //分段写入, 防止响应数据过大
-                pipeline.addLast("ChunkedWrite",new ChunkedWriteHandler());
+//                pipeline.addLast("ChunkedWrite",new ChunkedWriteHandler());
 
                 //生成servletRequest和servletResponse对象
                 pipeline.addLast("ServletCodec",servletCodecHandler);
 
                 //业务调度器, 让对应的Servlet处理请求
-                pipeline.addLast(dispatcherExecutorGroup, "Dispatcher", dispatcherHandler);
+                pipeline.addLast("Dispatcher", dispatcherHandler);
             }
         };
     }
@@ -107,6 +104,7 @@ public class NettyEmbeddedServletContainer extends AbstractNettyServer implement
         initServlet();
 
         serverThread.start();
+        ProxyUtil.setEnableProxy(true);
     }
 
     @Override

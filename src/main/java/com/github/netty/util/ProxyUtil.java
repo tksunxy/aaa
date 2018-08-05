@@ -19,7 +19,6 @@ import java.util.List;
 public class ProxyUtil {
 
     private static boolean enableProxy = false;
-
     public static boolean isEnableProxy() {
         return enableProxy;
     }
@@ -157,15 +156,24 @@ public class ProxyUtil {
     }
 
 
-    static void log(String proxyName, Method method,Object[] args,Object result){
+    static void log(String proxyName, Method method,Object[] args,Object result,long beginTime){
 //        if(!method.getName().contains("Heade")){
 //            return;
 //        }
         if(Arrays.asList("toString","hashCode","equals").contains(method.getName())){
             return;
         }
-        System.out.println("--------"+ Thread.currentThread() + "----"+proxyName + " 方法:" + method.getName() +
-                (args == null || args.length == 0? "":" 参数:"+Arrays.toString(args))+" 结果:"+result);
+
+        long time = System.currentTimeMillis() - beginTime;
+        if( time > 10
+//                && "getRequestedSessionId".equals(method.getName())
+                ) {
+            System.out.println("-" + (time) + "---" + Thread.currentThread() + "----" + proxyName + " 方法:" + method.getName() +
+                    (args == null || args.length == 0 ? "" : " 参数:"
+                           + Arrays.toString(args)
+                    ) +
+                    " 结果:" + result);
+        }
     }
 
     public static class CglibProxy implements MethodInterceptor {
@@ -184,9 +192,11 @@ public class ProxyUtil {
                 if("toString".equals(method.getName())){
                     return name;
                 }
+
+                long beginTime = System.currentTimeMillis();
                 Object result = methodProxy.invokeSuper(o,args);
                 if(isEnableLog){
-                    ProxyUtil.log(name,method,args,result);
+                    ProxyUtil.log(name,method,args,result,beginTime);
                 }
                 return result;
             }catch (Throwable t){
@@ -221,9 +231,11 @@ public class ProxyUtil {
                 if("toString".equals(method.getName())){
                     return name;
                 }
+                long beginTime = System.currentTimeMillis();
+
                 Object result = method.invoke(source,args);
                 if(isEnableLog){
-                    ProxyUtil.log(name,method,args,result);
+                    ProxyUtil.log(name,method,args,result,beginTime);
                 }
                 return result;
             }catch (Throwable t){

@@ -31,7 +31,7 @@ public class ServletAsyncContext implements AsyncContext {
     //毫秒
     private long timeout;
 
-    private List<ServletAsyncListenerWrapper> asyncListenerWarpperList;
+    private List<ServletAsyncListenerWrapper> asyncListenerWrapperList;
 
     private ServletContext servletContext;
 
@@ -184,11 +184,11 @@ public class ServletAsyncContext implements AsyncContext {
 
     @Override
     public void addListener(AsyncListener listener, ServletRequest servletRequest, ServletResponse servletResponse) {
-        if(asyncListenerWarpperList == null){
-            asyncListenerWarpperList = new LinkedList<>();
+        if(asyncListenerWrapperList == null){
+            asyncListenerWrapperList = new LinkedList<>();
         }
 
-        asyncListenerWarpperList.add(new ServletAsyncListenerWrapper(listener,servletRequest,servletResponse));
+        asyncListenerWrapperList.add(new ServletAsyncListenerWrapper(listener,servletRequest,servletResponse));
     }
 
     @Override
@@ -219,12 +219,12 @@ public class ServletAsyncContext implements AsyncContext {
     }
 
     public boolean isStarted(){
-        return status == STATUS_START;
+        return status >= STATUS_START;
     }
 
     private void notifyEvent(Consumer<ServletAsyncListenerWrapper> consumer){
-        if(asyncListenerWarpperList != null) {
-            for (ServletAsyncListenerWrapper listenerWrapper : asyncListenerWarpperList){
+        if(asyncListenerWrapperList != null) {
+            for (ServletAsyncListenerWrapper listenerWrapper : asyncListenerWrapperList){
                 consumer.accept(listenerWrapper);
             }
         }
@@ -239,8 +239,6 @@ public class ServletAsyncContext implements AsyncContext {
             this.asyncListener = asyncListener;
             this.servletRequest = servletRequest;
             this.servletResponse = servletResponse;
-
-            DispatcherType ASYNC = DispatcherType.ASYNC;
         }
     }
 }

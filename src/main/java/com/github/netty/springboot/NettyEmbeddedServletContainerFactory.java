@@ -106,6 +106,7 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
     protected ServletSessionCookieConfig loadSessionCookieConfig(){
         ServletSessionCookieConfig sessionCookieConfig = new ServletSessionCookieConfig();
         sessionCookieConfig.setMaxAge(-1);
+        //session超时时间
         sessionCookieConfig.setSessionTimeout(getSessionTimeout());
         return sessionCookieConfig;
     }

@@ -1,8 +1,8 @@
-package com.github.netty.util.obj;
+package com.github.netty.util;
 
 /**
  * Created by acer01 on 2018/7/15/015.
- * 未完成的工作
+ * 用于标注没有敲完,却提交git的代码, 相当于todo
  */
 public @interface TodoOptimize {
 

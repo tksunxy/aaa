@@ -1,7 +1,7 @@
 package com.github.netty.util;
 
-import com.github.netty.core.adapter.NettyHttpRequest;
-import com.github.netty.core.adapter.NettyHttpResponse;
+import com.github.netty.core.NettyHttpRequest;
+import com.github.netty.core.NettyHttpResponse;
 import com.github.netty.core.constants.HttpHeaderConstants;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.*;

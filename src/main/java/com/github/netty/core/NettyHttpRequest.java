@@ -1,6 +1,7 @@
-package com.github.netty.core.adapter;
+package com.github.netty.core;
 
 import com.github.netty.core.constants.VersionConstants;
+import com.github.netty.core.support.Wrapper;
 import com.github.netty.util.ReflectUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -17,7 +18,7 @@ import java.util.Objects;
  * @author acer01
  * 2018/7/28/028
  */
-public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest>{
+public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest> {
 
     private FullHttpRequest source;
     private Class sourceClass;

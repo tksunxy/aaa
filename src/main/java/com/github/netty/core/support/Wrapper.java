@@ -1,4 +1,4 @@
-package com.github.netty.core.adapter;
+package com.github.netty.core.support;
 
 /**
  * 包装者

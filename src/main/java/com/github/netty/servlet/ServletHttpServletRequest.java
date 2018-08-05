@@ -1,6 +1,6 @@
 package com.github.netty.servlet;
 
-import com.github.netty.core.adapter.NettyHttpRequest;
+import com.github.netty.core.NettyHttpRequest;
 import com.github.netty.core.constants.HttpConstants;
 import com.github.netty.core.constants.HttpHeaderConstants;
 import com.github.netty.servlet.support.ServletEventListenerManager;
@@ -9,7 +9,6 @@ import com.github.netty.util.ObjectUtil;
 import com.github.netty.util.ServletUtil;
 import com.github.netty.util.StringUtil;
 import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.util.concurrent.DefaultEventExecutorGroup;
 
 import javax.servlet.*;
 import javax.servlet.http.*;
@@ -24,8 +23,6 @@ import java.nio.charset.Charset;
 import java.security.Principal;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
 
 import static com.github.netty.util.ObjectUtil.NULL;
 
@@ -180,7 +177,8 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
             servletPath = servletPath.substring(0, queryInx);
         }
         this.servletPath = servletPath;
-        this.requestUri = this.servletContext.getContextPath() + servletPath; //TODO 加上pathInfo
+        this.requestUri = this.servletContext.getContextPath() + servletPath;
+        //TODO 加上pathInfo
         this.pathInfo = null;
 
         parsePathsFlag = true;
@@ -190,30 +188,6 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         return UUID.randomUUID().toString().replace("-","");
     }
 
-    public static void main(String[] args) throws InterruptedException {
-       long c=  System.currentTimeMillis();
-
-        ExecutorService executorService = new DefaultEventExecutorGroup(50);
-
-        CountDownLatch latch= new CountDownLatch(10000);
-        for(int i=0; i<10000; i++){
-            final int finalI = i;
-            executorService.execute(new Runnable() {
-                @Override
-                public void run() {
-                    long c1=  System.currentTimeMillis();
-                    UUID.randomUUID().toString().replace("-","");
-                    long c2 = System.currentTimeMillis()-c1;
-                    if(c2 > 50) {
-//                        System.out.println(finalI + "-" + c2);
-                    }
-                    latch.countDown();
-                }
-            });
-        }
-        latch.await();
-        System.out.println(System.currentTimeMillis()-c);;
-    }
     private ServletHttpSession newHttpSession(String sessionId){
         ServletHttpSession session = new ServletHttpSession(sessionId, servletContext,servletContext.getSessionCookieConfig());
         session.access();

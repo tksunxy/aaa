@@ -3,7 +3,7 @@ package com.github.netty.servlet;
 import com.github.netty.servlet.support.StreamListener;
 import com.github.netty.util.ExceptionUtil;
 import com.github.netty.util.ObjectUtil;
-import com.github.netty.util.obj.TodoOptimize;
+import com.github.netty.util.TodoOptimize;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.channel.ChannelFuture;

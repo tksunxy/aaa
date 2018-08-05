@@ -1,6 +1,6 @@
 package com.github.netty.util;
 
-import com.github.netty.core.adapter.NettyHttpCookie;
+import com.github.netty.core.NettyHttpCookie;
 import com.github.netty.core.constants.HttpHeaderConstants;
 import io.netty.handler.codec.http.DefaultCookie;
 import io.netty.handler.codec.http.HttpRequest;
@@ -10,7 +10,6 @@ import io.netty.util.concurrent.FastThreadLocal;
 
 import javax.servlet.http.Cookie;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -26,9 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ServletUtil {
 
     private static final Map<String,HttpDataFactory> HTTP_DATA_FACTORY_MAP = new ConcurrentHashMap<>();
-
-    private static final Method COOKIE_DECODER_METHOD;
-    private static final Method COOKIE_ENCODER_METHOD;
 
     /**
      * The only date format permitted when generating HTTP headers.
@@ -60,34 +56,6 @@ public class ServletUtil {
         }
     };
 
-    static {
-        Class cookieDecoderClass = ReflectUtil.forName(
-                "io.netty.handler.codec.http.CookieDecoder",
-                "io.netty.handler.codec.http.ServerCookieDecoder"
-        );
-        Class cookieEncoderClass = ReflectUtil.forName(
-                "io.netty.handler.codec.http.CookieEncoder",
-                "io.netty.handler.codec.http.ServerCookieEncoder"
-        );
-
-        if(cookieDecoderClass == null || cookieEncoderClass == null) {
-            throw new RuntimeException("netty版本不兼容");
-        }
-
-        try {
-            COOKIE_DECODER_METHOD = cookieDecoderClass.getDeclaredMethod("decode",String.class);
-            if(COOKIE_DECODER_METHOD == null){
-                throw new RuntimeException("netty版本不兼容");
-            }
-
-            COOKIE_ENCODER_METHOD = cookieEncoderClass.getDeclaredMethod("encode", io.netty.handler.codec.http.Cookie.class);
-            if(COOKIE_ENCODER_METHOD == null){
-                throw new RuntimeException("netty版本不兼容");
-            }
-        } catch (NoSuchMethodException e) {
-            throw new RuntimeException("netty版本不兼容");
-        }
-    }
 
     public static String getCookieValue(Cookie[] cookies, String cookieName){
         if(cookies == null || cookieName == null) {
@@ -138,7 +106,7 @@ public class ServletUtil {
     }
 
     public static String encodeCookie(io.netty.handler.codec.http.Cookie cookie){
-        String value = (String) ReflectUtil.invokeMethod(null,COOKIE_ENCODER_METHOD,cookie);
+        String value = CookieCodecUtil.encode(cookie);
         return value;
     }
 
@@ -146,7 +114,8 @@ public class ServletUtil {
         if(value == null){
             return null;
         }
-        Collection<io.netty.handler.codec.http.Cookie> nettyCookieSet = (Collection<io.netty.handler.codec.http.Cookie>) ReflectUtil.invokeMethod(null,COOKIE_DECODER_METHOD,value);
+
+        Collection<io.netty.handler.codec.http.Cookie> nettyCookieSet = CookieCodecUtil.decode(value);
         if(nettyCookieSet == null){
             return null;
         }

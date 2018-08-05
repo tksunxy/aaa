@@ -58,6 +58,7 @@ public class TestApplication {
     public static void main(String[] args) throws IOException {
         ProxyUtil.setEnableProxy(false);
         ConfigurableApplicationContext context = SpringApplication.run(TestApplication.class, args);
+        ProxyUtil.setEnableProxy(true);
     }
 
 

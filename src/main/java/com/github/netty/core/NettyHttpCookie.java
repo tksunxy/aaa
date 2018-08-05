@@ -1,6 +1,7 @@
-package com.github.netty.core.adapter;
+package com.github.netty.core;
 
 import com.github.netty.core.constants.VersionConstants;
+import com.github.netty.core.support.Wrapper;
 import com.github.netty.util.ReflectUtil;
 import io.netty.handler.codec.http.Cookie;
 

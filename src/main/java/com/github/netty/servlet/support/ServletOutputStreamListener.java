@@ -1,8 +1,8 @@
 package com.github.netty.servlet.support;
 
-import com.github.netty.core.adapter.NettyHttpCookie;
-import com.github.netty.core.adapter.NettyHttpRequest;
-import com.github.netty.core.adapter.NettyHttpResponse;
+import com.github.netty.core.NettyHttpCookie;
+import com.github.netty.core.NettyHttpRequest;
+import com.github.netty.core.NettyHttpResponse;
 import com.github.netty.core.constants.HttpConstants;
 import com.github.netty.core.constants.HttpHeaderConstants;
 import com.github.netty.servlet.ServletHttpServletRequest;

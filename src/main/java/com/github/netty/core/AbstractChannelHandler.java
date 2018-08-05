@@ -1,4 +1,4 @@
-package com.github.netty.core.adapter;
+package com.github.netty.core;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;

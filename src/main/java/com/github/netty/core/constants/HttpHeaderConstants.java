@@ -4,6 +4,27 @@ package com.github.netty.core.constants;
  * @author 84215
  */
 public class HttpHeaderConstants {
+
+    public static final CharSequence PATH = "Path";
+
+    public static final CharSequence MAX_AGE_1 = "Max-Age";
+
+    public static final CharSequence DOMAIN = "Domain";
+
+    public static final CharSequence SECURE = "Secure";
+
+    public static final CharSequence HTTPONLY = "HTTPOnly";
+
+    public static final CharSequence COMMENT = "Comment";
+
+    public static final CharSequence COMMENTURL = "CommentURL";
+
+    public static final CharSequence DISCARD = "Discard";
+
+    public static final CharSequence PORT = "Port";
+
+    public static final CharSequence VERSION = "Version";
+
     /**
      * {@code "Accept"}
      */
@@ -361,7 +382,7 @@ public class HttpHeaderConstants {
     /**
      * {@code "max-age"}
      */
-    public static final CharSequence MAX_AGE = "max-age";
+    public static final CharSequence MAX_AGE_0 = "max-age";
     /**
      * {@code "max-stale"}
      */

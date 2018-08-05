@@ -1,6 +1,6 @@
 package com.github.netty.springboot;
 
-import com.github.netty.core.adapter.AbstractChannelHandler;
+import com.github.netty.core.AbstractChannelHandler;
 import com.github.netty.servlet.ServletAsyncContext;
 import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletHttpServletResponse;

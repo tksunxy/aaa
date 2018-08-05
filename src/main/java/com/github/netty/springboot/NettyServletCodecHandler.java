@@ -1,7 +1,7 @@
 package com.github.netty.springboot;
 
-import com.github.netty.core.adapter.AbstractChannelHandler;
-import com.github.netty.core.adapter.NettyHttpRequest;
+import com.github.netty.core.AbstractChannelHandler;
+import com.github.netty.core.NettyHttpRequest;
 import com.github.netty.core.support.PartialPooledByteBufAllocator;
 import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletHttpServletRequest;

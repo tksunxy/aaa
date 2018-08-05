@@ -5,17 +5,19 @@ import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletFilterRegistration;
 import com.github.netty.servlet.ServletRegistration;
 import com.github.netty.servlet.support.ServletEventListenerManager;
-import com.github.netty.util.ProxyUtil;
-import com.github.netty.util.obj.TodoOptimize;
+import com.github.netty.util.TodoOptimize;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.http.HttpContentCompressor;
+import io.netty.handler.codec.http.HttpContentDecompressor;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.stream.ChunkedWriteHandler;
 import org.springframework.boot.context.embedded.EmbeddedServletContainer;
 import org.springframework.boot.context.embedded.EmbeddedServletContainerException;
 import org.springframework.boot.context.embedded.Ssl;
@@ -78,11 +80,11 @@ public class NettyEmbeddedServletContainer extends AbstractNettyServer implement
                 pipeline.addLast("Aggregator", new HttpObjectAggregator(512 * 1024));
 
                 //内容压缩
-//                pipeline.addLast("ContentCompressor", new HttpContentCompressor());
-//                pipeline.addLast("ContentDecompressor", new HttpContentDecompressor());
+                pipeline.addLast("ContentCompressor", new HttpContentCompressor());
+                pipeline.addLast("ContentDecompressor", new HttpContentDecompressor());
 
                 //分段写入, 防止响应数据过大
-//                pipeline.addLast("ChunkedWrite",new ChunkedWriteHandler());
+                pipeline.addLast("ChunkedWrite",new ChunkedWriteHandler());
 
                 //生成servletRequest和servletResponse对象
                 pipeline.addLast("ServletCodec",servletCodecHandler);
@@ -104,7 +106,6 @@ public class NettyEmbeddedServletContainer extends AbstractNettyServer implement
         initServlet();
 
         serverThread.start();
-        ProxyUtil.setEnableProxy(true);
     }
 
     @Override

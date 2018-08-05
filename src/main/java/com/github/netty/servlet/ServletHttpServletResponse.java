@@ -1,11 +1,11 @@
 package com.github.netty.servlet;
 
-import com.github.netty.core.adapter.NettyHttpResponse;
+import com.github.netty.core.NettyHttpResponse;
 import com.github.netty.core.constants.HttpConstants;
 import com.github.netty.core.constants.HttpHeaderConstants;
 import com.github.netty.servlet.support.ServletOutputStreamListener;
 import com.github.netty.util.HttpHeaderUtil;
-import com.github.netty.util.obj.TodoOptimize;
+import com.github.netty.util.TodoOptimize;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;

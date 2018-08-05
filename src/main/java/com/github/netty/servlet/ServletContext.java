@@ -6,7 +6,7 @@ import com.github.netty.util.MimeTypeUtil;
 import com.github.netty.util.NamespaceUtil;
 import com.github.netty.util.ObjectUtil;
 import com.github.netty.util.TypeUtil;
-import com.github.netty.util.obj.UrlMapper;
+import com.github.netty.servlet.support.UrlMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

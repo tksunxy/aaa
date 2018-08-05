@@ -146,7 +146,9 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         ServletUtil.decodeByUrl(parameterMap, nettyRequest.uri(),charset);
         this.decodeParameterByUrlFlag = true;
 
-        if(HttpConstants.POST.equalsIgnoreCase(getMethod()) && HttpHeaderUtil.isFormUrlEncoder(getContentType())){
+        if(HttpConstants.POST.equalsIgnoreCase(getMethod())
+                && getContentLength() > 0
+                && HttpHeaderUtil.isFormUrlEncoder(getContentType())){
             ServletUtil.decodeByBody(parameterMap,nettyRequest,charset);
             this.decodeParameterByBodyFlag = true;
         }

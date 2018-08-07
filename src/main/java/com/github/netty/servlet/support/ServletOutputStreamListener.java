@@ -7,6 +7,7 @@ import com.github.netty.core.constants.HttpConstants;
 import com.github.netty.core.constants.HttpHeaderConstants;
 import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletHttpServletResponse;
+import com.github.netty.servlet.ServletHttpSession;
 import com.github.netty.util.HttpHeaderUtil;
 import com.github.netty.util.ServletUtil;
 import io.netty.buffer.ByteBuf;
@@ -78,8 +79,9 @@ public class ServletOutputStreamListener implements StreamListener {
 
         // cookies处理
         //long curTime = System.currentTimeMillis(); //用于根据maxAge计算Cookie的Expires
-        //先处理Session ，如果是新Session需要通过Cookie写入
-        if (servletRequest.getSession().isNew()) {
+        //先处理Session ，如果是新Session 或 session失效 需要通过Cookie写入
+        ServletHttpSession httpSession = servletRequest.getSession(false);
+        if (httpSession == null || httpSession.isNew() || !httpSession.isValid()) {
             StringJoiner cookieStrJoiner = new StringJoiner("; ");
             cookieStrJoiner.add(HttpConstants.JSESSION_ID_COOKIE + "=" + servletRequest.getRequestedSessionId());
             cookieStrJoiner.add("path=/");

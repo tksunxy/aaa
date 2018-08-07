@@ -9,6 +9,14 @@ import io.netty.channel.SimpleChannelInboundHandler;
  */
 public abstract class AbstractChannelHandler<I> extends SimpleChannelInboundHandler<I> {
 
+    protected AbstractChannelHandler() {
+        super();
+    }
+
+    protected AbstractChannelHandler(boolean autoRelease) {
+        super(autoRelease);
+    }
+
     protected void channelRead0(ChannelHandlerContext ctx, I msg) throws Exception {
         onMessageReceived(ctx,msg);
     }

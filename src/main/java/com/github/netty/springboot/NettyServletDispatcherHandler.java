@@ -1,22 +1,22 @@
 package com.github.netty.springboot;
 
 import com.github.netty.core.AbstractChannelHandler;
-import com.github.netty.servlet.ServletAsyncContext;
 import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletHttpServletResponse;
 import com.github.netty.servlet.ServletRequestDispatcher;
 import com.github.netty.servlet.support.HttpServletObject;
 import com.github.netty.util.ExceptionUtil;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.util.ReferenceCountUtil;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -30,11 +30,13 @@ public class NettyServletDispatcherHandler extends AbstractChannelHandler<HttpSe
     private ExecutorService dispatcherExecutor;
 
     public NettyServletDispatcherHandler(ExecutorService dispatcherExecutor) {
+        super(false);
         this.dispatcherExecutor = dispatcherExecutor;
     }
 
     @Override
     protected void onMessageReceived(ChannelHandlerContext ctx, HttpServletObject httpServletObject) throws Exception {
+//        Runnable task = newTask2(ctx,httpServletObject);
         Runnable task = newTask(httpServletObject);
         if(dispatcherExecutor != null) {
             dispatcherExecutor.execute(task);
@@ -52,7 +54,7 @@ public class NettyServletDispatcherHandler extends AbstractChannelHandler<HttpSe
 //                } catch (InterruptedException e) {
 //                    e.printStackTrace();
 //                }
-                ctx.writeAndFlush(new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK))
+                ctx.writeAndFlush(new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, Unpooled.EMPTY_BUFFER))
                         .addListener(ChannelFutureListener.CLOSE);
             }
         };
@@ -62,13 +64,7 @@ public class NettyServletDispatcherHandler extends AbstractChannelHandler<HttpSe
         return new Runnable() {
             @Override
             public void run() {
-                ServletHttpServletRequest httpServletRequest = httpServletObject.getHttpServletRequest();
-                ServletHttpServletResponse httpServletResponse = httpServletObject.getHttpServletResponse();
-                try {
-                    httpServletResponse.getOutputStream().close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                ReferenceCountUtil.safeRelease(httpServletObject);
             }
         };
     }
@@ -93,39 +89,10 @@ public class NettyServletDispatcherHandler extends AbstractChannelHandler<HttpSe
             }catch (Throwable throwable){
                 ExceptionUtil.printRootCauseStackTrace(throwable);
             }finally {
-                closeServlet(httpServletRequest,httpServletResponse);
+                ReferenceCountUtil.safeRelease(httpServletObject);
             }
         };
         return task;
-    }
-
-    /**
-     * 关闭servlet
-     * @param httpServletRequest
-     * @param httpServletResponse
-     */
-    private void closeServlet(ServletHttpServletRequest httpServletRequest,ServletHttpServletResponse httpServletResponse){
-        try {
-            httpServletRequest.getInputStream().close();
-        }catch (Throwable throwable){
-            throwable.printStackTrace();
-        }
-
-        try {
-            /*
-             * 每个响应对象是只有当在servlet的service方法的范围内或在filter的doFilter方法范围内是有效的，除非该
-             * 组件关联的请求对象已经开启异步处理。如果相关的请求已经启动异步处理，那么直到AsyncContext的
-             * complete 方法被调用，请求对象一直有效。为了避免响应对象创建的性能开销，容器通常回收响应对象。
-             * 在相关的请求的startAsync 还没有调用时，开发人员必须意识到保持到响应对象引用，超出之上描述的范
-             * 围可能导致不确定的行为
-             */
-            ServletAsyncContext asyncContext = httpServletRequest.getAsyncContext();
-            if(asyncContext == null || !asyncContext.isStarted()) {
-                httpServletResponse.getOutputStream().close();
-            }
-        }catch (Throwable throwable){
-            throwable.printStackTrace();
-        }
     }
 
     @Override

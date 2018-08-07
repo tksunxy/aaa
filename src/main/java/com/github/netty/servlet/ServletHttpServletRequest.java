@@ -65,8 +65,8 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     public ServletHttpServletRequest(ServletContext servletContext, NettyHttpRequest nettyRequest){
         this.nettyRequest = nettyRequest;
         this.nettyHeaders = nettyRequest.headers();
-        this.attributeMap = null;
-        this.inputStream = new ServletInputStream(nettyRequest.content().copy());;
+        this.attributeMap = new ConcurrentHashMap<>(16);;
+        this.inputStream = new ServletInputStream(nettyRequest.content());;
         this.servletContext = servletContext;
         this.asyncSupportedFlag = true;
         this.decodeParameterByUrlFlag = false;
@@ -103,9 +103,6 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     }
 
     private Map<String, Object> getAttributeMap() {
-        if(attributeMap == null){
-            attributeMap = new ConcurrentHashMap<>(16);
-        }
         return attributeMap;
     }
 
@@ -462,7 +459,9 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         }
 
         String sessionId = ServletUtil.getCookieValue(getCookies(),HttpConstants.JSESSION_ID_COOKIE);
-        if(StringUtil.isEmpty(sessionId)){
+        if(StringUtil.isNotEmpty(sessionId)){
+            sessionIdSource = HttpConstants.SESSION_ID_SOURCE_COOKIE;
+        }else {
             String queryString = getQueryString();
             boolean isUrlCookie = queryString != null && queryString.contains(HttpConstants.JSESSION_ID_PARAMS);
             if(isUrlCookie) {
@@ -472,9 +471,8 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
                 sessionIdSource = HttpConstants.SESSION_ID_SOURCE_NOT_FOUND_CREATE;
                 sessionId = newSessionId();
             }
-        }else {
-            sessionIdSource = HttpConstants.SESSION_ID_SOURCE_COOKIE;
         }
+
         this.sessionId = sessionId;
         return sessionId;
     }

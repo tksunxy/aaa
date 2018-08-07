@@ -193,6 +193,7 @@ public class ServletHttpSession implements HttpSession{
             attributeMap = null;
         }
         servletContext = null;
+        maxInactiveInterval = -1;
     }
 
     public void init() {
@@ -207,8 +208,12 @@ public class ServletHttpSession implements HttpSession{
         return newSessionFlag;
     }
 
+    /**
+     * 是否有效
+     * @return true 有效, false无效
+     */
     public boolean isValid() {
-        return System.currentTimeMillis() - creationTime < (maxInactiveInterval * 1000);
+        return System.currentTimeMillis() < (creationTime + (maxInactiveInterval * 1000));
     }
 
     public void setNewSessionFlag(boolean newSessionFlag) {

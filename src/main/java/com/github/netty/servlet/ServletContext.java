@@ -2,11 +2,11 @@ package com.github.netty.servlet;
 
 import com.github.netty.core.constants.HttpConstants;
 import com.github.netty.servlet.support.ServletEventListenerManager;
+import com.github.netty.servlet.support.UrlMapper;
 import com.github.netty.util.MimeTypeUtil;
 import com.github.netty.util.NamespaceUtil;
 import com.github.netty.util.ObjectUtil;
 import com.github.netty.util.TypeUtil;
-import com.github.netty.servlet.support.UrlMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,10 +74,10 @@ public class ServletContext implements javax.servlet.ServletContext {
         this.classLoader = classLoader;
 
         this.httpSessionMap = new ConcurrentHashMap<>(128);
-        this.attributeMap = new ConcurrentHashMap<>(16);
-        this.initParamMap = new ConcurrentHashMap<>(16);
-        this.servletRegistrationMap = new ConcurrentHashMap<>(8);
-        this.filterRegistrationMap = new ConcurrentHashMap<>(8);
+        this.attributeMap = new HashMap<>(16);
+        this.initParamMap = new HashMap<>(16);
+        this.servletRegistrationMap = new HashMap<>(8);
+        this.filterRegistrationMap = new HashMap<>(8);
         this.servletUrlMapper = new UrlMapper<>(contextPath,true);
         this.filterUrlMapper = new UrlMapper<>(contextPath,false);
         this.servletEventListenerManager = new ServletEventListenerManager();

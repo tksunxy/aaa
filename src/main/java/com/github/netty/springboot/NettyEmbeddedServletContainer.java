@@ -12,12 +12,11 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.HttpContentCompressor;
-import io.netty.handler.codec.http.HttpContentDecompressor;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
-import io.netty.handler.stream.ChunkedWriteHandler;
+import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import org.springframework.boot.context.embedded.EmbeddedServletContainer;
 import org.springframework.boot.context.embedded.EmbeddedServletContainerException;
 import org.springframework.boot.context.embedded.Ssl;
@@ -29,7 +28,6 @@ import javax.servlet.ServletException;
 import java.io.File;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  *
@@ -50,12 +48,18 @@ public class NettyEmbeddedServletContainer extends AbstractNettyServer implement
         super(servletContext.getServerSocketAddress());
         this.servletContext = servletContext;
         this.servletCodecHandler = new NettyServletCodecHandler(servletContext);
-        ExecutorService dispatcherExecutor = Executors.newFixedThreadPool(bizThreadCount);
+        ExecutorService dispatcherExecutor = newDispatcherExecutor(bizThreadCount);
         this.dispatcherHandler = new NettyServletDispatcherHandler(dispatcherExecutor);
         this.serverThread = new Thread(this);
 
         configServerThread();
         initSsl(ssl);
+    }
+
+    private ExecutorService newDispatcherExecutor(int bizThreadCount){
+//        return Executors.newFixedThreadPool(bizThreadCount);
+        return new DefaultEventExecutorGroup(bizThreadCount);
+//        return null;
     }
 
     @Override
@@ -81,10 +85,10 @@ public class NettyEmbeddedServletContainer extends AbstractNettyServer implement
 
                 //内容压缩
                 pipeline.addLast("ContentCompressor", new HttpContentCompressor());
-                pipeline.addLast("ContentDecompressor", new HttpContentDecompressor());
+//                pipeline.addLast("ContentDecompressor", new HttpContentDecompressor());
 
                 //分段写入, 防止响应数据过大
-                pipeline.addLast("ChunkedWrite",new ChunkedWriteHandler());
+//                pipeline.addLast("ChunkedWrite",new ChunkedWriteHandler());
 
                 //生成servletRequest和servletResponse对象
                 pipeline.addLast("ServletCodec",servletCodecHandler);

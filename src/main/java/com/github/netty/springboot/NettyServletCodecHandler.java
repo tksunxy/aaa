@@ -25,6 +25,7 @@ public class NettyServletCodecHandler extends AbstractChannelHandler<FullHttpReq
     private ServletContext servletContext;
 
     public NettyServletCodecHandler(ServletContext servletContext) {
+        super(false);
         this.servletContext = Objects.requireNonNull(servletContext);
     }
 
@@ -38,6 +39,7 @@ public class NettyServletCodecHandler extends AbstractChannelHandler<FullHttpReq
         HttpServletObject httpServletObject = new HttpServletObject(servletRequest,servletResponse);
 
         ctxWrap.fireChannelRead(httpServletObject);
+//        ctxWrap.fireChannelRead(new HttpServletObject());
     }
 
     /**

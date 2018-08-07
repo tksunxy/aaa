@@ -10,6 +10,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
+import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpResponse;
 
 import javax.servlet.WriteListener;
@@ -129,7 +130,8 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream {
                 }
 
                 ctx.write(nettyResponse, ctx.voidPromise());
-                ctx.writeAndFlush(new DefaultLastHttpContent(compositeByteBuf))
+
+                ctx.writeAndFlush(buildContent(compositeByteBuf))
                         .addListener(new ChannelFutureListener() {
                             /**
                              * 写完后1.刷新 2.释放内存 3.关闭流
@@ -142,7 +144,9 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream {
                                     for (StreamListener streamListener : streamListenerList) {
                                         streamListener.closeAfter(compositeByteBuf);
                                     }
-                                    future.channel().close();
+//                                    if(!isKeepAlive){
+                                        future.channel().close();
+//                                    }
                                 }catch (Throwable throwable){
                                     ExceptionUtil.printRootCauseStackTrace(throwable);
                                 }
@@ -154,6 +158,16 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream {
             }
             closed = true;
         }
+    }
+
+    private HttpContent buildContent(ByteBuf byteBuf){
+        HttpContent httpContent;
+        if(isKeepAlive){
+            httpContent = new DefaultLastHttpContent(byteBuf);
+        }else {
+            httpContent = new DefaultLastHttpContent(byteBuf);
+        }
+        return httpContent;
     }
 
     private void errorEvent(Throwable throwable){

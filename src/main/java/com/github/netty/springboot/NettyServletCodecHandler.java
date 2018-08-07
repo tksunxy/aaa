@@ -36,6 +36,8 @@ public class NettyServletCodecHandler extends AbstractChannelHandler<FullHttpReq
 
         ServletHttpServletRequest servletRequest = newServletHttpServletRequest(fullHttpRequest,ctxWrap.channel());
         ServletHttpServletResponse servletResponse = newServletHttpServletResponse(ctxWrap,servletRequest);
+        servletRequest.setHttpServletResponse(servletResponse);
+
         HttpServletObject httpServletObject = new HttpServletObject(servletRequest,servletResponse);
 
         ctxWrap.fireChannelRead(httpServletObject);

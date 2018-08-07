@@ -73,17 +73,21 @@ public class ServletAsyncContext implements AsyncContext {
 
     @Override
     public void dispatch(String path) {
-        dispatch(servletRequest.getServletContext(), path);
+        dispatch(servletContext, path);
     }
 
     @Override
     public void dispatch(javax.servlet.ServletContext context, String path) {
+        check();
+
         final HttpServletRequest httpRequest = (HttpServletRequest) servletRequest;
-        httpRequest.setAttribute(ASYNC_CONTEXT_PATH, httpRequest.getContextPath());
-        httpRequest.setAttribute(ASYNC_PATH_INFO, httpRequest.getPathInfo());
-        httpRequest.setAttribute(ASYNC_QUERY_STRING, httpRequest.getQueryString());
-        httpRequest.setAttribute(ASYNC_REQUEST_URI, httpRequest.getRequestURI());
-        httpRequest.setAttribute(ASYNC_SERVLET_PATH, httpRequest.getServletPath());
+        if (httpRequest.getAttribute(ASYNC_REQUEST_URI)==null) {
+            httpRequest.setAttribute(ASYNC_CONTEXT_PATH, httpRequest.getContextPath());
+            httpRequest.setAttribute(ASYNC_PATH_INFO, httpRequest.getPathInfo());
+            httpRequest.setAttribute(ASYNC_QUERY_STRING, httpRequest.getQueryString());
+            httpRequest.setAttribute(ASYNC_REQUEST_URI, httpRequest.getRequestURI());
+            httpRequest.setAttribute(ASYNC_SERVLET_PATH, httpRequest.getServletPath());
+        }
 
         ServletContext servletContext = unWrapper(context);
         if(servletContext == null){
@@ -95,16 +99,8 @@ public class ServletAsyncContext implements AsyncContext {
         start(()->{
             try {
                 dispatcher.dispatch(httpRequest, servletResponse,DispatcherType.ASYNC);
-            } catch (Throwable throwable) {
-                //通知异常
-                notifyEvent(listenerWrapper -> {
-                    AsyncEvent event = new AsyncEvent(this,listenerWrapper.servletRequest,listenerWrapper.servletResponse,throwable);
-                    try {
-                        listenerWrapper.asyncListener.onError(event);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                });
+            } catch (Exception e) {
+                throw new AsyncRuntimeException(e);
             }
         });
 
@@ -130,58 +126,67 @@ public class ServletAsyncContext implements AsyncContext {
     @Override
     public void start(Runnable runnable) {
         status = STATUS_START;
-
-        Future future = executorService.submit(runnable);
-
-        try {
-            //通知开始
-            notifyEvent(listenerWrapper -> {
-                AsyncEvent event = new AsyncEvent(this,listenerWrapper.servletRequest,listenerWrapper.servletResponse,null);
-                try {
-                    listenerWrapper.asyncListener.onStartAsync(event);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            });
-
-            future.get(getTimeout(), TimeUnit.MILLISECONDS);
-
-        } catch (TimeoutException e) {
-            //通知超时
-            notifyEvent(listenerWrapper -> {
-                try {
-                    AsyncEvent event = new AsyncEvent(this,listenerWrapper.servletRequest,listenerWrapper.servletResponse,null);
-                    listenerWrapper.asyncListener.onTimeout(event);
-                } catch (IOException ioException) {
-                    ioException.printStackTrace();
-                }
-            });
-        }catch (Throwable throwable){
-            //通知异常
-            notifyEvent(listenerWrapper -> {
-                AsyncEvent event = new AsyncEvent(this,listenerWrapper.servletRequest,listenerWrapper.servletResponse,throwable);
-                try {
-                    listenerWrapper.asyncListener.onError(event);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            });
-        }finally {
-            complete();
-
-            //通知结束
-            notifyEvent(listenerWrapper -> {
-                try {
-                    AsyncEvent event = new AsyncEvent(this,listenerWrapper.servletRequest,listenerWrapper.servletResponse,null);
-                    listenerWrapper.asyncListener.onComplete(event);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            });
-        }
+        Runnable taskWrapper = newTaskWrapper(runnable);
+//        taskWrapper.run();
+        executorService.execute(taskWrapper);
     }
 
+    private Runnable newTaskWrapper(Runnable run){
+        return () -> {
+            Future future = executorService.submit(run);
+            try {
+                //通知开始
+                notifyEvent(listenerWrapper -> {
+                    AsyncEvent event = new AsyncEvent(ServletAsyncContext.this,listenerWrapper.servletRequest,listenerWrapper.servletResponse,null);
+                    try {
+                        listenerWrapper.asyncListener.onStartAsync(event);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
 
+                future.get(getTimeout(), TimeUnit.MILLISECONDS);
+
+            } catch (TimeoutException e) {
+                //通知超时
+                notifyEvent(listenerWrapper -> {
+                    try {
+                        AsyncEvent event = new AsyncEvent(ServletAsyncContext.this,listenerWrapper.servletRequest,listenerWrapper.servletResponse,null);
+                        listenerWrapper.asyncListener.onTimeout(event);
+                    } catch (IOException ioException) {
+                        ioException.printStackTrace();
+                    }
+                });
+            }catch (Throwable throwable){
+                if(throwable instanceof AsyncRuntimeException){
+                    throwable = throwable.getCause();
+                }
+
+                //通知异常
+                Throwable cause = throwable;
+                notifyEvent(listenerWrapper -> {
+                    AsyncEvent event = new AsyncEvent(ServletAsyncContext.this,listenerWrapper.servletRequest,listenerWrapper.servletResponse, cause);
+                    try {
+                        listenerWrapper.asyncListener.onError(event);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+            }finally {
+                complete();
+
+                //通知结束
+                notifyEvent(listenerWrapper -> {
+                    try {
+                        AsyncEvent event = new AsyncEvent(ServletAsyncContext.this,listenerWrapper.servletRequest,listenerWrapper.servletResponse,null);
+                        listenerWrapper.asyncListener.onComplete(event);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+            }
+        };
+    }
 
     @Override
     public void addListener(AsyncListener listener) {
@@ -219,8 +224,14 @@ public class ServletAsyncContext implements AsyncContext {
         return timeout;
     }
 
+    private void check() {
+        if (servletRequest == null) {
+            // AsyncContext has been recycled and should not be being used
+            throw new IllegalStateException("请求不能为空");
+        }
+    }
 
-    ServletContext unWrapper(javax.servlet.ServletContext context){
+    private ServletContext unWrapper(javax.servlet.ServletContext context){
         return (ServletContext) context;
     }
 
@@ -245,6 +256,17 @@ public class ServletAsyncContext implements AsyncContext {
             this.asyncListener = asyncListener;
             this.servletRequest = servletRequest;
             this.servletResponse = servletResponse;
+        }
+    }
+
+    private class AsyncRuntimeException extends RuntimeException{
+        private Throwable cause;
+        private AsyncRuntimeException(Throwable cause) {
+            this.cause = cause;
+        }
+        @Override
+        public synchronized Throwable getCause() {
+            return cause;
         }
     }
 }

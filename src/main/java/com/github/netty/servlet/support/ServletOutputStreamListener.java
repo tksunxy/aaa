@@ -80,18 +80,23 @@ public class ServletOutputStreamListener implements StreamListener {
         // cookies处理
         //long curTime = System.currentTimeMillis(); //用于根据maxAge计算Cookie的Expires
         //先处理Session ，如果是新Session 或 session失效 需要通过Cookie写入
-        ServletHttpSession httpSession = servletRequest.getSession(false);
-        if (httpSession == null || httpSession.isNew() || !httpSession.isValid()) {
-            StringJoiner cookieStrJoiner = new StringJoiner("; ");
+        ServletHttpSession httpSession = servletRequest.getSession(true);
+        if (httpSession.isNew()) {
+            StringJoiner cookieStrJoiner = new StringJoiner(";");
             cookieStrJoiner.add(HttpConstants.JSESSION_ID_COOKIE + "=" + servletRequest.getRequestedSessionId());
             cookieStrJoiner.add("path=/");
-            cookieStrJoiner.add("secure");
-            cookieStrJoiner.add("HttpOnly");
-
-            String serverName = servletRequest.getServerName();
-            if(!ServletUtil.isLocalhost(serverName)){
-                cookieStrJoiner.add("domain=" + serverName);
-            }
+//            cookieStrJoiner.add("secure");
+//            cookieStrJoiner.add("HttpOnly");
+//            cookieStrJoiner.add("Expires=-1");
+//
+//            String serverName = servletRequest.getServerName();
+//            int port = servletRequest.getServerPort();
+//            if(!ServletUtil.isLocalhost(serverName)){
+//                if (port != HttpConstants.HTTP_PORT && port != HttpConstants.HTTPS_PORT) {
+//                    serverName+= ":" + port;
+//                }
+//                cookieStrJoiner.add("Domain=" + serverName);
+//            }
 
             headers.add(HttpHeaderConstants.SET_COOKIE, cookieStrJoiner.toString());
         }

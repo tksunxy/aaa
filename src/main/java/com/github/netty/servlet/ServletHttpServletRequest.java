@@ -62,6 +62,8 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     private final NettyHttpRequest nettyRequest;
     private final HttpHeaders nettyHeaders;
 
+    private ServletHttpServletResponse httpServletResponse;
+
     public ServletHttpServletRequest(ServletContext servletContext, NettyHttpRequest nettyRequest){
         this.nettyRequest = nettyRequest;
         this.nettyHeaders = nettyRequest.headers();
@@ -74,6 +76,11 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         this.decodeCookieFlag = false;
         this.parsePathsFlag = false;
         this.usingReaderFlag = false;
+    }
+
+
+    public void setHttpServletResponse(ServletHttpServletResponse httpServletResponse) {
+        this.httpServletResponse = httpServletResponse;
     }
 
     private InetSocketAddress getLocalAddress(){
@@ -739,7 +746,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public ServletAsyncContext startAsync() throws IllegalStateException {
-        return startAsync(this,null);
+        return startAsync(this,httpServletResponse);
     }
 
     @Override

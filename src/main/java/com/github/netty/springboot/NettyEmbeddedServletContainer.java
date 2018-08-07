@@ -39,7 +39,7 @@ public class NettyEmbeddedServletContainer extends AbstractNettyServer implement
     private ServletContext servletContext;
     private boolean enableSsl;
     private SslContext sslContext;
-    private ChannelHandler dispatcherHandler;
+    private ChannelHandler servletDispatcherHandler;
     private ChannelHandler servletCodecHandler;
     private final Thread serverThread;
 
@@ -49,7 +49,7 @@ public class NettyEmbeddedServletContainer extends AbstractNettyServer implement
         this.servletContext = servletContext;
         this.servletCodecHandler = new NettyServletCodecHandler(servletContext);
         ExecutorService dispatcherExecutor = newDispatcherExecutor(bizThreadCount);
-        this.dispatcherHandler = new NettyServletDispatcherHandler(dispatcherExecutor);
+        this.servletDispatcherHandler = new NettyServletDispatcherHandler(dispatcherExecutor);
         this.serverThread = new Thread(this);
 
         configServerThread();
@@ -94,7 +94,7 @@ public class NettyEmbeddedServletContainer extends AbstractNettyServer implement
                 pipeline.addLast("ServletCodec",servletCodecHandler);
 
                 //业务调度器, 让对应的Servlet处理请求
-                pipeline.addLast("Dispatcher", dispatcherHandler);
+                pipeline.addLast("ServletDispatcherDispatcher", servletDispatcherHandler);
             }
         };
     }

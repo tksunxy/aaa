@@ -112,11 +112,17 @@ public class ServletAsyncContext implements AsyncContext {
 
     @Override
     public void complete() {
+        status = STATUS_COMPLETE;
         try {
-            status = STATUS_COMPLETE;
-            servletResponse.getOutputStream().close();
-        } catch (IOException e) {
+            servletRequest.getInputStream().close();
+        } catch (Exception e) {
             // TODO notify listeners
+            e.printStackTrace();
+        }
+
+        try {
+            servletResponse.getOutputStream().close();
+        }catch (Exception e){
             e.printStackTrace();
         }
     }

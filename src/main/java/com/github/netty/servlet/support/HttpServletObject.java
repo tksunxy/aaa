@@ -1,29 +1,84 @@
 package com.github.netty.servlet.support;
 
+import com.github.netty.core.NettyHttpRequest;
+import com.github.netty.core.NettyHttpResponse;
+import com.github.netty.core.support.Recyclable;
 import com.github.netty.servlet.ServletAsyncContext;
+import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletHttpServletResponse;
-import io.netty.util.AbstractReferenceCounted;
-import io.netty.util.ReferenceCounted;
-
-import java.util.Objects;
+import com.github.netty.util.ProxyUtil;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.util.Recycler;
 
 /**
  *
  * @author acer01
  *  2018/8/1/001
  */
-public class HttpServletObject extends AbstractReferenceCounted{
+public class HttpServletObject implements Recyclable{
+
+    private static final Recycler<HttpServletObject> RECYCLER = new Recycler<HttpServletObject>() {
+        @Override
+        protected HttpServletObject newObject(Handle<HttpServletObject> handle) {
+            return new HttpServletObject(handle);
+        }
+    };
+    private final Recycler.Handle<HttpServletObject> handle;
 
     private ServletHttpServletRequest httpServletRequest;
     private ServletHttpServletResponse httpServletResponse;
 
-    public HttpServletObject() {
+    private HttpServletObject(Recycler.Handle<HttpServletObject> handle) {
+        this.handle = handle;
     }
 
-    public HttpServletObject(ServletHttpServletRequest httpServletRequest, ServletHttpServletResponse httpServletResponse) {
-        this.httpServletRequest = Objects.requireNonNull(httpServletRequest);
-        this.httpServletResponse = Objects.requireNonNull(httpServletResponse);
+    public static HttpServletObject newInstance(ServletContext servletContext,ChannelHandlerContext ctx,FullHttpRequest fullHttpRequest) {
+        HttpServletObject instance = RECYCLER.get();
+
+        instance.httpServletRequest = newHttpServletRequest(servletContext,fullHttpRequest,ctx.channel());
+        instance.httpServletResponse = newHttpServletResponse(ctx,instance.httpServletRequest);
+        instance.httpServletRequest.setHttpServletResponse(instance.httpServletResponse);
+        return instance;
+    }
+
+    /**
+     * 创建新的servlet请求对象
+     * @param servletContext
+     * @param fullHttpRequest 完整的netty请求 (请求体 + 请求信息)
+     * @param channel 连接
+     * @return servlet 请求对象
+     */
+    private static ServletHttpServletRequest newHttpServletRequest(ServletContext servletContext, FullHttpRequest fullHttpRequest, Channel channel){
+        NettyHttpRequest nettyRequest = NettyHttpRequest.newInstance(fullHttpRequest,channel);
+        if(ProxyUtil.isEnableProxy()){
+            return ProxyUtil.newProxyByCglib(
+                    ServletHttpServletRequest.class,
+                    new Class[]{ServletContext.class,NettyHttpRequest.class},
+                    new Object[]{servletContext,nettyRequest}
+            );
+        }else {
+            return new ServletHttpServletRequest(servletContext,nettyRequest);
+        }
+    }
+
+    /**
+     * 创建新的servlet响应对象
+     * @param ctx 业务链上下文
+     * @param servletRequest servlet请求对象
+     * @return servlet响应对象
+     */
+    private static ServletHttpServletResponse newHttpServletResponse(ChannelHandlerContext ctx, ServletHttpServletRequest servletRequest){
+        if(ProxyUtil.isEnableProxy()){
+            return ProxyUtil.newProxyByCglib(
+                    ServletHttpServletResponse.class,
+                    new Class[]{ChannelHandlerContext.class,ServletHttpServletRequest.class},
+                    new Object[]{ctx,servletRequest});
+        }else {
+            return new ServletHttpServletResponse(ctx,servletRequest);
+        }
     }
 
     public ServletHttpServletRequest getHttpServletRequest() {
@@ -35,11 +90,7 @@ public class HttpServletObject extends AbstractReferenceCounted{
     }
 
     @Override
-    protected void deallocate() {
-        if(httpServletRequest == null || httpServletResponse == null){
-            return;
-        }
-
+    public void recycle() {
         try {
             httpServletRequest.getInputStream().close();
         } catch (Throwable throwable) {
@@ -58,16 +109,24 @@ public class HttpServletObject extends AbstractReferenceCounted{
             if (asyncContext == null || !asyncContext.isStarted()) {
                 httpServletResponse.getOutputStream().close();
             }
-            httpServletRequest = null;
-            httpServletResponse = null;
+
         } catch (Throwable throwable) {
             throwable.printStackTrace();
         }
-    }
 
-    @Override
-    public ReferenceCounted touch(Object o) {
-        return this;
+        NettyHttpRequest nettyRequest = httpServletRequest.getNettyRequest();
+        if(nettyRequest != null){
+            nettyRequest.recycle();
+        }
+
+        NettyHttpResponse nettyResponse = httpServletResponse.getNettyResponse();
+        if(nettyResponse != null){
+            nettyResponse.recycle();
+        }
+
+        httpServletRequest = null;
+        httpServletResponse = null;
+        this.handle.recycle(this);
     }
 
 }

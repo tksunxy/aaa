@@ -45,7 +45,6 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     private transient boolean decodeCookieFlag;
     private boolean decodeParameterByUrlFlag;
     private boolean decodeParameterByBodyFlag;
-    private boolean usingReaderFlag;
     private boolean asyncSupportedFlag;
 
     private Map<String,Object> attributeMap;
@@ -75,7 +74,6 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         this.decodeParameterByBodyFlag = false;
         this.decodeCookieFlag = false;
         this.parsePathsFlag = false;
-        this.usingReaderFlag = false;
     }
 
 
@@ -412,7 +410,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
 
     @Override
-    public HttpSession getSession() {
+    public ServletHttpSession getSession() {
         return getSession(true);
     }
 
@@ -482,36 +480,6 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
         this.sessionId = sessionId;
         return sessionId;
-    }
-
-    @Override
-    public boolean authenticate(javax.servlet.http.HttpServletResponse response) throws IOException, ServletException {
-        return false;
-    }
-
-    @Override
-    public void login(String username, String password) throws ServletException {
-
-    }
-
-    @Override
-    public void logout() throws ServletException {
-
-    }
-
-    @Override
-    public Collection<Part> getParts() throws IOException, ServletException {
-        return null;
-    }
-
-    @Override
-    public Part getPart(String name) throws IOException, ServletException {
-        return null;
-    }
-
-    @Override
-    public <T extends HttpUpgradeHandler> T upgrade(Class<T> handlerClass) throws IOException, ServletException {
-        return null;
     }
 
     @Override
@@ -799,6 +767,35 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public Principal getUserPrincipal() {
+        return null;
+    }
+
+    @Override
+    public boolean authenticate(javax.servlet.http.HttpServletResponse response) throws IOException, ServletException {
+        return false;
+    }
+
+    @Override
+    public void login(String username, String password) throws ServletException {
+    }
+
+    @Override
+    public void logout() throws ServletException {
+
+    }
+
+    @Override
+    public Collection<Part> getParts() throws IOException, ServletException {
+        return null;
+    }
+
+    @Override
+    public Part getPart(String name) throws IOException, ServletException {
+        return null;
+    }
+
+    @Override
+    public <T extends HttpUpgradeHandler> T upgrade(Class<T> handlerClass) throws IOException, ServletException {
         return null;
     }
 

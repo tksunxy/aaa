@@ -16,7 +16,6 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
-import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import org.springframework.boot.context.embedded.EmbeddedServletContainer;
 import org.springframework.boot.context.embedded.EmbeddedServletContainerException;
 import org.springframework.boot.context.embedded.Ssl;
@@ -36,31 +35,24 @@ import java.util.concurrent.ExecutorService;
  */
 public class NettyEmbeddedServletContainer extends AbstractNettyServer implements EmbeddedServletContainer {
 
-    private ServletContext servletContext;
     private boolean enableSsl;
     private SslContext sslContext;
-    private ChannelHandler servletDispatcherHandler;
-    private ChannelHandler servletCodecHandler;
+
+    private final ServletContext servletContext;
+    private final ChannelHandler servletHandler;
     private final Thread serverThread;
 
     @TodoOptimize("ssl没测试能不能用")
-    public NettyEmbeddedServletContainer(ServletContext servletContext,Ssl ssl,int bizThreadCount) throws SSLException {
+    public NettyEmbeddedServletContainer(ServletContext servletContext,Ssl ssl) throws SSLException {
         super(servletContext.getServerSocketAddress());
         this.servletContext = servletContext;
-        this.servletCodecHandler = new NettyServletCodecHandler(servletContext);
-        ExecutorService dispatcherExecutor = newDispatcherExecutor(bizThreadCount);
-        this.servletDispatcherHandler = new NettyServletDispatcherHandler(dispatcherExecutor);
+        this.servletHandler = new NettyServletHandler(servletContext);
         this.serverThread = new Thread(this);
 
         configServerThread();
         initSsl(ssl);
     }
 
-    private ExecutorService newDispatcherExecutor(int bizThreadCount){
-//        return Executors.newFixedThreadPool(bizThreadCount);
-        return new DefaultEventExecutorGroup(bizThreadCount);
-//        return null;
-    }
 
     @Override
     protected ChannelInitializer<? extends Channel> newInitializerChannelHandler() {
@@ -90,11 +82,8 @@ public class NettyEmbeddedServletContainer extends AbstractNettyServer implement
                 //分段写入, 防止响应数据过大
 //                pipeline.addLast("ChunkedWrite",new ChunkedWriteHandler());
 
-                //生成servletRequest和servletResponse对象
-                pipeline.addLast("ServletCodec",servletCodecHandler);
-
                 //业务调度器, 让对应的Servlet处理请求
-                pipeline.addLast("ServletDispatcherDispatcher", servletDispatcherHandler);
+                pipeline.addLast("ServletHandler", servletHandler);
             }
         };
     }

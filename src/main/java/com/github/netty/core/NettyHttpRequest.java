@@ -1,12 +1,15 @@
 package com.github.netty.core;
 
 import com.github.netty.core.constants.VersionConstants;
+import com.github.netty.core.support.Recyclable;
 import com.github.netty.core.support.Wrapper;
 import com.github.netty.util.ReflectUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.http.*;
+import io.netty.util.Recycler;
+import io.netty.util.ReferenceCountUtil;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -18,7 +21,15 @@ import java.util.Objects;
  * @author acer01
  * 2018/7/28/028
  */
-public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest> {
+public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest>,Recyclable {
+
+    private static final Recycler<NettyHttpRequest> RECYCLER = new Recycler<NettyHttpRequest>() {
+        @Override
+        protected NettyHttpRequest newObject(Handle<NettyHttpRequest> handle) {
+            return new NettyHttpRequest(handle);
+        }
+    };
+    private final Recycler.Handle<NettyHttpRequest> handle;
 
     private FullHttpRequest source;
     private Class sourceClass;
@@ -33,9 +44,18 @@ public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest
     private List<Method> touch1MethodList;
     private List<Method> copyMethodList;
 
-    public NettyHttpRequest(FullHttpRequest source,Channel channel) {
-        wrap(source);
-        this.channel = Objects.requireNonNull(channel);
+    private NettyHttpRequest(Recycler.Handle<NettyHttpRequest> handle) {
+        this.handle = handle;
+    }
+
+    public static NettyHttpRequest newInstance(FullHttpRequest source,Channel channel) {
+        Objects.requireNonNull(source);
+        Objects.requireNonNull(channel);
+
+        NettyHttpRequest instance = RECYCLER.get();
+        instance.wrap(source);
+        instance.channel = channel;
+        return instance;
     }
 
     public Channel getChannel() {
@@ -283,11 +303,23 @@ public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest
         return source.equals(obj);
     }
 
-
     @Override
     public String toString() {
         return "NettyHttpRequest{" +
                 "sourceClass=" + sourceClass +
                 '}';
     }
+
+    @Override
+    public void recycle() {
+        ByteBuf content = content();
+        if(content != null && content.refCnt() > 0){
+            ReferenceCountUtil.safeRelease(content);
+        }
+        this.source = null;
+        this.sourceClass = null;
+        this.channel = null;
+        this.handle.recycle(this);
+    }
+
 }

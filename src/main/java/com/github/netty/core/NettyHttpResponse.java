@@ -1,10 +1,15 @@
 package com.github.netty.core;
 
 import com.github.netty.core.constants.VersionConstants;
+import com.github.netty.core.support.Recyclable;
 import com.github.netty.core.support.Wrapper;
 import com.github.netty.util.ReflectUtil;
 import io.netty.handler.codec.DecoderResult;
-import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpVersion;
+import io.netty.util.Recycler;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -16,18 +21,34 @@ import java.util.Objects;
  * @author acer01
  * 2018/7/28/028
  */
-public class NettyHttpResponse implements HttpResponse,Wrapper<HttpResponse> {
-    
+public class NettyHttpResponse implements HttpResponse,Wrapper<HttpResponse>,Recyclable {
+
+    private static final Recycler<NettyHttpResponse> RECYCLER = new Recycler<NettyHttpResponse>() {
+        @Override
+        protected NettyHttpResponse newObject(Handle<NettyHttpResponse> handle) {
+            return new NettyHttpResponse(handle);
+        }
+    };
+    private final Recycler.Handle<NettyHttpResponse> handle;
+
     private HttpResponse source;
     private Class sourceClass;
     private final Object lock = new Object();
-    
+
     private List<Method> getStatusMethodList;
     private List<Method> getProtocolVersionMethodList;
     private List<Method> getDecoderResultMethodList;
 
-    public NettyHttpResponse(HttpResponse source) {
-        wrap(source);
+    private NettyHttpResponse(Recycler.Handle<NettyHttpResponse> handle) {
+        this.handle = handle;
+    }
+
+    public static NettyHttpResponse newInstance(HttpResponse source) {
+        Objects.requireNonNull(source);
+
+        NettyHttpResponse instance = RECYCLER.get();
+        instance.wrap(source);
+        return instance;
     }
 
     public HttpResponseStatus getStatus() {
@@ -142,6 +163,13 @@ public class NettyHttpResponse implements HttpResponse,Wrapper<HttpResponse> {
         return "NettyHttpResponse{" +
                 "sourceClass=" + sourceClass +
                 '}';
+    }
+
+    @Override
+    public void recycle() {
+        this.source = null;
+        this.sourceClass = null;
+        this.handle.recycle(this);
     }
 
 }

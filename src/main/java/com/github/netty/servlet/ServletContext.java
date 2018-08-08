@@ -86,6 +86,10 @@ public class ServletContext implements javax.servlet.ServletContext {
         new SessionInvalidThread(NamespaceUtil.newIdName(this,"SessionInvalidThread"),60 * 1000).start();
     }
 
+    public void setAsyncExecutorService(ExecutorService asyncExecutorService) {
+        this.asyncExecutorService = asyncExecutorService;
+    }
+
     public ServletEventListenerManager getServletEventListenerManager() {
         return servletEventListenerManager;
     }

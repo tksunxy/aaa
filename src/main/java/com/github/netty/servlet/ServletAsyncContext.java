@@ -5,6 +5,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -22,13 +23,17 @@ public class ServletAsyncContext implements AsyncContext {
     private ServletResponse servletResponse;
     private ExecutorService executorService;
 
-    // 0=初始, 1=开始
+    /**
+     * 0=初始, 1=开始, 2=完成
+      */
     private int status;
     private static final int STATUS_INIT = 0;
     private static final int STATUS_START = 1;
     private static final int STATUS_COMPLETE = 2;
 
-    //毫秒
+    /**
+     * 超时时间 -> 毫秒
+     */
     private long timeout;
 
     private List<ServletAsyncListenerWrapper> asyncListenerWrapperList;
@@ -36,10 +41,10 @@ public class ServletAsyncContext implements AsyncContext {
     private ServletContext servletContext;
 
     public ServletAsyncContext(ServletContext servletContext, ExecutorService executorService, ServletRequest servletRequest, ServletResponse servletResponse) {
-        this.servletContext = servletContext;
-        this.executorService = executorService;
-        this.servletRequest = servletRequest;
-        this.servletResponse = servletResponse;
+        this.servletContext = Objects.requireNonNull(servletContext);
+        this.executorService = Objects.requireNonNull(executorService);
+        this.servletRequest = Objects.requireNonNull(servletRequest);
+        this.servletResponse = Objects.requireNonNull(servletResponse);
         this.status = STATUS_INIT;
     }
 
@@ -60,6 +65,9 @@ public class ServletAsyncContext implements AsyncContext {
 
     @Override
     public void dispatch() {
+        if(servletRequest == null){
+            return;
+        }
         if (servletRequest instanceof HttpServletRequest) {
             HttpServletRequest request = (HttpServletRequest) servletRequest;
             String path = request.getServletPath();
@@ -247,12 +255,12 @@ public class ServletAsyncContext implements AsyncContext {
         }
     }
 
-    class ServletAsyncListenerWrapper{
+    private class ServletAsyncListenerWrapper{
         AsyncListener asyncListener;
         ServletRequest servletRequest;
         ServletResponse servletResponse;
 
-        ServletAsyncListenerWrapper(AsyncListener asyncListener, ServletRequest servletRequest, ServletResponse servletResponse) {
+        private ServletAsyncListenerWrapper(AsyncListener asyncListener, ServletRequest servletRequest, ServletResponse servletResponse) {
             this.asyncListener = asyncListener;
             this.servletRequest = servletRequest;
             this.servletResponse = servletResponse;
@@ -265,7 +273,7 @@ public class ServletAsyncContext implements AsyncContext {
             this.cause = cause;
         }
         @Override
-        public synchronized Throwable getCause() {
+        public Throwable getCause() {
             return cause;
         }
     }

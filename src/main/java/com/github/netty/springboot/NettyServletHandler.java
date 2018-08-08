@@ -1,6 +1,8 @@
 package com.github.netty.springboot;
 
 import com.github.netty.core.AbstractChannelHandler;
+import com.github.netty.core.support.PartialPooledByteBufAllocator;
+import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletHttpServletResponse;
 import com.github.netty.servlet.ServletRequestDispatcher;
@@ -11,12 +13,14 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.ReferenceCountUtil;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.http.HttpServletResponse;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -25,17 +29,22 @@ import java.util.concurrent.ExecutorService;
  *  2018/7/1/001
  */
 @ChannelHandler.Sharable
-public class NettyServletDispatcherHandler extends AbstractChannelHandler<HttpServletObject> {
+public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest> {
 
     private ExecutorService dispatcherExecutor;
+    private ServletContext servletContext;
 
-    public NettyServletDispatcherHandler(ExecutorService dispatcherExecutor) {
+    public NettyServletHandler(ServletContext servletContext) {
         super(false);
-        this.dispatcherExecutor = dispatcherExecutor;
+        this.servletContext = Objects.requireNonNull(servletContext);
+        this.dispatcherExecutor = servletContext.getAsyncExecutorService();
     }
 
     @Override
-    protected void onMessageReceived(ChannelHandlerContext ctx, HttpServletObject httpServletObject) throws Exception {
+    protected void onMessageReceived(ChannelHandlerContext ctx, FullHttpRequest fullHttpRequest) throws Exception {
+        ChannelHandlerContext ctxWrap = PartialPooledByteBufAllocator.forceDirectAllocator(ctx);
+        HttpServletObject httpServletObject = HttpServletObject.newInstance(servletContext,ctxWrap,fullHttpRequest);
+
 //        Runnable task = newTask2(ctx,httpServletObject);
         Runnable task = newTask(httpServletObject);
         if(dispatcherExecutor != null) {
@@ -89,7 +98,7 @@ public class NettyServletDispatcherHandler extends AbstractChannelHandler<HttpSe
             }catch (Throwable throwable){
                 ExceptionUtil.printRootCauseStackTrace(throwable);
             }finally {
-                ReferenceCountUtil.safeRelease(httpServletObject);
+                httpServletObject.recycle();
             }
         };
         return task;
@@ -105,6 +114,4 @@ public class NettyServletDispatcherHandler extends AbstractChannelHandler<HttpSe
             ctx.channel().close();
         }
     }
-
-
 }

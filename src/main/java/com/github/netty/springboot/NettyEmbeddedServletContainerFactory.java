@@ -3,6 +3,7 @@ package com.github.netty.springboot;
 import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletDefaultHttpServlet;
 import com.github.netty.servlet.ServletSessionCookieConfig;
+import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import org.springframework.boot.context.embedded.*;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
 import org.springframework.context.ResourceLoaderAware;
@@ -13,6 +14,7 @@ import javax.net.ssl.SSLException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.concurrent.ExecutorService;
 
 /**
  *
@@ -78,8 +80,15 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
      */
     protected NettyEmbeddedServletContainer newNettyEmbeddedServletContainer(ServletContext servletContext) throws SSLException {
         Ssl ssl = getSsl();
-        NettyEmbeddedServletContainer container = new NettyEmbeddedServletContainer(servletContext,ssl,50);
+
+        NettyEmbeddedServletContainer container = new NettyEmbeddedServletContainer(servletContext,ssl);
         return container;
+    }
+
+    private ExecutorService newAsyncExecutorService(){
+//        return Executors.newFixedThreadPool(bizThreadCount);
+        return new DefaultEventExecutorGroup(50);
+//        return null;
     }
 
     /**
@@ -89,6 +98,7 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
     private ServletContext newServletContext(){
         ClassLoader parentClassLoader = resourceLoader != null ? resourceLoader.getClassLoader() : ClassUtils.getDefaultClassLoader();
         ServletSessionCookieConfig sessionCookieConfig = loadSessionCookieConfig();
+        ExecutorService asyncExecutorService = newAsyncExecutorService();
 
         ServletContext servletContext = new ServletContext(
                 new InetSocketAddress(getAddress(),getPort()),
@@ -96,6 +106,8 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
                 getContextPath(),
                 getServerHeader(),
                 sessionCookieConfig);
+
+        servletContext.setAsyncExecutorService(asyncExecutorService);
         return servletContext;
     }
 

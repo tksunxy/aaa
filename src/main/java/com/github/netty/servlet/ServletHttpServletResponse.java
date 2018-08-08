@@ -3,6 +3,7 @@ package com.github.netty.servlet;
 import com.github.netty.core.NettyHttpResponse;
 import com.github.netty.core.constants.HttpConstants;
 import com.github.netty.core.constants.HttpHeaderConstants;
+import com.github.netty.servlet.support.MediaType;
 import com.github.netty.servlet.support.ServletOutputStreamListener;
 import com.github.netty.util.HttpHeaderUtil;
 import com.github.netty.util.TodoOptimize;
@@ -33,7 +34,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
     private String characterEncoding;
     private Locale locale;
     private HttpHeaders nettyHeaders;
-    
+
     /**
      * 构造方法
      * @param ctx            Netty的Context
@@ -41,7 +42,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
      */
     public ServletHttpServletResponse(ChannelHandlerContext ctx, ServletHttpServletRequest httpServletRequest) {
         //Netty自带的http响应对象，初始化为200
-        this.nettyResponse = new NettyHttpResponse(new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, false));
+        this.nettyResponse = NettyHttpResponse.newInstance(new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, false));
         this.nettyHeaders = nettyResponse.headers();
         this.outputStream = new ServletOutputStream(ctx, nettyResponse,HttpHeaderUtil.isKeepAlive(httpServletRequest.getNettyRequest()));
         outputStream.addStreamListener(new ServletOutputStreamListener(httpServletRequest,this));
@@ -56,6 +57,21 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
 
     public NettyHttpResponse getNettyResponse() {
         return nettyResponse;
+    }
+
+    private void checkNotCommitted() {
+        checkState(isCommitted(), "Cannot perform this operation after response has been committed");
+    }
+
+    private boolean setHeaderField(String name, String value) {
+        char c = name.charAt(0);//减少判断的时间，提高效率
+        if ('C' == c || 'c' == c) {
+            if (HttpHeaderConstants.CONTENT_TYPE.toString().equalsIgnoreCase(name)) {
+                setContentType(value);
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -143,17 +159,6 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
         nettyHeaders.set((CharSequence)name, (CharSequence)value);
     }
 
-    private boolean setHeaderField(String name, String value) {
-        char c = name.charAt(0);//减少判断的时间，提高效率
-        if ('C' == c || 'c' == c) {
-            if (HttpHeaderConstants.CONTENT_TYPE.toString().equalsIgnoreCase(name)) {
-                setContentType(value);
-                return true;
-            }
-        }
-        return false;
-    }
-
     @Override
     public void addHeader(String name, String value) {
         if (name == null || name.length() == 0 || value == null) {
@@ -192,31 +197,17 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
 
     @Override
     public void setContentType(String type) {
-        if (isCommitted()) {
-            return;
-        }
-        if (hasWriter()) {
-            return;
-        }
-        if (null == type || type.isEmpty()) {
+        if (type == null) {
             contentType = null;
             return;
         }
 
-        String[] typeAndCharset = type.split(";");
-        if(typeAndCharset.length > 0){
-            contentType = typeAndCharset[0];
-            if(typeAndCharset.length > 1){
-                setCharacterEncoding(typeAndCharset[1]);
-            }
+        MediaType mediaType = MediaType.parseFast(type);
+        contentType = mediaType.toStringNoCharset();
+        String charset = mediaType.getCharset();
+        if (charset != null) {
+            setCharacterEncoding(charset);
         }
-
-//        MediaType mediaType = MediaTypeUtil.parse(type);
-//        Optional<Charset> charset = mediaType.charset();
-//        if (charset.isPresent()) {
-//            setCharacterEncoding(charset.get().name());
-//        }
-//        contentType = mediaType.type() + '/' + mediaType.subtype();
     }
 
     @Override
@@ -343,10 +334,6 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
     @Override
     public boolean isCommitted() {
         return outputStream.isClosed();
-    }
-
-    private void checkNotCommitted() {
-        checkState(isCommitted(), "Cannot perform this operation after response has been committed");
     }
 
     @TodoOptimize("重置流")

@@ -1,11 +1,13 @@
 package com.github.netty.servlet;
 
+import com.github.netty.core.support.Wrapper;
 import com.github.netty.util.ObjectUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCountUtil;
 
 import javax.servlet.ReadListener;
 import java.io.IOException;
+import java.util.Objects;
 
 
 /**
@@ -13,18 +15,19 @@ import java.io.IOException;
  * @author acer01
  *  2018/7/15/015
  */
-public class ServletInputStream extends javax.servlet.ServletInputStream {
+public class ServletInputStream extends javax.servlet.ServletInputStream implements Wrapper<ByteBuf> {
 
     private boolean closed; //输入流是否已经关闭，保证线程安全
-    private ByteBuf content;
+    private ByteBuf source;
     private ReadListener readListener;
 
     private int contentLength;
 
-    public ServletInputStream(ByteBuf content) {
-        this.closed = false;
-        this.content = content;
-        this.contentLength = content.capacity();
+    public ServletInputStream() {
+    }
+
+    public ServletInputStream(ByteBuf source) {
+        wrap(source);
     }
 
     public int getContentLength() {
@@ -44,7 +47,7 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
     @Override
     public boolean isFinished() {
         checkNotClosed();
-        return content.readableBytes() == 0;
+        return source.readableBytes() == 0;
     }
 
     /**
@@ -53,7 +56,7 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
     @Override
     public boolean isReady() {
         checkNotClosed();
-        return content.readableBytes() > 0;
+        return source.readableBytes() > 0;
     }
 
     @Override
@@ -69,8 +72,8 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
     @Override
     public long skip(long n) throws IOException {
         checkNotClosed();
-        long skipLen = Math.min(content.readableBytes(), n); //实际可以跳过的字节数
-        content.skipBytes((int) skipLen);
+        long skipLen = Math.min(source.readableBytes(), n); //实际可以跳过的字节数
+        source.skipBytes((int) skipLen);
         return skipLen;
     }
 
@@ -79,7 +82,7 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
      */
     @Override
     public int available() throws IOException {
-        return null == content ? 0 : content.readableBytes();
+        return null == source ? 0 : source.readableBytes();
     }
 
     @Override
@@ -87,8 +90,8 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
         if (closed) {
             return;
         }
-        if(content != null && content.refCnt() > 0){
-            ReferenceCountUtil.safeRelease(content);
+        if(source != null && source.refCnt() > 0){
+            ReferenceCountUtil.safeRelease(source);
         }
     }
 
@@ -126,10 +129,10 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
      * 从current的HttpContent中读取length个字节
      */
     private ByteBuf readContent(int length) {
-        if (length < content.readableBytes()) {
-            return content.readSlice(length);
+        if (length < source.readableBytes()) {
+            return source.readSlice(length);
         } else {
-            return content;
+            return source;
         }
     }
 
@@ -137,6 +140,25 @@ public class ServletInputStream extends javax.servlet.ServletInputStream {
         if (closed) {
             throw new IllegalStateException("Stream is closed");
         }
+    }
+
+    public boolean isClosed() {
+        return closed;
+    }
+
+    @Override
+    public void wrap(ByteBuf source) {
+        Objects.requireNonNull(source);
+
+        this.closed = false;
+        this.source = source;
+        this.contentLength = source.capacity();
+        this.readListener = null;
+    }
+
+    @Override
+    public ByteBuf unwrap() {
+        return source;
     }
 
 }

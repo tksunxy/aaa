@@ -2,6 +2,7 @@ package com.github.netty.core;
 
 import com.github.netty.core.constants.VersionConstants;
 import com.github.netty.core.support.Recyclable;
+import com.github.netty.core.support.AbstractRecycler;
 import com.github.netty.core.support.Wrapper;
 import com.github.netty.util.ReflectUtil;
 import io.netty.handler.codec.DecoderResult;
@@ -9,7 +10,6 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
-import io.netty.util.Recycler;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -23,13 +23,13 @@ import java.util.Objects;
  */
 public class NettyHttpResponse implements HttpResponse,Wrapper<HttpResponse>,Recyclable {
 
-    private static final Recycler<NettyHttpResponse> RECYCLER = new Recycler<NettyHttpResponse>() {
+    private static final AbstractRecycler<NettyHttpResponse> RECYCLER = new AbstractRecycler<NettyHttpResponse>() {
         @Override
-        protected NettyHttpResponse newObject(Handle<NettyHttpResponse> handle) {
+        protected NettyHttpResponse newInstance(Handle<NettyHttpResponse> handle) {
             return new NettyHttpResponse(handle);
         }
     };
-    private final Recycler.Handle<NettyHttpResponse> handle;
+    private final AbstractRecycler.Handle<NettyHttpResponse> handle;
 
     private HttpResponse source;
     private Class sourceClass;
@@ -39,7 +39,7 @@ public class NettyHttpResponse implements HttpResponse,Wrapper<HttpResponse>,Rec
     private List<Method> getProtocolVersionMethodList;
     private List<Method> getDecoderResultMethodList;
 
-    private NettyHttpResponse(Recycler.Handle<NettyHttpResponse> handle) {
+    private NettyHttpResponse(AbstractRecycler.Handle<NettyHttpResponse> handle) {
         this.handle = handle;
     }
 

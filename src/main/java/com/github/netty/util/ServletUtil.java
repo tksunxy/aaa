@@ -7,6 +7,7 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.handler.codec.http.multipart.*;
 import io.netty.util.concurrent.FastThreadLocal;
+import io.netty.util.internal.RecyclableArrayList;
 
 import javax.servlet.http.Cookie;
 import java.io.IOException;
@@ -153,6 +154,11 @@ public class ServletUtil {
         cookie.setVersion(nettyCookie.getVersion());
         cookie.setSecure(nettyCookie.isSecure());
         return cookie;
+    }
+
+    public static <T>List<T> newList(int minCapacity){
+        RecyclableArrayList finishListeners = RecyclableArrayList.newInstance(minCapacity);
+        return (List<T>) finishListeners;
     }
 
     public static io.netty.handler.codec.http.Cookie toNettyCookie(Cookie cookie){

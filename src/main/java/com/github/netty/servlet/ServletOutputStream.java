@@ -1,54 +1,38 @@
 package com.github.netty.servlet;
 
-import com.github.netty.servlet.support.StreamListener;
+import com.github.netty.core.support.Wrapper;
+import com.github.netty.servlet.support.ChannelInvoker;
 import com.github.netty.util.ExceptionUtil;
 import com.github.netty.util.ObjectUtil;
-import com.github.netty.util.TodoOptimize;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.DefaultLastHttpContent;
-import io.netty.handler.codec.http.HttpContent;
-import io.netty.handler.codec.http.HttpResponse;
+import io.netty.util.ReferenceCountUtil;
 
 import javax.servlet.WriteListener;
 import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
-import java.util.LinkedList;
-import java.util.List;
 
 
 /**
  * 需要对keep-alive的支持
  * @author 84215
  */
-public class ServletOutputStream extends javax.servlet.ServletOutputStream {
+public class ServletOutputStream extends javax.servlet.ServletOutputStream implements Wrapper<CompositeByteBuf>{
 
     private final Object syncLock = new Object();
     //是否已经调用close()方法关闭输出流
     private boolean closed;
     //监听器，暂时没处理
     private WriteListener writeListener;
-    private ChannelHandlerContext ctx;
-    private CompositeByteBuf compositeByteBuf;
-    private List<StreamListener> streamListenerList;
-    private HttpResponse nettyResponse;
-    @TodoOptimize("缺少对keep-alive的支持")
-    private boolean isKeepAlive;
+    private CompositeByteBuf source;
+    private ChannelInvoker channelInvoker;
 
-    ServletOutputStream(ChannelHandlerContext ctx, HttpResponse nettyResponse,boolean isKeepAlive) {
-        this.isKeepAlive = isKeepAlive;
-        this.ctx = ctx;
-        this.nettyResponse = nettyResponse;
-        this.compositeByteBuf = new CompositeByteBuf(ctx.alloc(),false,16);
-        this.streamListenerList = new LinkedList<>();
-        this.closed = false;
+    ServletOutputStream() {
     }
 
-    public void addStreamListener(StreamListener streamListener) {
-        this.streamListenerList.add(streamListener);
+    public void setChannelInvoker(ChannelInvoker channelInvoker) {
+        this.channelInvoker = channelInvoker;
     }
 
     @Override
@@ -73,9 +57,9 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream {
         if(len <= 0){
             return;
         }
-        ByteBuf content = ctx.alloc().buffer(len);
+        ByteBuf content = this.source.alloc().buffer(len);
         content.writeBytes(b, off, len);
-        compositeByteBuf.addComponent(content);
+        this.source.addComponent(content);
     }
 
     @Override
@@ -89,9 +73,9 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream {
     public void write(int b) throws IOException {
         checkClosed();
 
-        ByteBuf content = ctx.alloc().buffer(4);
+        ByteBuf content = this.source.alloc().buffer(4);
         content.writeInt(b);
-        compositeByteBuf.addComponent(content);
+        this.source.addComponent(content);
     }
 
     @Override
@@ -100,7 +84,13 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream {
     }
 
     public int getContentLength(){
-        return compositeByteBuf.capacity();
+        return source.capacity();
+    }
+
+
+    @Override
+    public void close() throws IOException {
+        close(null);
     }
 
     /**
@@ -114,44 +104,20 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream {
      * ■AsyncContext 的complete 方法已调用
      * @throws IOException
      */
-    @Override
-    public void close() throws IOException {
+    public void close(ChannelFutureListener finishListener) throws IOException {
         synchronized (syncLock) {
             if (closed) {
                 return;
             }
 
             try {
-                int cap = compositeByteBuf.capacity();
-                compositeByteBuf.writerIndex(cap);
+                source.writerIndex(source.capacity());
 
-                for(StreamListener streamListener : streamListenerList) {
-                    streamListener.closeBefore(cap);
-                }
+                ChannelFutureListener releaseListener = newReleaseListener();
+                ChannelFutureListener[] finishListeners = finishListener == null?
+                        new ChannelFutureListener[]{releaseListener} : new ChannelFutureListener[]{finishListener, releaseListener};
 
-                ctx.write(nettyResponse, ctx.voidPromise());
-
-                ctx.writeAndFlush(buildContent(compositeByteBuf))
-                        .addListener(new ChannelFutureListener() {
-                            /**
-                             * 写完后1.刷新 2.释放内存 3.关闭流
-                             * @param future 回调对象
-                             * @throws Exception 异常
-                             */
-                            @Override
-                            public void operationComplete(ChannelFuture future) throws Exception {
-                                try {
-                                    for (StreamListener streamListener : streamListenerList) {
-                                        streamListener.closeAfter(compositeByteBuf);
-                                    }
-//                                    if(!isKeepAlive){
-                                        future.channel().close();
-//                                    }
-                                }catch (Throwable throwable){
-                                    ExceptionUtil.printRootCauseStackTrace(throwable);
-                                }
-                            }
-                        });
+                channelInvoker.writeAndFlushAndIfNeedClose(source,finishListeners);
             }catch (Throwable e){
                 ExceptionUtil.printRootCauseStackTrace(e);
                 errorEvent(e);
@@ -160,14 +126,13 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream {
         }
     }
 
-    private HttpContent buildContent(ByteBuf byteBuf){
-        HttpContent httpContent;
-        if(isKeepAlive){
-            httpContent = new DefaultLastHttpContent(byteBuf);
-        }else {
-            httpContent = new DefaultLastHttpContent(byteBuf);
-        }
-        return httpContent;
+    private ChannelFutureListener newReleaseListener(){
+        ChannelFutureListener releaseListener = future -> {
+            if(source.refCnt() > 0) {
+                ReferenceCountUtil.safeRelease(source);
+            }
+        };
+        return releaseListener;
     }
 
     private void errorEvent(Throwable throwable){
@@ -184,6 +149,17 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream {
 
     public boolean isClosed() {
         return closed;
+    }
+
+    @Override
+    public void wrap(CompositeByteBuf source) {
+        this.source = source;
+        this.closed = false;
+    }
+
+    @Override
+    public CompositeByteBuf unwrap() {
+        return source;
     }
 
 }

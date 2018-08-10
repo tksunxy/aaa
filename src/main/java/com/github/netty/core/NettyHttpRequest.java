@@ -2,13 +2,13 @@ package com.github.netty.core;
 
 import com.github.netty.core.constants.VersionConstants;
 import com.github.netty.core.support.Recyclable;
+import com.github.netty.core.support.AbstractRecycler;
 import com.github.netty.core.support.Wrapper;
 import com.github.netty.util.ReflectUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.http.*;
-import io.netty.util.Recycler;
 import io.netty.util.ReferenceCountUtil;
 
 import java.lang.reflect.Method;
@@ -23,13 +23,13 @@ import java.util.Objects;
  */
 public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest>,Recyclable {
 
-    private static final Recycler<NettyHttpRequest> RECYCLER = new Recycler<NettyHttpRequest>() {
+    private static final AbstractRecycler<NettyHttpRequest> RECYCLER = new AbstractRecycler<NettyHttpRequest>() {
         @Override
-        protected NettyHttpRequest newObject(Handle<NettyHttpRequest> handle) {
+        protected NettyHttpRequest newInstance(Handle<NettyHttpRequest> handle) {
             return new NettyHttpRequest(handle);
         }
     };
-    private final Recycler.Handle<NettyHttpRequest> handle;
+    private final AbstractRecycler.Handle<NettyHttpRequest> handle;
 
     private FullHttpRequest source;
     private Class sourceClass;
@@ -44,7 +44,7 @@ public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest
     private List<Method> touch1MethodList;
     private List<Method> copyMethodList;
 
-    private NettyHttpRequest(Recycler.Handle<NettyHttpRequest> handle) {
+    private NettyHttpRequest(AbstractRecycler.Handle<NettyHttpRequest> handle) {
         this.handle = handle;
     }
 

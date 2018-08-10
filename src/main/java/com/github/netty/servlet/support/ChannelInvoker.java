@@ -8,11 +8,17 @@ import com.github.netty.core.constants.HttpHeaderConstants;
 import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletHttpServletResponse;
 import com.github.netty.servlet.ServletHttpSession;
+import com.github.netty.util.ExceptionUtil;
 import com.github.netty.util.HttpHeaderUtil;
 import com.github.netty.util.ServletUtil;
+import com.github.netty.util.TodoOptimize;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.DefaultLastHttpContent;
+import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.util.ReferenceCountUtil;
 
 import javax.servlet.http.Cookie;
 import java.util.List;
@@ -23,42 +29,87 @@ import java.util.StringJoiner;
  * @author acer01
  *  2018/7/28/028
  */
-public class ServletOutputStreamListener implements StreamListener {
+public class ChannelInvoker {
 
     private ServletHttpServletRequest servletRequest;
     private ServletHttpServletResponse servletResponse;
-
-    public ServletOutputStreamListener(ServletHttpServletRequest servletRequest, ServletHttpServletResponse servletResponse) {
+    private NettyHttpRequest nettyRequest;
+    private NettyHttpResponse nettyResponse;
+    private ChannelHandlerContext ctx;
+    @TodoOptimize("缺少对keep-alive的支持")
+    private boolean isKeepAlive;
+    
+    public ChannelInvoker(ChannelHandlerContext ctx, ServletHttpServletRequest servletRequest, ServletHttpServletResponse servletResponse) {
+        this.ctx = ctx;
         this.servletRequest = servletRequest;
         this.servletResponse = servletResponse;
+        this.nettyRequest = servletRequest.getNettyRequest();
+        this.nettyResponse = servletResponse.getNettyResponse();
+        this.isKeepAlive = HttpHeaderUtil.isKeepAlive(nettyRequest);
     }
 
-    @Override
-    public void closeBefore(int totalLength) {
-        NettyHttpRequest nettyRequest = servletRequest.getNettyRequest();
-        NettyHttpResponse nettyResponse = servletResponse.getNettyResponse();
+    public void writeAndFlushAndIfNeedClose(ByteBuf content, ChannelFutureListener[] finishListeners) {
+        settingResponse(nettyResponse,servletRequest,servletResponse,content.capacity());
 
-        settingResponse(nettyRequest,nettyResponse,servletRequest,servletResponse,totalLength);
+        writeResponse(content,finishListeners);
+        this.servletRequest = null;
+        this.servletResponse = null;
+        this.nettyRequest = null;
+        this.nettyResponse = null;
     }
 
-    @Override
-    public void closeAfter(ByteBuf content) {
-        if(content.refCnt() > 0) {
-            ReferenceCountUtil.safeRelease(content);
+    private void writeResponse(ByteBuf content,ChannelFutureListener[] finishListeners) {
+        HttpContent httpContent = buildContent(content, isKeepAlive);
+        ChannelFutureListener flushListener = newFlushListener(finishListeners);
+        
+        ctx.write(nettyResponse, ctx.voidPromise());
+        ctx.writeAndFlush(httpContent).addListener(flushListener);
+    }
+
+    private ChannelFutureListener newFlushListener(ChannelFutureListener[] finishListeners){
+        ChannelFutureListener flushListener = new ChannelFutureListener() {
+            /**
+             * 写完后1.刷新 2.释放内存 3.关闭流
+             * @param future 回调对象
+             * @throws Exception 异常
+             */
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                try {
+                    if(!isKeepAlive){
+                        ChannelFuture channelFuture = future.channel().close();
+                        if(finishListeners != null && finishListeners.length > 0) {
+                            channelFuture.addListeners(finishListeners);
+                        }
+                    }
+
+                }catch (Throwable throwable){
+                    ExceptionUtil.printRootCauseStackTrace(throwable);
+                }
+            }
+        };
+        return flushListener;
+    }
+    
+    private HttpContent buildContent(ByteBuf byteBuf,boolean isKeepAlive){
+        HttpContent httpContent;
+        if(isKeepAlive){
+            httpContent = new DefaultLastHttpContent(byteBuf);
+        }else {
+            httpContent = new DefaultLastHttpContent(byteBuf);
         }
+        return httpContent;
     }
 
     /**
      * 设置基本的请求头
-     * @param nettyRequest netty请求
      * @param nettyResponse netty响应
      * @param servletRequest servlet请求
      * @param servletResponse servlet响应
      * @param totalLength 总内容长度
      */
-    public void settingResponse(NettyHttpRequest nettyRequest, NettyHttpResponse nettyResponse,
+    private void settingResponse(NettyHttpResponse nettyResponse,
                                 ServletHttpServletRequest servletRequest, ServletHttpServletResponse servletResponse, int totalLength) {
-        boolean isKeepAlive = HttpHeaderUtil.isKeepAlive(nettyRequest);
         HttpHeaderUtil.setKeepAlive(nettyResponse, isKeepAlive);
 
         if (!isKeepAlive && !HttpHeaderUtil.isContentLengthSet(nettyResponse)) {
@@ -71,11 +122,14 @@ public class ServletOutputStreamListener implements StreamListener {
 
         HttpHeaders headers = nettyResponse.headers();
         if (null != contentType) {
-            String value = (null == characterEncoding) ? contentType : contentType + "; "+HttpHeaderConstants.CHARSET+"=" + characterEncoding; //Content Type 响应头的内容
+            //Content Type 响应头的内容
+            String value = (null == characterEncoding) ? contentType : contentType + "; "+HttpHeaderConstants.CHARSET+"=" + characterEncoding;
             headers.set(HttpHeaderConstants.CONTENT_TYPE, value);
         }
-        headers.set(HttpHeaderConstants.DATE, ServletUtil.newDateGMT()); // 时间日期响应头
-        headers.set(HttpHeaderConstants.SERVER, servletRequest.getServletContext().getServerInfo()); //服务器信息响应头
+        // 时间日期响应头
+        headers.set(HttpHeaderConstants.DATE, ServletUtil.newDateGMT());
+        //服务器信息响应头
+        headers.set(HttpHeaderConstants.SERVER, servletRequest.getServletContext().getServerInfo());
 
         // cookies处理
         //long curTime = System.currentTimeMillis(); //用于根据maxAge计算Cookie的Expires

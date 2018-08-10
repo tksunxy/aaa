@@ -16,7 +16,6 @@
         <java.version>1.8</java.version>
         <!--<netty.version>5.0.0.Alpha2</netty.version>-->
         <netty.version>4.1.25.Final</netty.version>
-        <guava.version>20.0</guava.version>
         <spring-boot.version>1.5.10.RELEASE</spring-boot.version>
         <servlet-api.version>3.1.0</servlet-api.version>
         <javassist.version>3.19.0-GA</javassist.version>
@@ -52,12 +51,12 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
             <version>${spring-boot.version}</version>
-            <!--<exclusions>-->
-            <!--<exclusion>-->
-            <!--<groupId>org.springframework.boot</groupId>-->
-            <!--<artifactId>spring-boot-starter-tomcat</artifactId>-->
-            <!--</exclusion>-->
-            <!--</exclusions>-->
+            <exclusions>
+            <exclusion>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-tomcat</artifactId>
+            </exclusion>
+            </exclusions>
         </dependency>
 
         <!--<dependency>-->
@@ -106,11 +105,6 @@
             <version>${javassist.version}</version>
         </dependency>
 
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>${guava.version}</version>
-        </dependency>
     </dependencies>
 
 

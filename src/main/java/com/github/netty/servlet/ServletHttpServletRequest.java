@@ -3,15 +3,17 @@ package com.github.netty.servlet;
 import com.github.netty.core.NettyHttpRequest;
 import com.github.netty.core.constants.HttpConstants;
 import com.github.netty.core.constants.HttpHeaderConstants;
+import com.github.netty.core.support.Recyclable;
+import com.github.netty.core.support.AbstractRecycler;
 import com.github.netty.servlet.support.ServletEventListenerManager;
-import com.github.netty.util.HttpHeaderUtil;
-import com.github.netty.util.ObjectUtil;
-import com.github.netty.util.ServletUtil;
-import com.github.netty.util.StringUtil;
+import com.github.netty.util.*;
 import io.netty.handler.codec.http.HttpHeaders;
 
 import javax.servlet.*;
-import javax.servlet.http.*;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpSessionEvent;
+import javax.servlet.http.HttpUpgradeHandler;
+import javax.servlet.http.Part;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -27,9 +29,27 @@ import java.util.concurrent.ConcurrentHashMap;
 import static com.github.netty.util.ObjectUtil.NULL;
 
 /**
- * Created by acer01 on 2018/7/15/015.
+ *
+ * @author acer01
+ *  2018/7/15/015
  */
-public class ServletHttpServletRequest implements javax.servlet.http.HttpServletRequest {
+public class ServletHttpServletRequest implements javax.servlet.http.HttpServletRequest,Recyclable {
+
+    private static final AbstractRecycler<ServletHttpServletRequest> RECYCLER = new AbstractRecycler<ServletHttpServletRequest>() {
+        @Override
+        protected ServletHttpServletRequest newInstance(Handle<ServletHttpServletRequest> handle) {
+            if(ProxyUtil.isEnableProxy()){
+                return ProxyUtil.newProxyByCglib(
+                        ServletHttpServletRequest.class,
+                        new Class[]{Handle.class},
+                        new Object[]{handle}
+                );
+            }else {
+                return new ServletHttpServletRequest(handle);
+            }
+        }
+    };
+    private final AbstractRecycler.Handle<ServletHttpServletRequest> handle;
 
     public static final String DISPATCHER_TYPE = ServletRequestDispatcher.class.getName().concat(".DISPATCHER_TYPE");
 
@@ -58,24 +78,28 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     private ServletContext servletContext;
     private ServletAsyncContext asyncContext;
 
-    private final NettyHttpRequest nettyRequest;
-    private final HttpHeaders nettyHeaders;
+    private NettyHttpRequest nettyRequest;
+    private HttpHeaders nettyHeaders;
 
     private ServletHttpServletResponse httpServletResponse;
 
-    public ServletHttpServletRequest(ServletContext servletContext, NettyHttpRequest nettyRequest){
-        this.nettyRequest = nettyRequest;
-        this.nettyHeaders = nettyRequest.headers();
-        this.attributeMap = new ConcurrentHashMap<>(16);;
-        this.inputStream = new ServletInputStream(nettyRequest.content());;
-        this.servletContext = servletContext;
-        this.asyncSupportedFlag = true;
-        this.decodeParameterByUrlFlag = false;
-        this.decodeParameterByBodyFlag = false;
-        this.decodeCookieFlag = false;
-        this.parsePathsFlag = false;
+    protected ServletHttpServletRequest(AbstractRecycler.Handle<ServletHttpServletRequest> handle) {
+        this.handle = handle;
+        this.attributeMap = new ConcurrentHashMap<>(16);
+        this.inputStream = new ServletInputStream();
     }
 
+    public static ServletHttpServletRequest newInstance(ServletContext servletContext, NettyHttpRequest nettyRequest) {
+        Objects.requireNonNull(servletContext);
+        Objects.requireNonNull(nettyRequest);
+
+        ServletHttpServletRequest instance = RECYCLER.get();
+        instance.nettyRequest = nettyRequest;
+        instance.nettyHeaders = nettyRequest.headers();
+        instance.inputStream.wrap(nettyRequest.content());
+        instance.servletContext = servletContext;
+        return instance;
+    }
 
     public void setHttpServletResponse(ServletHttpServletResponse httpServletResponse) {
         this.httpServletResponse = httpServletResponse;
@@ -799,4 +823,43 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         return null;
     }
 
+    @Override
+    public void recycle() {
+        if(!inputStream.isClosed()) {
+            try {
+                inputStream.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        this.nettyRequest.recycle();
+
+        this.asyncSupportedFlag = true;
+        this.decodeParameterByUrlFlag = false;
+        this.decodeParameterByBodyFlag = false;
+        this.decodeCookieFlag = false;
+        this.parsePathsFlag = false;
+        this.sessionIdSource = 0;
+        this.scheme = null;
+        this.servletPath = null;
+        this.queryString = null;
+        this.pathInfo = null;
+        this.requestUri = null;
+        this.characterEncoding = null;
+        this.sessionId = null;
+        this.parameterMap = null;
+        this.cookies = null;
+        this.locale = null;
+        this.httpSession = null;
+        this.asyncContext = null;
+        this.nettyRequest = null;
+        this.nettyHeaders = null;
+        this.httpServletResponse = null;
+        this.servletContext = null;
+
+
+        this.attributeMap.clear();
+        this.handle.recycle(this);
+    }
 }

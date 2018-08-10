@@ -3,10 +3,14 @@ package com.github.netty.servlet;
 import com.github.netty.core.NettyHttpResponse;
 import com.github.netty.core.constants.HttpConstants;
 import com.github.netty.core.constants.HttpHeaderConstants;
+import com.github.netty.core.support.Recyclable;
+import com.github.netty.core.support.AbstractRecycler;
+import com.github.netty.servlet.support.ChannelInvoker;
 import com.github.netty.servlet.support.MediaType;
-import com.github.netty.servlet.support.ServletOutputStreamListener;
 import com.github.netty.util.HttpHeaderUtil;
+import com.github.netty.util.ProxyUtil;
 import com.github.netty.util.TodoOptimize;
+import io.netty.buffer.CompositeByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -23,7 +27,22 @@ import java.util.*;
  * @author acer01
  *  2018/7/15/015
  */
-public class ServletHttpServletResponse implements javax.servlet.http.HttpServletResponse {
+public class ServletHttpServletResponse implements javax.servlet.http.HttpServletResponse,Recyclable {
+
+    private static final AbstractRecycler<ServletHttpServletResponse> RECYCLER = new AbstractRecycler<ServletHttpServletResponse>() {
+        @Override
+        protected ServletHttpServletResponse newInstance(Handle<ServletHttpServletResponse> handle) {
+            if(ProxyUtil.isEnableProxy()){
+                return ProxyUtil.newProxyByCglib(
+                        ServletHttpServletResponse.class,
+                        new Class[]{Handle.class},
+                        new Object[]{handle});
+            }else {
+                return new ServletHttpServletResponse(handle);
+            }
+        }
+    };
+    private final AbstractRecycler.Handle<ServletHttpServletResponse> handle;
 
     private ServletHttpServletRequest httpServletRequest;
     private NettyHttpResponse nettyResponse;
@@ -35,20 +54,26 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
     private Locale locale;
     private HttpHeaders nettyHeaders;
 
-    /**
-     * 构造方法
-     * @param ctx            Netty的Context
-     * @param httpServletRequest servlet请求
-     */
-    public ServletHttpServletResponse(ChannelHandlerContext ctx, ServletHttpServletRequest httpServletRequest) {
-        //Netty自带的http响应对象，初始化为200
-        this.nettyResponse = NettyHttpResponse.newInstance(new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, false));
-        this.nettyHeaders = nettyResponse.headers();
-        this.outputStream = new ServletOutputStream(ctx, nettyResponse,HttpHeaderUtil.isKeepAlive(httpServletRequest.getNettyRequest()));
-        outputStream.addStreamListener(new ServletOutputStreamListener(httpServletRequest,this));
+    protected ServletHttpServletResponse(AbstractRecycler.Handle<ServletHttpServletResponse> handle) {
+        this.handle = handle;
+        this.outputStream = new ServletOutputStream();
+    }
 
-        this.httpServletRequest = httpServletRequest;
-        this.characterEncoding = null;
+    public static ServletHttpServletResponse newInstance(ChannelHandlerContext ctx, ServletHttpServletRequest httpServletRequest) {
+        Objects.requireNonNull(ctx);
+        Objects.requireNonNull(httpServletRequest);
+
+        ServletHttpServletResponse instance = RECYCLER.get();
+
+        //Netty自带的http响应对象，初始化为200
+        NettyHttpResponse nettyResponse = NettyHttpResponse.newInstance(new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, false));
+        instance.nettyHeaders = nettyResponse.headers();
+        instance.nettyResponse = nettyResponse;
+        instance.httpServletRequest = httpServletRequest;
+        instance.characterEncoding = null;
+        instance.outputStream.wrap(new CompositeByteBuf(ctx.alloc(),false,16));
+        instance.outputStream.setChannelInvoker(new ChannelInvoker(ctx,httpServletRequest,instance));
+        return instance;
     }
 
     public List<Cookie> getCookies() {
@@ -352,4 +377,43 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
     public Locale getLocale() {
         return null == locale ? Locale.getDefault() : locale;
     }
+
+    @Override
+    public void recycle() {
+        ServletAsyncContext asyncContext = httpServletRequest.getAsyncContext();
+        boolean isAsync = asyncContext != null && asyncContext.isStarted();
+
+        /*
+         * 每个响应对象是只有当在servlet的service方法的范围内或在filter的doFilter方法范围内是有效的，除非该
+         * 组件关联的请求对象已经开启异步处理。如果相关的请求已经启动异步处理，那么直到AsyncContext的
+         * complete 方法被调用，请求对象一直有效。为了避免响应对象创建的性能开销，容器通常回收响应对象。
+         * 在相关的请求的startAsync 还没有调用时，开发人员必须意识到保持到响应对象引用，超出之上描述的范
+         * 围可能导致不确定的行为
+         */
+        NettyHttpResponse nettyResponseTemp = nettyResponse;
+
+        //如果是异步, 或者已经关闭
+        if (isAsync || outputStream.isClosed()) {
+            nettyResponseTemp.recycle();
+        }else {
+            try {
+                outputStream.close(future -> {
+                    nettyResponseTemp.recycle();
+                });
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        httpServletRequest = null;
+        nettyResponse = null;
+        writer = null;
+        cookies = null;
+        contentType = null;
+        characterEncoding = null;
+        locale = null;
+        nettyHeaders = null;
+        handle.recycle(this);
+    }
+
 }

@@ -30,7 +30,7 @@ public class QpsOnceTest {
 
     public static void main(String[] args) throws InterruptedException {
         QpsOnceTest test = new QpsOnceTest();
-        test.doQuery(8081,"127.0.0.1","/hello?id=1&name=abc");
+        test.doQuery(Constant.PORT,Constant.HOST, Constant.URI);
 
         int successCount = test.successCount.get();
         int errorCount = test.errorCount.get();

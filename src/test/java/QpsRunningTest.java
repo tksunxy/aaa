@@ -38,7 +38,7 @@ public class QpsRunningTest {
 
         try {
             while (true) {
-                test.doQuery(8081, "127.0.0.1", "/hello?id=1&name=abc");
+                test.doQuery(Constant.PORT,Constant.HOST, Constant.URI);
             }
         }catch (Throwable t){
             t.printStackTrace();

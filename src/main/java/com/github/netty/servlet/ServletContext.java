@@ -81,8 +81,8 @@ public class ServletContext implements javax.servlet.ServletContext {
         this.filterUrlMapper = new UrlMapper<>(contextPath,false);
         this.servletEventListenerManager = new ServletEventListenerManager();
 
-        //一分钟检查一次过期session
-        new SessionInvalidThread(NamespaceUtil.newIdName(this,"SessionInvalidThread"),60 * 1000).start();
+        //20秒检查一次过期session
+        new SessionInvalidThread(NamespaceUtil.newIdName(this,"SessionInvalidThread"),20 * 1000).start();
     }
 
     public void setAsyncExecutorService(ExecutorService asyncExecutorService) {

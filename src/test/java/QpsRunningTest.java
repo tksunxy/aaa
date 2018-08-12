@@ -71,6 +71,7 @@ public class QpsRunningTest {
         private final QpsRunningTest test;
         private long beginTime = System.currentTimeMillis();
         public PrintThread(QpsRunningTest test) {
+            super("QpsPrintThread");
             this.test = test;
         }
 

@@ -15,6 +15,7 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Supplier;
 
 /**
  * netty容器工厂
@@ -63,7 +64,7 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
     private ServletContext newServletContext(){
         ClassLoader parentClassLoader = resourceLoader != null ? resourceLoader.getClassLoader() : ClassUtils.getDefaultClassLoader();
         ServletSessionCookieConfig sessionCookieConfig = loadSessionCookieConfig();
-        ExecutorService asyncExecutorService = newAsyncExecutorService();
+        Supplier<ExecutorService> asyncExecutorSupplier = newAsyncExecutorSupplier();
 
         ServletContext servletContext = new ServletContext(
                 new InetSocketAddress(getAddress(),getPort()),
@@ -72,7 +73,7 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
                 getServerHeader(),
                 sessionCookieConfig);
 
-        servletContext.setAsyncExecutorService(asyncExecutorService);
+        servletContext.setAsyncExecutorSupplier(asyncExecutorSupplier);
         return servletContext;
     }
 
@@ -106,10 +107,23 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
         return container;
     }
 
-    protected ExecutorService newAsyncExecutorService(){
-//        return Executors.newFixedThreadPool(bizThreadCount);
-        return new DefaultEventExecutorGroup(50);
-//        return null;
+    protected Supplier<ExecutorService> newAsyncExecutorSupplier(){
+        return new Supplier<ExecutorService>() {
+            private ExecutorService executorService;
+
+            @Override
+            public ExecutorService get() {
+                if(executorService == null) {
+                    synchronized (this){
+                        if(executorService == null) {
+//                            executorService = Executors.newFixedThreadPool(8);
+                            executorService = new DefaultEventExecutorGroup(20);
+                        }
+                    }
+                }
+                return executorService;
+            }
+        };
     }
 
     /**

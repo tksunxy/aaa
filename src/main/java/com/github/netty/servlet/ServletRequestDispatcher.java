@@ -1,5 +1,7 @@
 package com.github.netty.servlet;
 
+import com.github.netty.core.support.AbstractRecycler;
+import com.github.netty.core.support.Recyclable;
 import com.github.netty.util.TodoOptimize;
 
 import javax.servlet.*;
@@ -11,12 +13,23 @@ import java.io.IOException;
  * @author acer01
  *  2018/7/14/014
  */
-public class ServletRequestDispatcher implements RequestDispatcher {
+public class ServletRequestDispatcher implements RequestDispatcher,Recyclable {
 
-    private FilterChain filterChain;
+    FilterChain filterChain;
 
-    ServletRequestDispatcher(FilterChain filterChain) {
-        this.filterChain = filterChain;
+    private static final AbstractRecycler<ServletRequestDispatcher> RECYCLER = new AbstractRecycler<ServletRequestDispatcher>() {
+        @Override
+        protected ServletRequestDispatcher newInstance() {
+            return new ServletRequestDispatcher();
+        }
+    };
+
+    private ServletRequestDispatcher() {}
+
+    public static ServletRequestDispatcher newInstance(FilterChain filterChain) {
+        ServletRequestDispatcher instance = RECYCLER.get();
+        instance.filterChain = filterChain;
+        return instance;
     }
 
     @TodoOptimize("未实现forward方法")
@@ -51,8 +64,18 @@ public class ServletRequestDispatcher implements RequestDispatcher {
     }
 
     public void dispatch(ServletRequest request, ServletResponse response,DispatcherType dispatcherType) throws ServletException, IOException {
-        request.setAttribute(ServletHttpServletRequest.DISPATCHER_TYPE, dispatcherType);
-        filterChain.doFilter(request, response);
+        try {
+            request.setAttribute(ServletHttpServletRequest.DISPATCHER_TYPE, dispatcherType);
+            filterChain.doFilter(request, response);
+        }finally {
+            recycle();
+        }
+    }
+
+    @Override
+    public void recycle() {
+        filterChain = null;
+        RECYCLER.recycle(this);
     }
 
 }

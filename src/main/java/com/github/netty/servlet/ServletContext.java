@@ -24,6 +24,7 @@ import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Supplier;
 
 /**
  *
@@ -41,7 +42,7 @@ public class ServletContext implements javax.servlet.ServletContext {
     private Map<String,ServletRegistration> servletRegistrationMap;
     private Map<String,ServletFilterRegistration> filterRegistrationMap;
 
-    private ExecutorService asyncExecutorService;
+    private Supplier<ExecutorService> asyncExecutorSupplier;
 
     private Set<SessionTrackingMode> sessionTrackingModeSet;
 
@@ -67,7 +68,7 @@ public class ServletContext implements javax.servlet.ServletContext {
 
         this.contextPath = contextPath == null? "" : contextPath;
         this.defaultCharset = null;
-        this.asyncExecutorService = null;
+        this.asyncExecutorSupplier = null;
         this.sessionTrackingModeSet = null;
         this.serverSocketAddress = socketAddress;
         this.classLoader = classLoader;
@@ -85,12 +86,15 @@ public class ServletContext implements javax.servlet.ServletContext {
         new SessionInvalidThread(NamespaceUtil.newIdName(this,"SessionInvalidThread"),20 * 1000).start();
     }
 
-    public void setAsyncExecutorService(ExecutorService asyncExecutorService) {
-        this.asyncExecutorService = asyncExecutorService;
+    public void setAsyncExecutorSupplier(Supplier<ExecutorService> asyncExecutorSupplier) {
+        this.asyncExecutorSupplier = asyncExecutorSupplier;
     }
 
     public ExecutorService getAsyncExecutorService() {
-        return asyncExecutorService;
+        if(asyncExecutorSupplier == null){
+            return null;
+        }
+        return asyncExecutorSupplier.get();
     }
 
     public ServletEventListenerManager getServletEventListenerManager() {
@@ -239,7 +243,7 @@ public class ServletContext implements javax.servlet.ServletContext {
             List<Filter> allNeedFilters = matchFilterByPath(path);
 
             FilterChain filterChain = new ServletFilterChain(this,servlet, allNeedFilters);
-            return new ServletRequestDispatcher(filterChain);
+            return ServletRequestDispatcher.newInstance(filterChain);
         } catch (Exception e) {
             logger.error("Throwing exception when getting Filter from ServletFilterRegistration of path " + path, e);
             return null;
@@ -257,7 +261,7 @@ public class ServletContext implements javax.servlet.ServletContext {
             List<Filter> allNeedFilters = matchFilterByName(name);
 
             FilterChain filterChain = new ServletFilterChain(this,servlet, allNeedFilters);
-            return new ServletRequestDispatcher(filterChain);
+            return ServletRequestDispatcher.newInstance(filterChain);
         } catch (Exception e) {
             logger.error("Throwing exception when getting Filter from ServletFilterRegistration of name " + name, e);
             return null;

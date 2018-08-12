@@ -1,5 +1,7 @@
 package com.github.netty.servlet.support;
 
+import com.github.netty.core.support.AbstractRecycler;
+import com.github.netty.core.support.Recyclable;
 import com.github.netty.util.TodoOptimize;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -166,14 +168,16 @@ public class UrlMapper<T> {
         urlPatternContext.exactObjectMap.remove(pattern);
     }
 
-    public String getMappingObjectNameByUri(String absoluteUri) {
-        MappingData mappingData = getMapping(absoluteUri);
-        return mappingData == null? null : mappingData.objectName;
-    }
-
     public T getMappingObjectByUri(String absoluteUri) {
         MappingData mappingData = getMapping(absoluteUri);
-        return mappingData == null? null : mappingData.object;
+
+        if(mappingData == null){
+            return null;
+        }
+
+        T result = (T) mappingData.object;
+        mappingData.recycle();
+        return result;
     }
 
     public List<T> getMappingObjectsByUri(String absoluteUri) {
@@ -213,7 +217,7 @@ public class UrlMapper<T> {
             if (urlPatternContext.defaultObject == null) {
                 return null;
             }
-            return new MappingData(urlPatternContext.defaultObject.object,urlPatternContext.defaultObject.objectName);
+            return MappingData.newInstance (urlPatternContext.defaultObject.object,urlPatternContext.defaultObject.objectName);
         }
 
         //1. 暂不考虑JSP的处理
@@ -221,7 +225,7 @@ public class UrlMapper<T> {
         // 优先进行精确匹配
         Element element = urlPatternContext.exactObjectMap.get(path);
         if (element != null) {
-            return new MappingData(element.object,element.objectName);
+            return MappingData.newInstance(element.object,element.objectName);
         }
 
         // 然后进行路径匹配
@@ -235,7 +239,7 @@ public class UrlMapper<T> {
             }
         }
         if (element != null) {
-            return new MappingData(element.object,element.objectName);
+            return MappingData.newInstance(element.object,element.objectName);
         }
 
 
@@ -244,7 +248,7 @@ public class UrlMapper<T> {
         path = path.substring(dotInx + 1);
         element = urlPatternContext.extensionObjectMap.get(path);
         if (element != null) {
-            return new MappingData(element.object,element.objectName);
+            return MappingData.newInstance(element.object,element.objectName);
         }
 
 
@@ -252,7 +256,7 @@ public class UrlMapper<T> {
 
         // Default Servlet
         if (urlPatternContext.defaultObject != null) {
-            return new MappingData(urlPatternContext.defaultObject.object,urlPatternContext.defaultObject.objectName);
+            return MappingData.newInstance(urlPatternContext.defaultObject.object,urlPatternContext.defaultObject.objectName);
         }
 
         //3. 暂不考虑请求静态目录资源
@@ -297,20 +301,32 @@ public class UrlMapper<T> {
         }
     }
 
-    public class MappingData {
+    public static class MappingData<T> implements Recyclable{
         T object = null;
         String objectName;
         String redirectPath ;
 
-        public MappingData(T object, String objectName) {
-            this.object = object;
-            this.objectName = objectName;
+        private static final AbstractRecycler<MappingData> RECYCLER = new AbstractRecycler<MappingData>() {
+            @Override
+            protected MappingData newInstance() {
+                return new MappingData();
+            }
+        };
+
+        public static MappingData newInstance(Object object, String objectName) {
+            MappingData instance = RECYCLER.get();
+
+            instance.object = object;
+            instance.objectName = objectName;
+            return instance;
         }
 
+        @Override
         public void recycle() {
             object = null;
             objectName = null;
             redirectPath = null;
+            RECYCLER.recycle(MappingData.this);
         }
     }
 

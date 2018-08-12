@@ -1,7 +1,9 @@
 package com.github.netty.springboot;
 
 import com.github.netty.core.AbstractChannelHandler;
+import com.github.netty.core.support.AbstractRecycler;
 import com.github.netty.core.support.PartialPooledByteBufAllocator;
+import com.github.netty.core.support.Recyclable;
 import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletHttpServletResponse;
@@ -36,12 +38,18 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
     public NettyServletHandler(ServletContext servletContext) {
         super(false);
         this.servletContext = Objects.requireNonNull(servletContext);
-        this.dispatcherExecutor = servletContext.getAsyncExecutorService();
+        this.dispatcherExecutor = null;
     }
 
     @Override
-    protected void onMessageReceived(ChannelHandlerContext ctx, FullHttpRequest fullHttpRequest) throws Exception {
-        Runnable task = newTask(ctx,fullHttpRequest);
+    protected void onMessageReceived(ChannelHandlerContext context, FullHttpRequest fullHttpRequest) throws Exception {
+        HttpServletObject httpServletObject = HttpServletObject.newInstance(
+                servletContext,
+                PartialPooledByteBufAllocator.forceDirectAllocator(context),
+                fullHttpRequest);
+
+        Runnable task = ServletTask.newInstance(httpServletObject);
+
 //        Runnable task = newTaskForRaw(ctx,fullHttpRequest);
 
         if(dispatcherExecutor != null) {
@@ -88,12 +96,49 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
      * @return
      */
     private Runnable newTask(ChannelHandlerContext context,FullHttpRequest fullHttpRequest){
-        HttpServletObject httpServletObject = HttpServletObject.newInstance(
-                servletContext,
-                PartialPooledByteBufAllocator.forceDirectAllocator(context),
-                fullHttpRequest);
+
 
         Runnable task = () -> {
+
+        };
+        return task;
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        System.out.println("发生异常!");
+        if(null != cause) {
+            cause.printStackTrace();
+        }
+        if(null != ctx) {
+            ctx.channel().close();
+        }
+    }
+
+    static class ServletTask implements Runnable,Recyclable{
+        HttpServletObject httpServletObject;
+
+        private static final AbstractRecycler<ServletTask> RECYCLER = new AbstractRecycler<ServletTask>() {
+            @Override
+            protected ServletTask newInstance() {
+                return new ServletTask();
+            }
+        };
+
+        private static ServletTask newInstance(HttpServletObject httpServletObject) {
+            ServletTask instance = RECYCLER.get();
+            instance.httpServletObject = httpServletObject;
+            return instance;
+        }
+
+        @Override
+        public void recycle() {
+            httpServletObject = null;
+            RECYCLER.recycle(ServletTask.this);
+        }
+
+        @Override
+        public void run() {
             ServletHttpServletRequest httpServletRequest = httpServletObject.getHttpServletRequest();
             ServletHttpServletResponse httpServletResponse = httpServletObject.getHttpServletResponse();
 
@@ -123,19 +168,9 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
                 if(!httpServletRequest.isAsync()) {
                     httpServletObject.recycle();
                 }
-            }
-        };
-        return task;
-    }
 
-    @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        System.out.println("发生异常!");
-        if(null != cause) {
-            cause.printStackTrace();
-        }
-        if(null != ctx) {
-            ctx.channel().close();
+                ServletTask.this.recycle();
+            }
         }
     }
 }

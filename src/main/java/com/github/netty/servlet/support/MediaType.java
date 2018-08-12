@@ -2,10 +2,7 @@ package com.github.netty.servlet.support;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.util.LinkedHashMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.WeakHashMap;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**

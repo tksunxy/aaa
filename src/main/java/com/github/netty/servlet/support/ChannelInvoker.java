@@ -5,6 +5,8 @@ import com.github.netty.core.NettyHttpRequest;
 import com.github.netty.core.NettyHttpResponse;
 import com.github.netty.core.constants.HttpConstants;
 import com.github.netty.core.constants.HttpHeaderConstants;
+import com.github.netty.core.support.AbstractRecycler;
+import com.github.netty.core.support.Recyclable;
 import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletHttpServletResponse;
 import com.github.netty.servlet.ServletHttpSession;
@@ -44,41 +46,18 @@ public class ChannelInvoker {
     }
 
     private void writeResponse(boolean isKeepAlive,ChannelHandlerContext context,NettyHttpResponse nettyResponse,ByteBuf content,ChannelFutureListener[] finishListeners) {
-        HttpContent httpContent = buildContent(content, isKeepAlive);
-        ChannelFutureListener flushListener = newFlushListener(isKeepAlive,finishListeners);
+        HttpContent httpContent = new DefaultLastHttpContent(content);
+
+        ChannelFutureListener flushListener = null;
+        if(finishListeners != null && finishListeners.length == 0) {
+            flushListener = ChannelFutureFlushListener.newInstance(isKeepAlive,finishListeners);
+        }
 
         context.write(nettyResponse, context.voidPromise());
-        context.writeAndFlush(httpContent).addListener(flushListener);
-    }
-
-    private ChannelFutureListener newFlushListener(boolean isKeepAlive,ChannelFutureListener[] finishListeners){
-        ChannelFutureListener flushListener = future -> {
-            try {
-                if(finishListeners != null && finishListeners.length > 0) {
-                    if(isKeepAlive){
-                        for(ChannelFutureListener listener : finishListeners){
-                            listener.operationComplete(future);
-                        }
-                    }else {
-                        ChannelFuture channelFuture = future.channel().close();
-                        channelFuture.addListeners(finishListeners);
-                    }
-                }
-            }catch (Throwable throwable){
-                ExceptionUtil.printRootCauseStackTrace(throwable);
-            }
-        };
-        return flushListener;
-    }
-
-    private HttpContent buildContent(ByteBuf byteBuf,boolean isKeepAlive){
-        HttpContent httpContent;
-        if(isKeepAlive){
-            httpContent = new DefaultLastHttpContent(byteBuf);
-        }else {
-            httpContent = new DefaultLastHttpContent(byteBuf);
+        ChannelFuture flushChannelFuture = context.writeAndFlush(httpContent);
+        if(flushListener != null) {
+            flushChannelFuture.addListener(flushListener);
         }
-        return httpContent;
     }
 
     /**
@@ -147,6 +126,54 @@ public class ChannelInvoker {
                 headers.add(HttpHeaderConstants.SET_COOKIE, ServletUtil.encodeCookie(nettyCookie));
             }
         }
+    }
+
+    /**
+     * 优化lambda实例数量, 减少gc次数
+     */
+    private static class ChannelFutureFlushListener implements ChannelFutureListener,Recyclable{
+        private boolean isKeepAlive;
+        private ChannelFutureListener[] finishListeners;
+
+        private static final AbstractRecycler<ChannelFutureFlushListener> RECYCLER = new AbstractRecycler<ChannelFutureFlushListener>() {
+            @Override
+            protected ChannelFutureFlushListener newInstance() {
+                return new ChannelFutureFlushListener();
+            }
+        };
+
+        private static ChannelFutureFlushListener newInstance(boolean isKeepAlive,ChannelFutureListener[] finishListeners) {
+            ChannelFutureFlushListener instance = RECYCLER.get();
+            instance.isKeepAlive = isKeepAlive;
+            instance.finishListeners = finishListeners;
+            return instance;
+        }
+
+        @Override
+        public void recycle() {
+            isKeepAlive = false;
+            finishListeners = null;
+            RECYCLER.recycle(ChannelFutureFlushListener.this);
+        }
+
+        @Override
+        public void operationComplete(ChannelFuture future) throws Exception {
+            try {
+                if(isKeepAlive){
+                    for(ChannelFutureListener listener : finishListeners){
+                        listener.operationComplete(future);
+                    }
+                }else {
+                    ChannelFuture channelFuture = future.channel().close();
+                    channelFuture.addListeners(finishListeners);
+                }
+            }catch (Throwable throwable){
+                ExceptionUtil.printRootCauseStackTrace(throwable);
+            }finally {
+                ChannelFutureFlushListener.this.recycle();
+            }
+        }
+
     }
 
 }

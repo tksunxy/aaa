@@ -11,6 +11,8 @@ import com.github.netty.servlet.support.MediaType;
 import com.github.netty.util.HttpHeaderUtil;
 import com.github.netty.util.ProxyUtil;
 import com.github.netty.util.TodoOptimize;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -368,24 +370,54 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
     @Override
     public void recycle() {
         try {
-            outputStream.close(future -> {
-                nettyResponse.recycle();
-
-                outputStream.setHttpServletObject(null);
-                httpServletObject = null;
-                nettyResponse = null;
-                writer = null;
-                cookies = null;
-                contentType = null;
-                characterEncoding = null;
-                locale = null;
-                nettyHeaders = null;
-                commit = false;
-                RECYCLER.recycle(this);
-            });
+            outputStream.close(ChannelFutureCloseListener.newInstance(this));
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+    /**
+     * 优化lambda实例数量, 减少gc次数
+     */
+    static class ChannelFutureCloseListener implements ChannelFutureListener,Recyclable{
+        private ServletHttpServletResponse closeTarget;
+
+        private static final AbstractRecycler<ChannelFutureCloseListener> RECYCLER = new AbstractRecycler<ChannelFutureCloseListener>() {
+            @Override
+            protected ChannelFutureCloseListener newInstance() {
+                return new ChannelFutureCloseListener();
+            }
+        };
+
+        public static ChannelFutureCloseListener newInstance(ServletHttpServletResponse closeTarget) {
+            ChannelFutureCloseListener instance = RECYCLER.get();
+            instance.closeTarget = closeTarget;
+            return instance;
+        }
+
+        @Override
+        public void recycle() {
+            closeTarget = null;
+            ChannelFutureCloseListener.RECYCLER.recycle(ChannelFutureCloseListener.this);
+        }
+
+        @Override
+        public void operationComplete(ChannelFuture future) throws Exception {
+            closeTarget.nettyResponse.recycle();
+
+            closeTarget.outputStream.setHttpServletObject(null);
+            closeTarget.httpServletObject = null;
+            closeTarget.nettyResponse = null;
+            closeTarget.writer = null;
+            closeTarget.cookies = null;
+            closeTarget.contentType = null;
+            closeTarget.characterEncoding = null;
+            closeTarget.locale = null;
+            closeTarget.nettyHeaders = null;
+            closeTarget.commit = false;
+
+            ServletHttpServletResponse.RECYCLER.recycle(closeTarget);
+            ChannelFutureCloseListener.this.recycle();
+        }
+    }
 }

@@ -26,7 +26,7 @@ public class QpsOnceTest {
     HttpClient client = vertx.createHttpClient(new HttpClientOptions()
             .setTcpKeepAlive(false)
             //是否保持连接
-            .setKeepAlive(true));
+            .setKeepAlive(false));
 
     public static void main(String[] args) throws InterruptedException {
         QpsOnceTest test = new QpsOnceTest();

@@ -67,6 +67,7 @@ public class QpsRunningTest {
     }
 
     static class PrintThread extends Thread{
+        private AtomicInteger printCount = new AtomicInteger();
         private final QpsRunningTest test;
         private long beginTime = System.currentTimeMillis();
         public PrintThread(QpsRunningTest test) {
@@ -91,7 +92,8 @@ public class QpsRunningTest {
         private void printQps(int successCount, int errorCount, long totalTime){
             System.err.println(
                     "===============================\r\n"+
-                            "时间 = " + totalTime + "毫秒, " +
+                            "第("+printCount.incrementAndGet()+")次统计, "+
+                            "时间 = " + totalTime + "毫秒["+(totalTime/1000/60)+"分钟], " +
                             "成功 = " + successCount + ", " +
                             "失败 = " + errorCount + ", " +
                             "qps = " + new BigDecimal((double) successCount/(double) totalTime * 1000).setScale(2,BigDecimal.ROUND_HALF_DOWN)

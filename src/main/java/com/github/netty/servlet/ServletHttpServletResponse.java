@@ -4,6 +4,7 @@ import com.github.netty.core.NettyHttpResponse;
 import com.github.netty.core.constants.HttpConstants;
 import com.github.netty.core.constants.HttpHeaderConstants;
 import com.github.netty.core.support.AbstractRecycler;
+import com.github.netty.core.support.CompositeByteBufX;
 import com.github.netty.core.support.Recyclable;
 import com.github.netty.servlet.support.HttpServletObject;
 import com.github.netty.servlet.support.MediaType;
@@ -65,7 +66,9 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
         instance.nettyResponse = nettyResponse;
         instance.nettyHeaders = nettyResponse.headers();
         instance.httpServletObject = httpServletObject;
-        instance.outputStream.wrap(httpServletObject);
+        //常用最大字节数 4096 * 6 = 24576字节
+        instance.outputStream.wrap(new CompositeByteBufX(false,6));
+        instance.outputStream.setHttpServletObject(httpServletObject);
         return instance;
     }
 
@@ -368,6 +371,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
             outputStream.close(future -> {
                 nettyResponse.recycle();
 
+                outputStream.setHttpServletObject(null);
                 httpServletObject = null;
                 nettyResponse = null;
                 writer = null;

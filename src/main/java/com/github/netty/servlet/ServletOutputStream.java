@@ -21,17 +21,21 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 需要对keep-alive的支持
  * @author 84215
  */
-public class ServletOutputStream extends javax.servlet.ServletOutputStream implements Wrapper<HttpServletObject>{
+public class ServletOutputStream extends javax.servlet.ServletOutputStream implements Wrapper<CompositeByteBufX>{
 
     //是否已经调用close()方法关闭输出流
     private AtomicBoolean closed = new AtomicBoolean(false);
     private ChannelInvoker channelInvoker = new ChannelInvoker();
     //监听器，暂时没处理
     private WriteListener writeListener;
-    private CompositeByteBufX buffer;
-    private HttpServletObject source;
+    private CompositeByteBufX source;
+    private HttpServletObject httpServletObject;
 
     ServletOutputStream() {
+    }
+
+    public void setHttpServletObject(HttpServletObject httpServletObject) {
+        this.httpServletObject = httpServletObject;
     }
 
     @Override
@@ -58,7 +62,7 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream imple
         }
 
         ByteBuf content = Unpooled.wrappedBuffer(b,off,len);
-        this.buffer.addComponent(content);
+        this.source.addComponent(content);
     }
 
     @Override
@@ -80,7 +84,7 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream imple
     }
 
     public int getContentLength(){
-        return buffer.capacity();
+        return source.capacity();
     }
 
     @Override
@@ -102,7 +106,7 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream imple
     public void close(ChannelFutureListener finishListener) throws IOException {
         if (closed.compareAndSet(false,true)) {
             try {
-                buffer.writerIndex(buffer.capacity());
+                source.writerIndex(source.capacity());
 
 //                ChannelFutureListener releaseListener = newReleaseListener();
 //                ChannelFutureListener[] finishListeners = finishListener == null ?
@@ -110,7 +114,7 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream imple
 
                 ChannelFutureListener[] finishListeners = finishListener == null? null : new ChannelFutureListener[]{finishListener};
 
-                channelInvoker.writeAndReleaseFlushAndIfNeedClose(source,buffer, finishListeners);
+                channelInvoker.writeAndReleaseFlushAndIfNeedClose(httpServletObject, source, finishListeners);
             }catch(Throwable e){
                 ExceptionUtil.printRootCauseStackTrace(e);
                 errorEvent(e);
@@ -127,10 +131,10 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream imple
     private ChannelFutureListener newReleaseListener(){
         ChannelFutureListener releaseListener = future -> {
             try {
-                if(buffer.refCnt() > 0){
-                    buffer.release();
+                if(source.refCnt() > 0){
+                    source.release();
                 }
-                buffer = null;
+                source = null;
             }catch (Exception e){
                 e.printStackTrace();
             }
@@ -151,15 +155,13 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream imple
     }
 
     @Override
-    public void wrap(HttpServletObject source) {
+    public void wrap(CompositeByteBufX source) {
         this.source = source;
-        //常用最大字节数 4096 * 6 = 24576字节
-        this.buffer = new CompositeByteBufX(false,6);
         this.closed.set(false);
     }
 
     @Override
-    public HttpServletObject unwrap() {
+    public CompositeByteBufX unwrap() {
         return source;
     }
 

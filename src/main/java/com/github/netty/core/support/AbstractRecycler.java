@@ -12,10 +12,12 @@ public abstract class AbstractRecycler<T>   {
 
     private static final List<AbstractRecycler> RECYCLER_LIST = new LinkedList<>();
     private Stack<T> stack;
+    private List<AbstractRecycler> globalList;
 
     public AbstractRecycler() {
         this.stack = new Stack<>();
         RECYCLER_LIST.add(this);
+        globalList = RECYCLER_LIST;
     }
 
     public static List<AbstractRecycler> getRecyclerList() {

@@ -112,6 +112,10 @@ public class HttpServletObject implements Recyclable{
         httpServletResponse.recycle();
         httpServletRequest.recycle();
 
+        if(channelHandlerContext instanceof Recyclable){
+            ((Recyclable) channelHandlerContext).recycle();
+        }
+
         httpServletResponse = null;
         httpServletRequest = null;
         channelHandlerContext = null;

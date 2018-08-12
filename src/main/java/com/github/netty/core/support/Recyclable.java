@@ -1,7 +1,7 @@
 package com.github.netty.core.support;
 
 /**
- * 回收
+ * 可回收
  * @author 84215
  */
 public interface Recyclable {

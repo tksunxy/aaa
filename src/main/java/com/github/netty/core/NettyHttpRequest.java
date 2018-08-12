@@ -1,12 +1,11 @@
 package com.github.netty.core;
 
 import com.github.netty.core.constants.VersionConstants;
-import com.github.netty.core.support.Recyclable;
 import com.github.netty.core.support.AbstractRecycler;
+import com.github.netty.core.support.Recyclable;
 import com.github.netty.core.support.Wrapper;
 import com.github.netty.util.ReflectUtil;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
 import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.http.*;
 import io.netty.util.ReferenceCountUtil;
@@ -25,16 +24,14 @@ public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest
 
     private static final AbstractRecycler<NettyHttpRequest> RECYCLER = new AbstractRecycler<NettyHttpRequest>() {
         @Override
-        protected NettyHttpRequest newInstance(Handle<NettyHttpRequest> handle) {
-            return new NettyHttpRequest(handle);
+        protected NettyHttpRequest newInstance() {
+            return new NettyHttpRequest();
         }
     };
-    private final AbstractRecycler.Handle<NettyHttpRequest> handle;
 
     private FullHttpRequest source;
     private Class sourceClass;
     private final Object lock = new Object();
-    private Channel channel;
 
     private List<Method> getProtocolVersionMethodList;
     private List<Method> getMethodMethodList;
@@ -44,22 +41,16 @@ public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest
     private List<Method> touch1MethodList;
     private List<Method> copyMethodList;
 
-    private NettyHttpRequest(AbstractRecycler.Handle<NettyHttpRequest> handle) {
-        this.handle = handle;
+    protected NettyHttpRequest() {
+
     }
 
-    public static NettyHttpRequest newInstance(FullHttpRequest source,Channel channel) {
+    public static NettyHttpRequest newInstance(FullHttpRequest source) {
         Objects.requireNonNull(source);
-        Objects.requireNonNull(channel);
 
         NettyHttpRequest instance = RECYCLER.get();
         instance.wrap(source);
-        instance.channel = channel;
         return instance;
-    }
-
-    public Channel getChannel() {
-        return channel;
     }
 
     public HttpMethod getMethod() {
@@ -318,8 +309,7 @@ public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest
         }
         this.source = null;
         this.sourceClass = null;
-        this.channel = null;
-        this.handle.recycle(this);
+        RECYCLER.recycle(this);
     }
 
 }

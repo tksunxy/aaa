@@ -24,7 +24,6 @@ import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  *
@@ -103,9 +102,6 @@ public class ServletContext implements javax.servlet.ServletContext {
     }
 
     public ExecutorService getAsyncExecutorService() {
-        if(asyncExecutorService == null) {
-            asyncExecutorService = Executors.newFixedThreadPool(8);
-        }
         return asyncExecutorService;
     }
 

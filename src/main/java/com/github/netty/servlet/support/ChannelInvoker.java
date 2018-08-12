@@ -29,68 +29,50 @@ import java.util.StringJoiner;
  * @author acer01
  *  2018/7/28/028
  */
+@TodoOptimize("缺少对keep-alive的支持")
 public class ChannelInvoker {
 
-    private ServletHttpServletRequest servletRequest;
-    private ServletHttpServletResponse servletResponse;
-    private NettyHttpRequest nettyRequest;
-    private NettyHttpResponse nettyResponse;
-    private ChannelHandlerContext ctx;
-    @TodoOptimize("缺少对keep-alive的支持")
-    private boolean isKeepAlive;
-    
-    public ChannelInvoker(ChannelHandlerContext ctx, ServletHttpServletRequest servletRequest, ServletHttpServletResponse servletResponse) {
-        this.ctx = ctx;
-        this.servletRequest = servletRequest;
-        this.servletResponse = servletResponse;
-        this.nettyRequest = servletRequest.getNettyRequest();
-        this.nettyResponse = servletResponse.getNettyResponse();
-        this.isKeepAlive = HttpHeaderUtil.isKeepAlive(nettyRequest);
+    public void writeAndReleaseFlushAndIfNeedClose(HttpServletObject httpServletObject, ByteBuf content, ChannelFutureListener[] finishListeners) {
+        ChannelHandlerContext context = httpServletObject.getChannelHandlerContext();
+        ServletHttpServletRequest servletRequest = httpServletObject.getHttpServletRequest();
+        ServletHttpServletResponse servletResponse = httpServletObject.getHttpServletResponse();
+        NettyHttpRequest nettyRequest = servletRequest.getNettyRequest();
+        NettyHttpResponse nettyResponse = servletResponse.getNettyResponse();
+
+        boolean isKeepAlive = HttpHeaderUtil.isKeepAlive(nettyRequest);
+
+        settingResponse(isKeepAlive,content.readableBytes(),nettyResponse,servletRequest,servletResponse);
+        writeResponse(isKeepAlive,context,nettyResponse,content,finishListeners);
     }
 
-    public void writeAndFlushAndIfNeedClose(ByteBuf content, ChannelFutureListener[] finishListeners) {
-        settingResponse(nettyResponse,servletRequest,servletResponse,content.capacity());
-
-        writeResponse(content,finishListeners);
-        this.servletRequest = null;
-        this.servletResponse = null;
-        this.nettyRequest = null;
-        this.nettyResponse = null;
-    }
-
-    private void writeResponse(ByteBuf content,ChannelFutureListener[] finishListeners) {
+    private void writeResponse(boolean isKeepAlive,ChannelHandlerContext context,NettyHttpResponse nettyResponse,ByteBuf content,ChannelFutureListener[] finishListeners) {
         HttpContent httpContent = buildContent(content, isKeepAlive);
-        ChannelFutureListener flushListener = newFlushListener(finishListeners);
-        
-        ctx.write(nettyResponse, ctx.voidPromise());
-        ctx.writeAndFlush(httpContent).addListener(flushListener);
+        ChannelFutureListener flushListener = newFlushListener(isKeepAlive,finishListeners);
+
+        context.write(nettyResponse, context.voidPromise());
+        context.writeAndFlush(httpContent).addListener(flushListener);
     }
 
-    private ChannelFutureListener newFlushListener(ChannelFutureListener[] finishListeners){
-        ChannelFutureListener flushListener = new ChannelFutureListener() {
-            /**
-             * 写完后1.刷新 2.释放内存 3.关闭流
-             * @param future 回调对象
-             * @throws Exception 异常
-             */
-            @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
-                try {
-                    if(!isKeepAlive){
-                        ChannelFuture channelFuture = future.channel().close();
-                        if(finishListeners != null && finishListeners.length > 0) {
-                            channelFuture.addListeners(finishListeners);
+    private ChannelFutureListener newFlushListener(boolean isKeepAlive,ChannelFutureListener[] finishListeners){
+        ChannelFutureListener flushListener = future -> {
+            try {
+                if(finishListeners != null && finishListeners.length > 0) {
+                    if(isKeepAlive){
+                        for(ChannelFutureListener listener : finishListeners){
+                            listener.operationComplete(future);
                         }
+                    }else {
+                        ChannelFuture channelFuture = future.channel().close();
+                        channelFuture.addListeners(finishListeners);
                     }
-
-                }catch (Throwable throwable){
-                    ExceptionUtil.printRootCauseStackTrace(throwable);
                 }
+            }catch (Throwable throwable){
+                ExceptionUtil.printRootCauseStackTrace(throwable);
             }
         };
         return flushListener;
     }
-    
+
     private HttpContent buildContent(ByteBuf byteBuf,boolean isKeepAlive){
         HttpContent httpContent;
         if(isKeepAlive){
@@ -103,14 +85,16 @@ public class ChannelInvoker {
 
     /**
      * 设置基本的请求头
+     * @param isKeepAlive isKeepAlive
+     * @param totalLength 总内容长度
      * @param nettyResponse netty响应
      * @param servletRequest servlet请求
      * @param servletResponse servlet响应
-     * @param totalLength 总内容长度
      */
-    private void settingResponse(NettyHttpResponse nettyResponse,
-                                ServletHttpServletRequest servletRequest, ServletHttpServletResponse servletResponse, int totalLength) {
+    private void settingResponse(boolean isKeepAlive, int totalLength, NettyHttpResponse nettyResponse,
+                                ServletHttpServletRequest servletRequest, ServletHttpServletResponse servletResponse) {
         HttpHeaderUtil.setKeepAlive(nettyResponse, isKeepAlive);
+//        nettyResponse.headers().set(HttpHeaderConstants.CONNECTION, HttpHeaderConstants.KEEP_ALIVE);
 
         if (!isKeepAlive && !HttpHeaderUtil.isContentLengthSet(nettyResponse)) {
             HttpHeaderUtil.setContentLength(nettyResponse, totalLength);
@@ -138,9 +122,9 @@ public class ChannelInvoker {
         if (httpSession.isNew()) {
             StringJoiner cookieStrJoiner = new StringJoiner(";");
             cookieStrJoiner.add(HttpConstants.JSESSION_ID_COOKIE + "=" + servletRequest.getRequestedSessionId());
-            cookieStrJoiner.add("path=/");
-//            cookieStrJoiner.add("secure");
-//            cookieStrJoiner.add("HttpOnly");
+            cookieStrJoiner.add(HttpHeaderConstants.PATH + "=/");
+            cookieStrJoiner.add(HttpHeaderConstants.HTTPONLY);
+//            cookieStrJoiner.add("Secure");
 //            cookieStrJoiner.add("Expires=-1");
 //
 //            String serverName = servletRequest.getServerName();

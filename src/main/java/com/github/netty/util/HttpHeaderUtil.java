@@ -29,7 +29,7 @@ public class HttpHeaderUtil {
      * {@link HttpVersion#isKeepAliveDefault()}.
      */
     public static boolean isKeepAlive(NettyHttpRequest message) {
-        HttpHeaders headers = message.unwrap().headers();
+        HttpHeaders headers = message.headers();
 
         Object connectionObj = headers.get(HttpHeaderConstants.CONNECTION);
         if(connectionObj == null){

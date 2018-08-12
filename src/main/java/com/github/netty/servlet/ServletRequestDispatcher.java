@@ -1,5 +1,7 @@
 package com.github.netty.servlet;
 
+import com.github.netty.util.TodoOptimize;
+
 import javax.servlet.*;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
@@ -17,6 +19,7 @@ public class ServletRequestDispatcher implements RequestDispatcher {
         this.filterChain = filterChain;
     }
 
+    @TodoOptimize("未实现forward方法")
     @Override
     public void forward(ServletRequest request, ServletResponse response) throws ServletException, IOException {
         if(request instanceof HttpServletRequest) {
@@ -28,10 +31,10 @@ public class ServletRequestDispatcher implements RequestDispatcher {
             httpRequest.setAttribute(FORWARD_SERVLET_PATH, httpRequest.getServletPath());
         }
 
-        dispatch(request,response,DispatcherType.FORWARD);
-        // TODO implement
+        throw new ServletException("forward方法未实现");
     }
 
+    @TodoOptimize("未实现include方法")
     @Override
     public void include(ServletRequest request, ServletResponse response) throws ServletException, IOException {
         request.setAttribute(ServletHttpServletRequest.DISPATCHER_TYPE, DispatcherType.INCLUDE);
@@ -44,8 +47,7 @@ public class ServletRequestDispatcher implements RequestDispatcher {
             httpRequest.setAttribute(INCLUDE_REQUEST_URI, httpRequest.getRequestURI());
             httpRequest.setAttribute(INCLUDE_SERVLET_PATH, httpRequest.getServletPath());
         }
-
-        // TODO implement
+        throw new ServletException("include方法未实现");
     }
 
     public void dispatch(ServletRequest request, ServletResponse response,DispatcherType dispatcherType) throws ServletException, IOException {

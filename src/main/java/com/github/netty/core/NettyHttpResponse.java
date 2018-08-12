@@ -25,11 +25,10 @@ public class NettyHttpResponse implements HttpResponse,Wrapper<HttpResponse>,Rec
 
     private static final AbstractRecycler<NettyHttpResponse> RECYCLER = new AbstractRecycler<NettyHttpResponse>() {
         @Override
-        protected NettyHttpResponse newInstance(Handle<NettyHttpResponse> handle) {
-            return new NettyHttpResponse(handle);
+        protected NettyHttpResponse newInstance() {
+            return new NettyHttpResponse();
         }
     };
-    private final AbstractRecycler.Handle<NettyHttpResponse> handle;
 
     private HttpResponse source;
     private Class sourceClass;
@@ -39,8 +38,8 @@ public class NettyHttpResponse implements HttpResponse,Wrapper<HttpResponse>,Rec
     private List<Method> getProtocolVersionMethodList;
     private List<Method> getDecoderResultMethodList;
 
-    private NettyHttpResponse(AbstractRecycler.Handle<NettyHttpResponse> handle) {
-        this.handle = handle;
+    private NettyHttpResponse() {
+
     }
 
     public static NettyHttpResponse newInstance(HttpResponse source) {
@@ -169,7 +168,7 @@ public class NettyHttpResponse implements HttpResponse,Wrapper<HttpResponse>,Rec
     public void recycle() {
         this.source = null;
         this.sourceClass = null;
-        this.handle.recycle(this);
+        RECYCLER.recycle(this);
     }
 
 }

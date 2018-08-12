@@ -3,15 +3,13 @@ package com.github.netty.servlet;
 import com.github.netty.core.NettyHttpResponse;
 import com.github.netty.core.constants.HttpConstants;
 import com.github.netty.core.constants.HttpHeaderConstants;
-import com.github.netty.core.support.Recyclable;
 import com.github.netty.core.support.AbstractRecycler;
-import com.github.netty.servlet.support.ChannelInvoker;
+import com.github.netty.core.support.Recyclable;
+import com.github.netty.servlet.support.HttpServletObject;
 import com.github.netty.servlet.support.MediaType;
 import com.github.netty.util.HttpHeaderUtil;
 import com.github.netty.util.ProxyUtil;
 import com.github.netty.util.TodoOptimize;
-import io.netty.buffer.CompositeByteBuf;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -31,22 +29,20 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
 
     private static final AbstractRecycler<ServletHttpServletResponse> RECYCLER = new AbstractRecycler<ServletHttpServletResponse>() {
         @Override
-        protected ServletHttpServletResponse newInstance(Handle<ServletHttpServletResponse> handle) {
+        protected ServletHttpServletResponse newInstance() {
             if(ProxyUtil.isEnableProxy()){
                 return ProxyUtil.newProxyByCglib(
-                        ServletHttpServletResponse.class,
-                        new Class[]{Handle.class},
-                        new Object[]{handle});
+                        ServletHttpServletResponse.class
+                );
             }else {
-                return new ServletHttpServletResponse(handle);
+                return new ServletHttpServletResponse();
             }
         }
     };
-    private final AbstractRecycler.Handle<ServletHttpServletResponse> handle;
 
-    private ServletHttpServletRequest httpServletRequest;
+    private HttpServletObject httpServletObject;
     private NettyHttpResponse nettyResponse;
-    private ServletOutputStream outputStream;
+
     private PrintWriter writer;
     private List<Cookie> cookies;
     private String contentType;
@@ -54,25 +50,22 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
     private Locale locale;
     private HttpHeaders nettyHeaders;
 
-    protected ServletHttpServletResponse(AbstractRecycler.Handle<ServletHttpServletResponse> handle) {
-        this.handle = handle;
-        this.outputStream = new ServletOutputStream();
-    }
+    private ServletOutputStream outputStream = new ServletOutputStream();
+    private boolean commit = false;
 
-    public static ServletHttpServletResponse newInstance(ChannelHandlerContext ctx, ServletHttpServletRequest httpServletRequest) {
-        Objects.requireNonNull(ctx);
-        Objects.requireNonNull(httpServletRequest);
+    protected ServletHttpServletResponse() {}
+
+    public static ServletHttpServletResponse newInstance(HttpServletObject httpServletObject) {
+        Objects.requireNonNull(httpServletObject);
 
         ServletHttpServletResponse instance = RECYCLER.get();
 
         //Netty自带的http响应对象，初始化为200
         NettyHttpResponse nettyResponse = NettyHttpResponse.newInstance(new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, false));
-        instance.nettyHeaders = nettyResponse.headers();
         instance.nettyResponse = nettyResponse;
-        instance.httpServletRequest = httpServletRequest;
-        instance.characterEncoding = null;
-        instance.outputStream.wrap(new CompositeByteBuf(ctx.alloc(),false,16));
-        instance.outputStream.setChannelInvoker(new ChannelInvoker(ctx,httpServletRequest,instance));
+        instance.nettyHeaders = nettyResponse.headers();
+        instance.httpServletObject = httpServletObject;
+        instance.outputStream.wrap(httpServletObject);
         return instance;
     }
 
@@ -85,7 +78,9 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
     }
 
     private void checkNotCommitted() {
-        checkState(isCommitted(), "Cannot perform this operation after response has been committed");
+        if(commit) {
+            throw new IllegalStateException("Cannot perform this operation after response has been committed");
+        }
     }
 
     private boolean setHeaderField(String name, String value) {
@@ -114,11 +109,11 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
 
     @Override
     public String encodeURL(String url) {
-        if(!httpServletRequest.isRequestedSessionIdFromCookie()){
+        if(!httpServletObject.getHttpServletRequest().isRequestedSessionIdFromCookie()){
             //来自Cookie的Session ID,则客户端肯定支持Cookie，无需重写URL
             return url;
         }
-        return url + ";" + HttpConstants.JSESSION_ID_PARAMS + "=" + httpServletRequest.getRequestedSessionId();
+        return url + ";" + HttpConstants.JSESSION_ID_PARAMS + "=" + httpServletObject.getHttpServletRequest().getRequestedSessionId();
     }
 
     @Override
@@ -142,14 +137,14 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
     public void sendError(int sc, String msg) throws IOException {
         checkNotCommitted();
         nettyResponse.setStatus(new HttpResponseStatus(sc, msg));
-        outputStream.close();
+        commit = true;
     }
 
     @Override
     public void sendError(int sc) throws IOException {
         checkNotCommitted();
         nettyResponse.setStatus(HttpResponseStatus.valueOf(sc));
-        outputStream.close();
+        commit = true;
     }
 
     @Override
@@ -157,7 +152,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
         checkNotCommitted();
         nettyResponse.setStatus(HttpResponseStatus.FOUND);
         nettyHeaders.set(HttpHeaderConstants.LOCATION, (CharSequence)location);
-        outputStream.close();
+        commit = true;
     }
 
     @Override
@@ -167,6 +162,9 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
 
     @Override
     public void addDateHeader(String name, long date) {
+        if (commit) {
+            return;
+        }
         nettyHeaders.add((CharSequence)name, (CharSequence)String.valueOf(date));
     }
 
@@ -175,7 +173,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
         if (name == null || name.length() == 0 || value == null) {
             return;
         }
-        if (isCommitted()) {
+        if (commit) {
             return;
         }
         if (setHeaderField(name, value)) {
@@ -189,7 +187,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
         if (name == null || name.length() == 0 || value == null) {
             return;
         }
-        if (isCommitted()) {
+        if (commit) {
             return;
         }
         if (setHeaderField(name, value)) {
@@ -203,7 +201,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
         if (name == null || name.length() == 0) {
             return;
         }
-        if (isCommitted()) {
+        if (commit) {
             return;
         }
         nettyHeaders.set((CharSequence)name, (CharSequence)String.valueOf(value));
@@ -214,7 +212,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
         if (name == null || name.length() == 0) {
             return;
         }
-        if (isCommitted()) {
+        if (commit) {
             return;
         }
         nettyHeaders.add((CharSequence) name, (CharSequence) String.valueOf(value));
@@ -302,20 +300,10 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
 
     @Override
     public void setCharacterEncoding(String charset) {
-        if (hasWriter()) {
+        if (null != writer) {
             return;
         }
         characterEncoding = charset;
-    }
-
-    private boolean hasWriter() {
-        return null != writer;
-    }
-
-    private void checkState(boolean isTrue, String errorMessage) {
-        if(isTrue) {
-            throw new IllegalStateException(errorMessage);
-        }
     }
 
     @Override
@@ -328,11 +316,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
         HttpHeaderUtil.setContentLength(nettyResponse, len);
 
         if(len > 0 && outputStream.getContentLength() > 0){
-            try {
-                outputStream.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            commit = true;
         }
     }
 
@@ -358,7 +342,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
 
     @Override
     public boolean isCommitted() {
-        return outputStream.isClosed();
+        return commit;
     }
 
     @TodoOptimize("重置流")
@@ -380,40 +364,24 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
 
     @Override
     public void recycle() {
-        ServletAsyncContext asyncContext = httpServletRequest.getAsyncContext();
-        boolean isAsync = asyncContext != null && asyncContext.isStarted();
+        try {
+            outputStream.close(future -> {
+                nettyResponse.recycle();
 
-        /*
-         * 每个响应对象是只有当在servlet的service方法的范围内或在filter的doFilter方法范围内是有效的，除非该
-         * 组件关联的请求对象已经开启异步处理。如果相关的请求已经启动异步处理，那么直到AsyncContext的
-         * complete 方法被调用，请求对象一直有效。为了避免响应对象创建的性能开销，容器通常回收响应对象。
-         * 在相关的请求的startAsync 还没有调用时，开发人员必须意识到保持到响应对象引用，超出之上描述的范
-         * 围可能导致不确定的行为
-         */
-        NettyHttpResponse nettyResponseTemp = nettyResponse;
-
-        //如果是异步, 或者已经关闭
-        if (isAsync || outputStream.isClosed()) {
-            nettyResponseTemp.recycle();
-        }else {
-            try {
-                outputStream.close(future -> {
-                    nettyResponseTemp.recycle();
-                });
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+                httpServletObject = null;
+                nettyResponse = null;
+                writer = null;
+                cookies = null;
+                contentType = null;
+                characterEncoding = null;
+                locale = null;
+                nettyHeaders = null;
+                commit = false;
+                RECYCLER.recycle(this);
+            });
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-
-        httpServletRequest = null;
-        nettyResponse = null;
-        writer = null;
-        cookies = null;
-        contentType = null;
-        characterEncoding = null;
-        locale = null;
-        nettyHeaders = null;
-        handle.recycle(this);
     }
 
 }

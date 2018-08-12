@@ -17,6 +17,7 @@ import java.net.URLClassLoader;
 import java.util.concurrent.ExecutorService;
 
 /**
+ * netty容器工厂
  *
  * EmbeddedWebApplicationContext - createEmbeddedServletContainer
  * ImportAwareBeanPostProcessor
@@ -56,6 +57,26 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
     }
 
     /**
+     * 新建servlet上下文
+     * @return
+     */
+    private ServletContext newServletContext(){
+        ClassLoader parentClassLoader = resourceLoader != null ? resourceLoader.getClassLoader() : ClassUtils.getDefaultClassLoader();
+        ServletSessionCookieConfig sessionCookieConfig = loadSessionCookieConfig();
+        ExecutorService asyncExecutorService = newAsyncExecutorService();
+
+        ServletContext servletContext = new ServletContext(
+                new InetSocketAddress(getAddress(),getPort()),
+                new URLClassLoader(new URL[]{}, parentClassLoader),
+                getContextPath(),
+                getServerHeader(),
+                sessionCookieConfig);
+
+        servletContext.setAsyncExecutorService(asyncExecutorService);
+        return servletContext;
+    }
+
+    /**
      * 注册默认servlet
      * @param servletContext servlet上下文
      */
@@ -85,30 +106,10 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
         return container;
     }
 
-    private ExecutorService newAsyncExecutorService(){
+    protected ExecutorService newAsyncExecutorService(){
 //        return Executors.newFixedThreadPool(bizThreadCount);
         return new DefaultEventExecutorGroup(50);
 //        return null;
-    }
-
-    /**
-     * 新建servlet上下文
-     * @return
-     */
-    private ServletContext newServletContext(){
-        ClassLoader parentClassLoader = resourceLoader != null ? resourceLoader.getClassLoader() : ClassUtils.getDefaultClassLoader();
-        ServletSessionCookieConfig sessionCookieConfig = loadSessionCookieConfig();
-        ExecutorService asyncExecutorService = newAsyncExecutorService();
-
-        ServletContext servletContext = new ServletContext(
-                new InetSocketAddress(getAddress(),getPort()),
-                new URLClassLoader(new URL[]{}, parentClassLoader),
-                getContextPath(),
-                getServerHeader(),
-                sessionCookieConfig);
-
-        servletContext.setAsyncExecutorService(asyncExecutorService);
-        return servletContext;
     }
 
     /**

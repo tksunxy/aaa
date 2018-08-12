@@ -48,7 +48,6 @@ public class ExceptionUtil {
     /**
      * <p>The names of methods commonly used to access a wrapped exception.</p>
      */
-    // TODO: Remove in Lang 4.0
     private static final String[] CAUSE_METHOD_NAMES = {
             "getCause",
             "getNextException",
@@ -197,7 +196,6 @@ public class ExceptionUtil {
      * @param methodName  the name of the method to find and invoke
      * @return the wrapped exception, or <code>null</code> if not found
      */
-    // TODO: Remove in Lang 4.0
     private static Throwable getCauseUsingMethodName(Throwable throwable, String methodName) {
         Method method = null;
         try {

@@ -8,7 +8,7 @@ import io.netty.util.ReferenceCountUtil;
 import javax.servlet.ReadListener;
 import java.io.IOException;
 import java.util.Objects;
-
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  *
@@ -17,7 +17,7 @@ import java.util.Objects;
  */
 public class ServletInputStream extends javax.servlet.ServletInputStream implements Wrapper<ByteBuf> {
 
-    private boolean closed; //输入流是否已经关闭，保证线程安全
+    private AtomicBoolean closed = new AtomicBoolean(false); //输入流是否已经关闭，保证线程安全
     private ByteBuf source;
     private ReadListener readListener;
 
@@ -87,11 +87,11 @@ public class ServletInputStream extends javax.servlet.ServletInputStream impleme
 
     @Override
     public void close() throws IOException {
-        if (closed) {
-            return;
-        }
-        if(source != null && source.refCnt() > 0){
-            ReferenceCountUtil.safeRelease(source);
+        if (closed.compareAndSet(false,true)) {
+            if(source != null && source.refCnt() > 0){
+                ReferenceCountUtil.safeRelease(source);
+                source = null;
+            }
         }
     }
 
@@ -137,20 +137,20 @@ public class ServletInputStream extends javax.servlet.ServletInputStream impleme
     }
 
     private void checkNotClosed() {
-        if (closed) {
+        if (closed.get()) {
             throw new IllegalStateException("Stream is closed");
         }
     }
 
     public boolean isClosed() {
-        return closed;
+        return closed.get();
     }
 
     @Override
     public void wrap(ByteBuf source) {
         Objects.requireNonNull(source);
 
-        this.closed = false;
+        this.closed.set(false);
         this.source = source;
         this.contentLength = source.capacity();
         this.readListener = null;

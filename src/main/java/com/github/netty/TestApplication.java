@@ -46,9 +46,8 @@ public class TestApplication {
 //            map.put("fd1",sb);
 //            list.add(map);
 //        }
-        return "";
+        return "测试返回数据1";
     }
-
 
     /**
      * Start
@@ -58,7 +57,7 @@ public class TestApplication {
     public static void main(String[] args) throws IOException {
         ProxyUtil.setEnableProxy(false);
         ConfigurableApplicationContext context = SpringApplication.run(TestApplication.class, args);
-        ProxyUtil.setEnableProxy(true);
+        ProxyUtil.setEnableProxy(false);
     }
 
 

@@ -1,5 +1,7 @@
 package com.github.netty.servlet;
 
+import com.github.netty.servlet.support.HttpServletObject;
+
 import javax.servlet.*;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
@@ -39,8 +41,10 @@ public class ServletAsyncContext implements AsyncContext {
     private List<ServletAsyncListenerWrapper> asyncListenerWrapperList;
 
     private ServletContext servletContext;
+    private HttpServletObject httpServletObject;
 
-    public ServletAsyncContext(ServletContext servletContext, ExecutorService executorService, ServletRequest servletRequest, ServletResponse servletResponse) {
+    public ServletAsyncContext(HttpServletObject httpServletObject,ServletContext servletContext, ExecutorService executorService, ServletRequest servletRequest, ServletResponse servletResponse) {
+        this.httpServletObject = Objects.requireNonNull(httpServletObject);
         this.servletContext = Objects.requireNonNull(servletContext);
         this.executorService = Objects.requireNonNull(executorService);
         this.servletRequest = Objects.requireNonNull(servletRequest);
@@ -117,18 +121,7 @@ public class ServletAsyncContext implements AsyncContext {
     @Override
     public void complete() {
         status = STATUS_COMPLETE;
-        try {
-            servletRequest.getInputStream().close();
-        } catch (Exception e) {
-            // TODO notify listeners
-            e.printStackTrace();
-        }
-
-        try {
-            servletResponse.getOutputStream().close();
-        }catch (Exception e){
-            e.printStackTrace();
-        }
+        httpServletObject.recycle();
     }
 
     @Override

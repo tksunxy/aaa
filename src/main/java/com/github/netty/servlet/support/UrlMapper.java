@@ -1,5 +1,6 @@
 package com.github.netty.servlet.support;
 
+import com.github.netty.util.TodoOptimize;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -204,6 +205,7 @@ public class UrlMapper<T> {
         return path;
     }
 
+    @TodoOptimize("1.暂不考虑JSP的处理 ,2.暂不考虑Welcome资源 ,3.暂不考虑请求静态目录资源")
     private MappingData getMapping(String absolutePath) {
         String path = toPath(absolutePath);
         // 路径为空时，重定向到“/”
@@ -214,7 +216,7 @@ public class UrlMapper<T> {
             return new MappingData(urlPatternContext.defaultObject.object,urlPatternContext.defaultObject.objectName);
         }
 
-        //TODO 暂不考虑JSP的处理
+        //1. 暂不考虑JSP的处理
 
         // 优先进行精确匹配
         Element element = urlPatternContext.exactObjectMap.get(path);
@@ -246,14 +248,14 @@ public class UrlMapper<T> {
         }
 
 
-        //TODO 暂不考虑Welcome资源
+        //2. 暂不考虑Welcome资源
 
         // Default Servlet
         if (urlPatternContext.defaultObject != null) {
             return new MappingData(urlPatternContext.defaultObject.object,urlPatternContext.defaultObject.objectName);
         }
 
-        //TODO 暂不考虑请求静态目录资源
+        //3. 暂不考虑请求静态目录资源
         if (path.charAt(path.length() - 1) != '/') {
 
         }

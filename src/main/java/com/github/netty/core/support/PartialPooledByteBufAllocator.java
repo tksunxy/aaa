@@ -21,8 +21,11 @@ public final class PartialPooledByteBufAllocator implements ByteBufAllocator {
     // Make sure we use the same number of areas as EventLoop's to reduce condition.
     // We can remove this once the following netty issue is fixed:
     // See https://github.com/netty/netty/issues/2264
-    private static final ByteBufAllocator POOLED = new PooledByteBufAllocator(true);
-    private static final ByteBufAllocator UNPOOLED = new UnpooledByteBufAllocator(false);
+
+    //池化的堆外内存分配器
+    private static final ByteBufAllocator POOLED_DIRECT = new PooledByteBufAllocator(true);
+    //非池化的堆内内存分配器
+    private static final ByteBufAllocator UNPOOLED_UNDIRECT = new UnpooledByteBufAllocator(false);
 
     public static final PartialPooledByteBufAllocator INSTANCE = new PartialPooledByteBufAllocator();
 
@@ -30,92 +33,92 @@ public final class PartialPooledByteBufAllocator implements ByteBufAllocator {
 
     @Override
     public ByteBuf buffer() {
-        return UNPOOLED.heapBuffer();
+        return UNPOOLED_UNDIRECT.heapBuffer();
     }
 
     @Override
     public ByteBuf buffer(int initialCapacity) {
-        return UNPOOLED.heapBuffer(initialCapacity);
+        return UNPOOLED_UNDIRECT.heapBuffer(initialCapacity);
     }
 
     @Override
     public ByteBuf buffer(int initialCapacity, int maxCapacity) {
-        return UNPOOLED.heapBuffer(initialCapacity, maxCapacity);
+        return UNPOOLED_UNDIRECT.heapBuffer(initialCapacity, maxCapacity);
     }
 
     @Override
     public ByteBuf ioBuffer() {
-        return POOLED.directBuffer();
+        return POOLED_DIRECT.directBuffer();
     }
 
     @Override
     public ByteBuf ioBuffer(int initialCapacity) {
-        return POOLED.directBuffer(initialCapacity);
+        return POOLED_DIRECT.directBuffer(initialCapacity);
     }
 
     @Override
     public ByteBuf ioBuffer(int initialCapacity, int maxCapacity) {
-        return POOLED.directBuffer(initialCapacity, maxCapacity);
+        return POOLED_DIRECT.directBuffer(initialCapacity, maxCapacity);
     }
 
     @Override
     public ByteBuf heapBuffer() {
-        return UNPOOLED.heapBuffer();
+        return UNPOOLED_UNDIRECT.heapBuffer();
     }
 
     @Override
     public ByteBuf heapBuffer(int initialCapacity) {
-        return UNPOOLED.heapBuffer(initialCapacity);
+        return UNPOOLED_UNDIRECT.heapBuffer(initialCapacity);
     }
 
     @Override
     public ByteBuf heapBuffer(int initialCapacity, int maxCapacity) {
-        return UNPOOLED.heapBuffer(initialCapacity, maxCapacity);
+        return UNPOOLED_UNDIRECT.heapBuffer(initialCapacity, maxCapacity);
     }
 
     @Override
     public ByteBuf directBuffer() {
-        return POOLED.directBuffer();
+        return POOLED_DIRECT.directBuffer();
     }
 
     @Override
     public ByteBuf directBuffer(int initialCapacity) {
-        return POOLED.directBuffer(initialCapacity);
+        return POOLED_DIRECT.directBuffer(initialCapacity);
     }
 
     @Override
     public ByteBuf directBuffer(int initialCapacity, int maxCapacity) {
-        return POOLED.directBuffer(initialCapacity, maxCapacity);
+        return POOLED_DIRECT.directBuffer(initialCapacity, maxCapacity);
     }
 
     @Override
     public CompositeByteBuf compositeBuffer() {
-        return UNPOOLED.compositeHeapBuffer();
+        return UNPOOLED_UNDIRECT.compositeHeapBuffer();
     }
 
     @Override
     public CompositeByteBuf compositeBuffer(int maxNumComponents) {
-        return UNPOOLED.compositeHeapBuffer(maxNumComponents);
+        return UNPOOLED_UNDIRECT.compositeHeapBuffer(maxNumComponents);
     }
 
     @Override
     public CompositeByteBuf compositeHeapBuffer() {
-        return UNPOOLED.compositeHeapBuffer();
+        return UNPOOLED_UNDIRECT.compositeHeapBuffer();
     }
 
     @Override
     public CompositeByteBuf compositeHeapBuffer(int maxNumComponents) {
-        return UNPOOLED.compositeHeapBuffer(maxNumComponents);
+        return UNPOOLED_UNDIRECT.compositeHeapBuffer(maxNumComponents);
     }
 
     @Override
     public CompositeByteBuf compositeDirectBuffer() {
-        return POOLED.compositeDirectBuffer();
+        return POOLED_DIRECT.compositeDirectBuffer();
     }
 
     @Override
     public CompositeByteBuf compositeDirectBuffer(int maxNumComponents) {
-        return POOLED.compositeDirectBuffer();
+        return POOLED_DIRECT.compositeDirectBuffer();
     }
 
     @Override
@@ -125,7 +128,7 @@ public final class PartialPooledByteBufAllocator implements ByteBufAllocator {
 
     @Override
     public int calculateNewCapacity(int minNewCapacity, int maxCapacity) {
-        return POOLED.calculateNewCapacity(minNewCapacity, maxCapacity);
+        return POOLED_DIRECT.calculateNewCapacity(minNewCapacity, maxCapacity);
     }
 
     /**

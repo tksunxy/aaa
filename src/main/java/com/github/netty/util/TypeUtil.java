@@ -406,7 +406,8 @@ public class TypeUtil {
         }
 
         if (longValue <= 0) {
-            throw new IllegalArgumentException("can not cast to Date, value : " + value); // TODO 忽略 1970-01-01 之前的时间处理？
+            //  忽略 1970-01-01 之前的时间处理？
+            throw new IllegalArgumentException("can not cast to Date, value : " + value);
         }
 
         return new java.sql.Date(longValue);

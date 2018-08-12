@@ -5,6 +5,7 @@ import com.github.netty.core.constants.HttpConstants;
 import com.github.netty.core.constants.HttpHeaderConstants;
 import com.github.netty.core.support.Recyclable;
 import com.github.netty.core.support.AbstractRecycler;
+import com.github.netty.servlet.support.HttpServletObject;
 import com.github.netty.servlet.support.ServletEventListenerManager;
 import com.github.netty.util.*;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -20,7 +21,6 @@ import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.nio.charset.Charset;
 import java.security.Principal;
 import java.util.*;
@@ -37,21 +37,25 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     private static final AbstractRecycler<ServletHttpServletRequest> RECYCLER = new AbstractRecycler<ServletHttpServletRequest>() {
         @Override
-        protected ServletHttpServletRequest newInstance(Handle<ServletHttpServletRequest> handle) {
+        protected ServletHttpServletRequest newInstance() {
             if(ProxyUtil.isEnableProxy()){
                 return ProxyUtil.newProxyByCglib(
-                        ServletHttpServletRequest.class,
-                        new Class[]{Handle.class},
-                        new Object[]{handle}
+                        ServletHttpServletRequest.class
                 );
             }else {
-                return new ServletHttpServletRequest(handle);
+                return new ServletHttpServletRequest();
             }
         }
     };
-    private final AbstractRecycler.Handle<ServletHttpServletRequest> handle;
 
+    public static final boolean ASYNC_SUPPORTED_FLAG = true;
     public static final String DISPATCHER_TYPE = ServletRequestDispatcher.class.getName().concat(".DISPATCHER_TYPE");
+
+    private HttpServletObject httpServletObject;
+    private NettyHttpRequest nettyRequest;
+    private HttpHeaders nettyHeaders;
+    private ServletHttpSession httpSession;
+    private ServletAsyncContext asyncContext;
 
     private String scheme;
     private String servletPath;
@@ -60,72 +64,38 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     private String requestUri;
     private String characterEncoding;
     private String sessionId;
+    private int sessionIdSource;
 
-    private transient boolean parsePathsFlag;
-    private transient boolean decodeCookieFlag;
-    private boolean decodeParameterByUrlFlag;
-    private boolean decodeParameterByBodyFlag;
-    private boolean asyncSupportedFlag;
+    private boolean parsePathsFlag = false;
+    private boolean decodeCookieFlag = false;
+    private boolean decodeParameterByUrlFlag = false;
+    private boolean decodeParameterByBodyFlag = false;
 
-    private Map<String,Object> attributeMap;
+    private ServletInputStream inputStream = new ServletInputStream();
+    private Map<String,Object> attributeMap = new ConcurrentHashMap<>(16);
     private Map<String,String[]> parameterMap;
     private Cookie[] cookies;
     private Locale locale;
 
-    private int sessionIdSource;
-    private ServletHttpSession httpSession;
-    private ServletInputStream inputStream;
-    private ServletContext servletContext;
-    private ServletAsyncContext asyncContext;
+    protected ServletHttpServletRequest() {}
 
-    private NettyHttpRequest nettyRequest;
-    private HttpHeaders nettyHeaders;
-
-    private ServletHttpServletResponse httpServletResponse;
-
-    protected ServletHttpServletRequest(AbstractRecycler.Handle<ServletHttpServletRequest> handle) {
-        this.handle = handle;
-        this.attributeMap = new ConcurrentHashMap<>(16);
-        this.inputStream = new ServletInputStream();
-    }
-
-    public static ServletHttpServletRequest newInstance(ServletContext servletContext, NettyHttpRequest nettyRequest) {
-        Objects.requireNonNull(servletContext);
+    public static ServletHttpServletRequest newInstance(HttpServletObject httpServletObject, NettyHttpRequest nettyRequest) {
+        Objects.requireNonNull(httpServletObject);
         Objects.requireNonNull(nettyRequest);
 
         ServletHttpServletRequest instance = RECYCLER.get();
+        instance.httpServletObject = httpServletObject;
         instance.nettyRequest = nettyRequest;
         instance.nettyHeaders = nettyRequest.headers();
         instance.inputStream.wrap(nettyRequest.content());
-        instance.servletContext = servletContext;
         return instance;
     }
 
-    public void setHttpServletResponse(ServletHttpServletResponse httpServletResponse) {
-        this.httpServletResponse = httpServletResponse;
+    public boolean isAsync(){
+        return asyncContext != null && asyncContext.isStarted();
     }
 
-    private InetSocketAddress getLocalAddress(){
-        SocketAddress socketAddress = nettyRequest.getChannel().localAddress();
-        if(socketAddress == null){
-            return null;
-        }
-        if(socketAddress instanceof InetSocketAddress){
-            return (InetSocketAddress) socketAddress;
-        }
-        return null;
-    }
 
-    private InetSocketAddress getRemoteAddress(){
-        SocketAddress socketAddress = nettyRequest.getChannel().remoteAddress();
-        if(socketAddress == null){
-            return null;
-        }
-        if(socketAddress instanceof InetSocketAddress){
-            return (InetSocketAddress) socketAddress;
-        }
-        return null;
-    }
 
     public NettyHttpRequest getNettyRequest() {
         return nettyRequest;
@@ -142,6 +112,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     private void decodeCharacterEncoding() {
         String characterEncoding = ServletUtil.decodeCharacterEncoding(getContentType());
         if (characterEncoding == null) {
+            ServletContext servletContext = getServletContext();
             characterEncoding = servletContext.getDefaultCharset().name();
         }
        this.characterEncoding = characterEncoding;
@@ -167,6 +138,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
      * 流得到POST数据。如果满足这些条件，那么从request对象的输入流中直接读取POST数据将不再有效。
      */
     private void decodeParameter(){
+        ServletContext servletContext = getServletContext();
         Map<String,String[]> parameterMap = new HashMap<>(16);
         Charset charset = servletContext.getDefaultCharset();
         ServletUtil.decodeByUrl(parameterMap, nettyRequest.uri(),charset);
@@ -190,11 +162,13 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         this.decodeCookieFlag = true;
     }
 
+    @TodoOptimize("加上pathInfo")
     private void checkAndParsePaths(){
         if(parsePathsFlag){
             return;
         }
 
+        ServletContext servletContext = getServletContext();
         String servletPath = nettyRequest.uri().replace(servletContext.getContextPath(), "");
         if (!servletPath.startsWith("/")) {
             servletPath = "/" + servletPath;
@@ -205,8 +179,9 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
             servletPath = servletPath.substring(0, queryInx);
         }
         this.servletPath = servletPath;
-        this.requestUri = this.servletContext.getContextPath() + servletPath;
-        //TODO 加上pathInfo
+        this.requestUri = servletContext.getContextPath() + servletPath;
+
+        // 1.加上pathInfo
         this.pathInfo = null;
 
         parsePathsFlag = true;
@@ -217,7 +192,8 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     }
 
     private ServletHttpSession newHttpSession(String sessionId){
-        ServletHttpSession session = new ServletHttpSession(sessionId, servletContext,servletContext.getSessionCookieConfig());
+        ServletContext servletContext = getServletContext();
+        ServletHttpSession session = new ServletHttpSession(sessionId, servletContext, servletContext.getSessionCookieConfig());
         session.access();
         session.init();
         return session;
@@ -318,7 +294,6 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         return url;
     }
 
-    //TODO ServletPath和PathInfo应该是互补的，根据URL-Pattern匹配的路径不同而不同
     // 现在把PathInfo恒为null，ServletPath恒为uri-contextPath
     // 可以满足SpringBoot的需求，但不满足ServletPath和PathInfo的语义
     // 需要在RequestUrlPatternMapper匹配的时候设置,new NettyRequestDispatcher的时候传入MapperData
@@ -328,6 +303,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
      * 要么是以'/'开头的字符串。
      * @return
      */
+    @TodoOptimize("ServletPath和PathInfo应该是互补的，根据URL-Pattern匹配的路径不同而不同")
     @Override
     public String getPathInfo() {
         checkAndParsePaths();
@@ -405,7 +381,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
      */
     @Override
     public String getContextPath() {
-        return servletContext.getContextPath();
+        return getServletContext().getContextPath();
     }
 
     @Override
@@ -415,7 +391,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         }
 
         String sessionId = getRequestedSessionId();
-        Map<String,ServletHttpSession> sessionMap = servletContext.getHttpSessionMap();
+        Map<String,ServletHttpSession> sessionMap = getServletContext().getHttpSessionMap();
         ServletHttpSession session = sessionMap.get(sessionId);
         if(session == null){
             if(create) {
@@ -443,6 +419,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         ServletHttpSession httpSession = getSession(true);
         String oldSessionId = httpSession.getId();
         String newSessionId = newSessionId();
+        ServletContext servletContext = getServletContext();
 
         Map<String,ServletHttpSession> httpSessionMap = servletContext.getHttpSessionMap();
         if(StringUtil.isNotEmpty(oldSessionId)) {
@@ -598,16 +575,16 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String getServerName() {
-        InetSocketAddress inetSocketAddress = getLocalAddress();
+        InetSocketAddress inetSocketAddress = httpServletObject.getLocalAddress();
         if(inetSocketAddress != null) {
             return inetSocketAddress.getHostName();
         }
-        return servletContext.getServerSocketAddress().getHostName();
+        return httpServletObject.getLocalAddress().getHostName();
     }
 
     @Override
     public int getServerPort() {
-        return servletContext.getServerSocketAddress().getPort();
+        return httpServletObject.getServerSocketAddress().getPort();
     }
 
     @Override
@@ -617,7 +594,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String getRemoteAddr() {
-        InetSocketAddress inetSocketAddress = getRemoteAddress();
+        InetSocketAddress inetSocketAddress = httpServletObject.getRemoteAddress();
         if(inetSocketAddress == null){
             return null;
         }
@@ -630,7 +607,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String getRemoteHost() {
-        InetSocketAddress inetSocketAddress = getRemoteAddress();
+        InetSocketAddress inetSocketAddress = httpServletObject.getRemoteAddress();
         if(inetSocketAddress == null){
             return null;
         }
@@ -639,7 +616,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public int getRemotePort() {
-        InetSocketAddress inetSocketAddress = getRemoteAddress();
+        InetSocketAddress inetSocketAddress = httpServletObject.getRemoteAddress();
         if(inetSocketAddress == null){
             return 0;
         }
@@ -657,6 +634,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
         Object oldObject = getAttributeMap().put(name,object);
 
+        ServletContext servletContext = getServletContext();
         ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
         if(listenerManager.hasServletRequestAttributeListener()){
             listenerManager.onServletRequestAttributeAdded(new ServletRequestAttributeEvent(servletContext,this,name,object));
@@ -670,9 +648,9 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     public void removeAttribute(String name) {
         Object oldObject = getAttributeMap().remove(name);
 
-        ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
+        ServletEventListenerManager listenerManager = getServletContext().getServletEventListenerManager();
         if(listenerManager.hasServletRequestAttributeListener()){
-            listenerManager.onServletRequestAttributeRemoved(new ServletRequestAttributeEvent(servletContext,this,name,oldObject == NULL?null:oldObject));
+            listenerManager.onServletRequestAttributeRemoved(new ServletRequestAttributeEvent(getServletContext(),this,name,oldObject == NULL?null:oldObject));
         }
     }
 
@@ -708,7 +686,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public ServletRequestDispatcher getRequestDispatcher(String path) {
-        return servletContext.getRequestDispatcher(path);
+        return getServletContext().getRequestDispatcher(path);
     }
 
     @Override
@@ -718,32 +696,37 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String getLocalName() {
-        return servletContext.getServerSocketAddress().getHostName();
+        return getServletContext().getServerSocketAddress().getHostName();
     }
 
     @Override
     public String getLocalAddr() {
-        return servletContext.getServerSocketAddress().getAddress().getHostAddress();
+        return getServletContext().getServerSocketAddress().getAddress().getHostAddress();
     }
 
     @Override
     public int getLocalPort() {
-        return servletContext.getServerSocketAddress().getPort();
+        return getServletContext().getServerSocketAddress().getPort();
     }
 
     @Override
     public ServletContext getServletContext() {
-        return servletContext;
+        return httpServletObject.getServletContext();
     }
 
     @Override
     public ServletAsyncContext startAsync() throws IllegalStateException {
-        return startAsync(this,httpServletResponse);
+        return startAsync(this,httpServletObject.getHttpServletResponse());
     }
 
     @Override
     public ServletAsyncContext startAsync(ServletRequest servletRequest, ServletResponse servletResponse) throws IllegalStateException {
-        ServletAsyncContext asyncContext = new ServletAsyncContext(servletContext,servletContext.getAsyncExecutorService(),servletRequest,servletResponse);
+        ServletContext servletContext = getServletContext();
+        if(!isAsyncSupported()){
+            throw new IllegalStateException("不支持异步");
+        }
+
+        ServletAsyncContext asyncContext = new ServletAsyncContext(httpServletObject,servletContext, servletContext.getAsyncExecutorService(),servletRequest,servletResponse);
         asyncContext.setTimeout(servletContext.getAsyncTimeout());
         this.asyncContext = asyncContext;
         return asyncContext;
@@ -756,7 +739,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public boolean isAsyncSupported() {
-        return asyncSupportedFlag;
+        return getServletContext().getAsyncExecutorService()!= null && !isAsyncStarted();
     }
 
     @Override
@@ -835,7 +818,6 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
         this.nettyRequest.recycle();
 
-        this.asyncSupportedFlag = true;
         this.decodeParameterByUrlFlag = false;
         this.decodeParameterByBodyFlag = false;
         this.decodeCookieFlag = false;
@@ -855,11 +837,9 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         this.asyncContext = null;
         this.nettyRequest = null;
         this.nettyHeaders = null;
-        this.httpServletResponse = null;
-        this.servletContext = null;
-
+        this.httpServletObject = null;
 
         this.attributeMap.clear();
-        this.handle.recycle(this);
+        RECYCLER.recycle(this);
     }
 }

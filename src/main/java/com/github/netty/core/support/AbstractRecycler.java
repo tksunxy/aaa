@@ -1,52 +1,20 @@
 package com.github.netty.core.support;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 /**
+ * 回收
  * @author 84215
  */
-public abstract class AbstractRecycler<T> extends io.netty.util.Recycler<T> {
+public abstract class AbstractRecycler<T>   {
 
     private static final List<AbstractRecycler> RECYCLER_LIST = new LinkedList<>();
-    private static final List<Object> INSTANCE_LIST = new ArrayList<>(1024);
+    private Stack<T> stack;
 
-    protected AbstractRecycler() {
-        super();
-        register();
-    }
-
-    protected AbstractRecycler(int maxCapacityPerThread) {
-        super(maxCapacityPerThread);
-        register();
-    }
-
-    protected AbstractRecycler(int maxCapacityPerThread, int maxSharedCapacityFactor) {
-        super(maxCapacityPerThread, maxSharedCapacityFactor);
-        register();
-    }
-
-    protected AbstractRecycler(int maxCapacityPerThread, int maxSharedCapacityFactor, int ratio, int maxDelayedQueuesPerThread) {
-        super(maxCapacityPerThread, maxSharedCapacityFactor, ratio, maxDelayedQueuesPerThread);
-        register();
-    }
-
-    @Override
-    protected final T newObject(Handle<T> handle) {
-        T instance = newInstance(handle);
-        INSTANCE_LIST.add(instance);
-        return instance;
-    }
-
-    /**
-     * 新建实例
-     * @param handle
-     * @return
-     */
-    protected abstract T newInstance(Handle<T> handle);
-    
-    private void register(){
+    public AbstractRecycler() {
+        this.stack = new Stack<>();
         RECYCLER_LIST.add(this);
     }
 
@@ -54,7 +22,53 @@ public abstract class AbstractRecycler<T> extends io.netty.util.Recycler<T> {
         return RECYCLER_LIST;
     }
 
-    public static List<Object> getInstanceList() {
-        return INSTANCE_LIST;
+    protected abstract T newInstance();
+
+    public T get() {
+        T value = stack.pop();
+        return value != null? value : newInstance();
     }
+
+    public void recycle(T value) {
+        stack.push(value);
+    }
+
+    private class Stack<E> extends ConcurrentLinkedDeque<E>{
+//         ReferenceQueue<E> queue = new ReferenceQueue<>();
+//
+//         public void push0(E value) {
+//             new SoftReference<>(value,queue);
+//         }
+//
+//         public E pop0() {
+//             Reference<? extends E> reference;
+//             try {
+//                 reference = queue.remove(1);
+//             } catch (InterruptedException e) {
+//                 e.printStackTrace();
+//                 reference = null;
+//             }
+//
+//             if(reference == null){
+//                 return null;
+//             }
+//
+//             E value = reference.get();
+//             if(value == null){
+//                 return pop();
+//             }
+//             return value;
+//         }
+
+         @Override
+         public void push(E e) {
+             super.push(e);
+         }
+
+         @Override
+         public E pop() {
+             return super.pollFirst();
+         }
+
+     }
 }

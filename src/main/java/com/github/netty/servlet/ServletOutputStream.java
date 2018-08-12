@@ -1,38 +1,37 @@
 package com.github.netty.servlet;
 
+import com.github.netty.core.support.CompositeByteBufX;
 import com.github.netty.core.support.Wrapper;
 import com.github.netty.servlet.support.ChannelInvoker;
+import com.github.netty.servlet.support.HttpServletObject;
+import com.github.netty.util.ByteBufferUtil;
 import com.github.netty.util.ExceptionUtil;
 import com.github.netty.util.ObjectUtil;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.CompositeByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
-import io.netty.util.ReferenceCountUtil;
 
 import javax.servlet.WriteListener;
 import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
 /**
  * 需要对keep-alive的支持
  * @author 84215
  */
-public class ServletOutputStream extends javax.servlet.ServletOutputStream implements Wrapper<CompositeByteBuf>{
+public class ServletOutputStream extends javax.servlet.ServletOutputStream implements Wrapper<HttpServletObject>{
 
-    private final Object syncLock = new Object();
     //是否已经调用close()方法关闭输出流
-    private boolean closed;
+    private AtomicBoolean closed = new AtomicBoolean(false);
+    private ChannelInvoker channelInvoker = new ChannelInvoker();
     //监听器，暂时没处理
     private WriteListener writeListener;
-    private CompositeByteBuf source;
-    private ChannelInvoker channelInvoker;
+    private CompositeByteBufX buffer;
+    private HttpServletObject source;
 
     ServletOutputStream() {
-    }
-
-    public void setChannelInvoker(ChannelInvoker channelInvoker) {
-        this.channelInvoker = channelInvoker;
     }
 
     @Override
@@ -54,28 +53,25 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream imple
     public void write(byte[] b, int off, int len) throws IOException {
         checkClosed();
 
-        if(len <= 0){
+        if(len == 0){
             return;
         }
-        ByteBuf content = this.source.alloc().buffer(len);
-        content.writeBytes(b, off, len);
-        this.source.addComponent(content);
+
+        ByteBuf content = Unpooled.wrappedBuffer(b,off,len);
+        this.buffer.addComponent(content);
     }
 
     @Override
     public void write(byte[] b) throws IOException {
-        checkClosed();
-
         write(b,0,b.length);
     }
 
     @Override
     public void write(int b) throws IOException {
-        checkClosed();
-
-        ByteBuf content = this.source.alloc().buffer(4);
-        content.writeInt(b);
-        this.source.addComponent(content);
+        int byteLen = 4;
+        byte[] bytes = new byte[byteLen];
+        ByteBufferUtil.setInt(bytes,0,b);
+        write(bytes,0,byteLen);
     }
 
     @Override
@@ -84,9 +80,8 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream imple
     }
 
     public int getContentLength(){
-        return source.capacity();
+        return buffer.capacity();
     }
-
 
     @Override
     public void close() throws IOException {
@@ -105,31 +100,39 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream imple
      * @throws IOException
      */
     public void close(ChannelFutureListener finishListener) throws IOException {
-        synchronized (syncLock) {
-            if (closed) {
-                return;
-            }
-
+        if (closed.compareAndSet(false,true)) {
             try {
-                source.writerIndex(source.capacity());
+                buffer.writerIndex(buffer.capacity());
 
-                ChannelFutureListener releaseListener = newReleaseListener();
-                ChannelFutureListener[] finishListeners = finishListener == null?
-                        new ChannelFutureListener[]{releaseListener} : new ChannelFutureListener[]{finishListener, releaseListener};
+//                ChannelFutureListener releaseListener = newReleaseListener();
+//                ChannelFutureListener[] finishListeners = finishListener == null ?
+//                        new ChannelFutureListener[]{releaseListener} : new ChannelFutureListener[]{releaseListener,finishListener};
 
-                channelInvoker.writeAndFlushAndIfNeedClose(source,finishListeners);
-            }catch (Throwable e){
+                ChannelFutureListener[] finishListeners = finishListener == null? null : new ChannelFutureListener[]{finishListener};
+
+                channelInvoker.writeAndReleaseFlushAndIfNeedClose(source,buffer, finishListeners);
+            }catch(Throwable e){
                 ExceptionUtil.printRootCauseStackTrace(e);
                 errorEvent(e);
             }
-            closed = true;
+        }else {
+            try {
+                finishListener.operationComplete(null);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
     private ChannelFutureListener newReleaseListener(){
         ChannelFutureListener releaseListener = future -> {
-            if(source.refCnt() > 0) {
-                ReferenceCountUtil.safeRelease(source);
+            try {
+                if(buffer.refCnt() > 0){
+                    buffer.release();
+                }
+                buffer = null;
+            }catch (Exception e){
+                e.printStackTrace();
             }
         };
         return releaseListener;
@@ -142,23 +145,21 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream imple
     }
 
     private void checkClosed() throws ClosedChannelException {
-        if(isClosed()){
+        if(closed.get()){
             throw new ClosedChannelException();
         }
     }
 
-    public boolean isClosed() {
-        return closed;
-    }
-
     @Override
-    public void wrap(CompositeByteBuf source) {
+    public void wrap(HttpServletObject source) {
         this.source = source;
-        this.closed = false;
+        //常用最大字节数 4096 * 6 = 24576字节
+        this.buffer = new CompositeByteBufX(false,6);
+        this.closed.set(false);
     }
 
     @Override
-    public CompositeByteBuf unwrap() {
+    public HttpServletObject unwrap() {
         return source;
     }
 

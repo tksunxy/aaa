@@ -59,33 +59,6 @@
             <!--</exclusions>-->
         </dependency>
 
-        <!--<dependency>-->
-        <!--<groupId>org.springframework.boot</groupId>-->
-        <!--<artifactId>spring-boot-starter-jetty</artifactId>-->
-        <!--<version>1.5.2.RELEASE</version>-->
-        <!--</dependency>-->
-
-        <!-- https://mvnrepository.com/artifact/io.grpc/grpc-netty -->
-        <!--<dependency>-->
-            <!--<groupId>io.grpc</groupId>-->
-            <!--<artifactId>grpc-netty</artifactId>-->
-            <!--<version>1.14.0</version>-->
-        <!--</dependency>-->
-
-        <!--<dependency>-->
-        <!--<groupId>io.netty</groupId>-->
-        <!--<artifactId>netty-example</artifactId>-->
-        <!--<version>${netty.version}</version>-->
-        <!--<scope>compile</scope>-->
-        <!--<optional>true</optional>-->
-        <!--</dependency>-->
-
-        <!--<dependency>-->
-        <!--<groupId>org.t-io</groupId>-->
-        <!--<artifactId>tio-core</artifactId>-->
-        <!--<version>1.7.0.v20170501-RELEASE</version>-->
-        <!--</dependency>-->
-
         <dependency>
             <groupId>javax.servlet</groupId>
             <artifactId>javax.servlet-api</artifactId>
@@ -105,6 +78,40 @@
             <version>${javassist.version}</version>
         </dependency>
 
+
+        <!--<dependency>-->
+        <!--<groupId>org.springframework.boot</groupId>-->
+        <!--<artifactId>spring-boot-starter-jetty</artifactId>-->
+        <!--<version>1.5.2.RELEASE</version>-->
+        <!--</dependency>-->
+
+        <!-- https://mvnrepository.com/artifact/io.grpc/grpc-netty -->
+        <!--<dependency>-->
+        <!--<groupId>io.grpc</groupId>-->
+        <!--<artifactId>grpc-netty</artifactId>-->
+        <!--<version>1.14.0</version>-->
+        <!--</dependency>-->
+
+        <!--<dependency>-->
+        <!--<groupId>io.netty</groupId>-->
+        <!--<artifactId>netty-example</artifactId>-->
+        <!--<version>${netty.version}</version>-->
+        <!--<scope>compile</scope>-->
+        <!--<optional>true</optional>-->
+        <!--</dependency>-->
+
+        <!--<dependency>-->
+        <!--<groupId>org.t-io</groupId>-->
+        <!--<artifactId>tio-core</artifactId>-->
+        <!--<version>1.7.0.v20170501-RELEASE</version>-->
+        <!--</dependency>-->
+
+        <!-- 测试用的,用作客户端 => https://mvnrepository.com/artifact/io.vertx/vertx-web -->
+        <dependency>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-web</artifactId>
+            <version>3.5.3</version>
+        </dependency>
     </dependencies>
 
 

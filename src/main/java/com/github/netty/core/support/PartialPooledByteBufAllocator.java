@@ -10,6 +10,7 @@ import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.EventExecutor;
 
 import java.net.SocketAddress;
+import java.util.Objects;
 
 /**
  * A {@link io.netty.buffer.ByteBufAllocator} which is partial pooled. Which means only direct {@link io.netty.buffer.ByteBuf}s are pooled. The rest
@@ -135,197 +136,208 @@ public final class PartialPooledByteBufAllocator implements ByteBufAllocator {
      * Create a new {@link io.netty.channel.ChannelHandlerContext} which wraps the given one anf force the usage of direct buffers.
      */
     public static ChannelHandlerContext forceDirectAllocator(ChannelHandlerContext ctx) {
-        return new PooledChannelHandlerContext(ctx);
+        return PooledChannelHandlerContext.newInstance(ctx);
     }
 
-    private static final class PooledChannelHandlerContext implements ChannelHandlerContext {
-        private final ChannelHandlerContext ctx;
-        PooledChannelHandlerContext(ChannelHandlerContext ctx) {
-            this.ctx = ctx;
+    private static class PooledChannelHandlerContext implements ChannelHandlerContext,Wrapper<ChannelHandlerContext>,Recyclable {
+        private ChannelHandlerContext source;
+        private static final AbstractRecycler<PooledChannelHandlerContext> RECYCLER = new AbstractRecycler<PooledChannelHandlerContext>() {
+            @Override
+            protected PooledChannelHandlerContext newInstance() {
+                return new PooledChannelHandlerContext();
+            }
+        };
+
+        private PooledChannelHandlerContext() {}
+
+        public static PooledChannelHandlerContext newInstance(ChannelHandlerContext source) {
+            PooledChannelHandlerContext instance = RECYCLER.get();
+            instance.wrap(source);
+            return instance;
         }
 
         @Override
         public <T> boolean hasAttr(AttributeKey<T> attributeKey) {
-            return ctx.channel().hasAttr(attributeKey);
+            return source.channel().hasAttr(attributeKey);
         }
 
         @Override
         public Channel channel() {
-            return ctx.channel();
+            return source.channel();
         }
 
         @Override
         public EventExecutor executor() {
-            return ctx.executor();
+            return source.executor();
         }
 
         @Override
         public String name() {
-            return ctx.name();
+            return source.name();
         }
 
         @Override
         public ChannelHandler handler() {
-            return ctx.handler();
+            return source.handler();
         }
 
         @Override
         public boolean isRemoved() {
-            return ctx.isRemoved();
+            return source.isRemoved();
         }
 
         @Override
         public ChannelHandlerContext fireChannelRegistered() {
-            ctx.fireChannelRegistered();
+            source.fireChannelRegistered();
             return this;
         }
 
         @Deprecated
         @Override
         public ChannelHandlerContext fireChannelUnregistered() {
-            ctx.fireChannelUnregistered();
+            source.fireChannelUnregistered();
             return this;
         }
 
         @Override
         public ChannelHandlerContext fireChannelActive() {
-            ctx.fireChannelActive();
+            source.fireChannelActive();
             return this;
         }
 
         @Override
         public ChannelHandlerContext fireChannelInactive() {
-            ctx.fireChannelInactive();
+            source.fireChannelInactive();
             return this;
         }
 
         @Override
         public ChannelHandlerContext fireExceptionCaught(Throwable cause) {
-            ctx.fireExceptionCaught(cause);
+            source.fireExceptionCaught(cause);
             return this;
         }
 
         @Override
         public ChannelHandlerContext fireUserEventTriggered(Object event) {
-            ctx.fireUserEventTriggered(event);
+            source.fireUserEventTriggered(event);
             return this;
         }
 
         @Override
         public ChannelHandlerContext fireChannelRead(Object msg) {
-            ctx.fireChannelRead(msg);
+            source.fireChannelRead(msg);
             return this;
         }
 
         @Override
         public ChannelHandlerContext fireChannelReadComplete() {
-            ctx.fireChannelReadComplete();
+            source.fireChannelReadComplete();
             return this;
         }
 
         @Override
         public ChannelHandlerContext fireChannelWritabilityChanged() {
-            ctx.fireChannelWritabilityChanged();
+            source.fireChannelWritabilityChanged();
             return this;
         }
 
         @Override
         public ChannelFuture bind(SocketAddress localAddress) {
-            return ctx.bind(localAddress);
+            return source.bind(localAddress);
         }
 
         @Override
         public ChannelFuture connect(SocketAddress remoteAddress) {
-            return ctx.connect(remoteAddress);
+            return source.connect(remoteAddress);
         }
 
         @Override
         public ChannelFuture connect(SocketAddress remoteAddress, SocketAddress localAddress) {
-            return ctx.connect(remoteAddress, localAddress);
+            return source.connect(remoteAddress, localAddress);
         }
 
         @Override
         public ChannelFuture disconnect() {
-            return ctx.disconnect();
+            return source.disconnect();
         }
 
         @Override
         public ChannelFuture close() {
-            return ctx.close();
+            return source.close();
         }
 
         @Deprecated
         @Override
         public ChannelFuture deregister() {
-            return ctx.deregister();
+            return source.deregister();
         }
 
         @Override
         public ChannelFuture bind(SocketAddress localAddress, ChannelPromise promise) {
-            return ctx.bind(localAddress, promise);
+            return source.bind(localAddress, promise);
         }
 
         @Override
         public ChannelFuture connect(SocketAddress remoteAddress, ChannelPromise promise) {
-            return ctx.connect(remoteAddress, promise);
+            return source.connect(remoteAddress, promise);
         }
 
         @Override
         public ChannelFuture connect(SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) {
-            return ctx.connect(remoteAddress, localAddress, promise);
+            return source.connect(remoteAddress, localAddress, promise);
         }
 
         @Override
         public ChannelFuture disconnect(ChannelPromise promise) {
-            return ctx.disconnect(promise);
+            return source.disconnect(promise);
         }
 
         @Override
         public ChannelFuture close(ChannelPromise promise) {
-            return ctx.close(promise);
+            return source.close(promise);
         }
 
         @Deprecated
         @Override
         public ChannelFuture deregister(ChannelPromise promise) {
-            return ctx.deregister(promise);
+            return source.deregister(promise);
         }
 
         @Override
         public ChannelHandlerContext read() {
-            ctx.read();
+            source.read();
             return this;
         }
 
         @Override
         public ChannelFuture write(Object msg) {
-            return ctx.write(msg);
+            return source.write(msg);
         }
 
         @Override
         public ChannelFuture write(Object msg, ChannelPromise promise) {
-            return ctx.write(msg, promise);
+            return source.write(msg, promise);
         }
 
         @Override
         public ChannelHandlerContext flush() {
-            ctx.flush();
+            source.flush();
             return this;
         }
 
         @Override
         public ChannelFuture writeAndFlush(Object msg, ChannelPromise promise) {
-            return ctx.writeAndFlush(msg, promise);
+            return source.writeAndFlush(msg, promise);
         }
 
         @Override
         public ChannelFuture writeAndFlush(Object msg) {
-            return ctx.writeAndFlush(msg);
+            return source.writeAndFlush(msg);
         }
 
         @Override
         public ChannelPipeline pipeline() {
-            return ctx.pipeline();
+            return source.pipeline();
         }
 
         @Override
@@ -335,32 +347,49 @@ public final class PartialPooledByteBufAllocator implements ByteBufAllocator {
 
         @Override
         public ChannelPromise newPromise() {
-            return ctx.newPromise();
+            return source.newPromise();
         }
 
         @Override
         public ChannelProgressivePromise newProgressivePromise() {
-            return ctx.newProgressivePromise();
+            return source.newProgressivePromise();
         }
 
         @Override
         public ChannelFuture newSucceededFuture() {
-            return ctx.newSucceededFuture();
+            return source.newSucceededFuture();
         }
 
         @Override
         public ChannelFuture newFailedFuture(Throwable cause) {
-            return ctx.newFailedFuture(cause);
+            return source.newFailedFuture(cause);
         }
 
         @Override
         public ChannelPromise voidPromise() {
-            return ctx.voidPromise();
+            return source.voidPromise();
         }
 
         @Override
         public <T> Attribute<T> attr(AttributeKey<T> key) {
-            return ctx.channel().attr(key);
+            return source.channel().attr(key);
+        }
+
+        @Override
+        public void recycle() {
+            this.source = null;
+            RECYCLER.recycle(this);
+        }
+
+        @Override
+        public void wrap(ChannelHandlerContext source) {
+            Objects.requireNonNull(source);
+            this.source = source;
+        }
+
+        @Override
+        public ChannelHandlerContext unwrap() {
+            return source;
         }
     }
 

@@ -8,15 +8,14 @@ import com.github.netty.servlet.ServletHttpServletResponse;
 import com.github.netty.servlet.ServletRequestDispatcher;
 import com.github.netty.servlet.support.HttpServletObject;
 import com.github.netty.util.ExceptionUtil;
+import com.github.netty.util.HttpHeaderUtil;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.*;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.http.HttpServletResponse;
@@ -42,11 +41,9 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
 
     @Override
     protected void onMessageReceived(ChannelHandlerContext ctx, FullHttpRequest fullHttpRequest) throws Exception {
-        ChannelHandlerContext ctxWrap = PartialPooledByteBufAllocator.forceDirectAllocator(ctx);
-        HttpServletObject httpServletObject = HttpServletObject.newInstance(servletContext,ctxWrap,fullHttpRequest);
+        Runnable task = newTask(ctx,fullHttpRequest);
+//        Runnable task = newTaskForRaw(ctx,fullHttpRequest);
 
-//        Runnable task = newTask2(ctx,httpServletObject);
-        Runnable task = newTask(httpServletObject);
         if(dispatcherExecutor != null) {
             dispatcherExecutor.execute(task);
         }else {
@@ -54,37 +51,52 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
         }
     }
 
-    private Runnable newTask2(ChannelHandlerContext ctx,HttpServletObject httpServletObject){
-        return new Runnable() {
-            @Override
-            public void run() {
-//                try {
-//                    Thread.sleep(10);
-//                } catch (InterruptedException e) {
-//                    e.printStackTrace();
-//                }
-                ctx.writeAndFlush(new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, Unpooled.EMPTY_BUFFER))
-                        .addListener(new ChannelFutureListener() {
-                            @Override
-                            public void operationComplete(ChannelFuture future) throws Exception {
-                                future.channel().close().addListener(new ChannelFutureListener() {
-                                    @Override
-                                    public void operationComplete(ChannelFuture future) throws Exception {
-                                        httpServletObject.recycle();
-                                    }
-                                });
+    /**
+     * 原生不加业务的代码, 用于测试原生的响应速度
+     * @param context
+     * @param fullHttpRequest
+     * @return
+     */
+    private Runnable newTaskForRaw(ChannelHandlerContext context, FullHttpRequest fullHttpRequest){
+        return () -> {
+            boolean isKeepAlive = HttpHeaderUtil.isKeepAlive(fullHttpRequest);
+            ByteBuf content = Unpooled.EMPTY_BUFFER;
+            FullHttpResponse fullHttpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, content);
 
-                            }
-                        });
+            HttpHeaderUtil.setKeepAlive(fullHttpResponse, isKeepAlive);
+            if (isKeepAlive && !HttpHeaderUtil.isContentLengthSet(fullHttpResponse)) {
+                HttpHeaderUtil.setContentLength(fullHttpResponse, content.readableBytes());
             }
+
+            context.writeAndFlush(fullHttpResponse)
+                    .addListener(new ChannelFutureListener() {
+                        @Override
+                        public void operationComplete(ChannelFuture future) throws Exception {
+                            if(!isKeepAlive){
+                                future.channel().close();
+                            }
+                            fullHttpRequest.release();
+                        }
+                    });
         };
     }
 
-    private Runnable newTask(HttpServletObject httpServletObject){
-        ServletHttpServletRequest httpServletRequest = httpServletObject.getHttpServletRequest();
-        ServletHttpServletResponse httpServletResponse = httpServletObject.getHttpServletResponse();
+    /**
+     * 加spring业务的代码
+     * @param context
+     * @param fullHttpRequest
+     * @return
+     */
+    private Runnable newTask(ChannelHandlerContext context,FullHttpRequest fullHttpRequest){
+        HttpServletObject httpServletObject = HttpServletObject.newInstance(
+                servletContext,
+                PartialPooledByteBufAllocator.forceDirectAllocator(context),
+                fullHttpRequest);
 
         Runnable task = () -> {
+            ServletHttpServletRequest httpServletRequest = httpServletObject.getHttpServletRequest();
+            ServletHttpServletResponse httpServletResponse = httpServletObject.getHttpServletResponse();
+
             try {
                 long beginTime = System.currentTimeMillis();
                 ServletRequestDispatcher dispatcher = httpServletRequest.getRequestDispatcher(httpServletRequest.getRequestURI());
@@ -118,7 +130,7 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        System.out.println("exceptionCaught");
+        System.out.println("发生异常!");
         if(null != cause) {
             cause.printStackTrace();
         }

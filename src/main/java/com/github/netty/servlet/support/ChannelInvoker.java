@@ -11,7 +11,6 @@ import com.github.netty.servlet.ServletHttpSession;
 import com.github.netty.util.ExceptionUtil;
 import com.github.netty.util.HttpHeaderUtil;
 import com.github.netty.util.ServletUtil;
-import com.github.netty.util.TodoOptimize;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -29,7 +28,6 @@ import java.util.StringJoiner;
  * @author acer01
  *  2018/7/28/028
  */
-@TodoOptimize("缺少对keep-alive的支持")
 public class ChannelInvoker {
 
     public void writeAndReleaseFlushAndIfNeedClose(HttpServletObject httpServletObject, ByteBuf content, ChannelFutureListener[] finishListeners) {
@@ -85,7 +83,7 @@ public class ChannelInvoker {
 
     /**
      * 设置基本的请求头
-     * @param isKeepAlive isKeepAlive
+     * @param isKeepAlive 保持连接
      * @param totalLength 总内容长度
      * @param nettyResponse netty响应
      * @param servletRequest servlet请求
@@ -94,9 +92,8 @@ public class ChannelInvoker {
     private void settingResponse(boolean isKeepAlive, int totalLength, NettyHttpResponse nettyResponse,
                                 ServletHttpServletRequest servletRequest, ServletHttpServletResponse servletResponse) {
         HttpHeaderUtil.setKeepAlive(nettyResponse, isKeepAlive);
-//        nettyResponse.headers().set(HttpHeaderConstants.CONNECTION, HttpHeaderConstants.KEEP_ALIVE);
 
-        if (!isKeepAlive && !HttpHeaderUtil.isContentLengthSet(nettyResponse)) {
+        if (isKeepAlive && !HttpHeaderUtil.isContentLengthSet(nettyResponse)) {
             HttpHeaderUtil.setContentLength(nettyResponse, totalLength);
         }
 

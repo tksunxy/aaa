@@ -89,6 +89,10 @@ public class ServletContext implements javax.servlet.ServletContext {
         this.asyncExecutorService = asyncExecutorService;
     }
 
+    public ExecutorService getAsyncExecutorService() {
+        return asyncExecutorService;
+    }
+
     public ServletEventListenerManager getServletEventListenerManager() {
         return servletEventListenerManager;
     }
@@ -99,10 +103,6 @@ public class ServletContext implements javax.servlet.ServletContext {
 
     public void addFilterMapping(String urlPattern, String filterName, Filter filter) throws IllegalArgumentException {
         filterUrlMapper.addMapping(urlPattern, filter, filterName);
-    }
-
-    public ExecutorService getAsyncExecutorService() {
-        return asyncExecutorService;
     }
 
     public long getAsyncTimeout(){

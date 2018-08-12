@@ -28,22 +28,20 @@ public class HttpHeaderUtil {
      * {@code "Connection"} header first and then the return value of
      * {@link HttpVersion#isKeepAliveDefault()}.
      */
-    public static boolean isKeepAlive(NettyHttpRequest message) {
+    public static boolean isKeepAlive(HttpRequest message) {
         HttpHeaders headers = message.headers();
 
-        Object connectionObj = headers.get(HttpHeaderConstants.CONNECTION);
-        if(connectionObj == null){
-            return false;
-        }
-        String connection = connectionObj.toString();
-        if (HttpHeaderConstants.CLOSE.toString().equalsIgnoreCase(connection)) {
-            return false;
-        }
+        Object connectionValueObj = headers.get(HttpHeaderConstants.CONNECTION);
 
+        //如果协议支持
         if (message.protocolVersion().isKeepAliveDefault()) {
-            return !HttpHeaderConstants.CLOSE.toString().equalsIgnoreCase(connection);
+            //不包含close就是保持
+            return StringUtil.isEmpty(connectionValueObj) ||
+                    !HttpHeaderConstants.CLOSE.toString().equalsIgnoreCase(connectionValueObj.toString());
         } else {
-            return HttpHeaderConstants.KEEP_ALIVE.toString().equalsIgnoreCase(connection);
+            //如果协议不支持, 有keep-alive就是保持
+            return connectionValueObj != null &&
+                    HttpHeaderConstants.KEEP_ALIVE.toString().equalsIgnoreCase(connectionValueObj.toString());
         }
     }
 
@@ -66,7 +64,7 @@ public class HttpHeaderUtil {
      *     </ul></li>
      * </ul>
      */
-    public static void setKeepAlive(NettyHttpResponse message, boolean keepAlive) {
+    public static void setKeepAlive(HttpResponse message, boolean keepAlive) {
         HttpHeaders h = message.headers();
         if (message.getProtocolVersion().isKeepAliveDefault()) {
             if (keepAlive) {

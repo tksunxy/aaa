@@ -1,4 +1,5 @@
 /**
+ * 常量
  * Created by acer01 on 2018/8/12/012.
  */
 public class Constant {

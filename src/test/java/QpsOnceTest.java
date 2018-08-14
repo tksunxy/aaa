@@ -56,9 +56,9 @@ public class QpsOnceTest {
         for(int i=0; i< queryCount; i++) {
             client.post(port, host, uri).handler(httpClientResponse -> {
                 if (httpClientResponse.statusCode() == HttpResponseStatus.OK.code()) {
-                    successCount.addAndGet(1);
+                    successCount.incrementAndGet();
                 } else {
-                    errorCount.addAndGet(1);
+                    errorCount.incrementAndGet();
                     System.out.println("error = " + httpClientResponse.statusCode());
                 }
                 latch.countDown();

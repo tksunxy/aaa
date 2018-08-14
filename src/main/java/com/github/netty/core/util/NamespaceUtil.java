@@ -1,4 +1,4 @@
-package com.github.netty.util;
+package com.github.netty.core.util;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

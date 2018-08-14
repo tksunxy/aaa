@@ -1,7 +1,6 @@
 package com.github.netty.core;
 
-import com.github.netty.util.NamespaceUtil;
-import com.github.netty.util.ProxyUtil;
+import com.github.netty.core.util.NamespaceUtil;
 import io.netty.channel.ChannelException;
 
 /**
@@ -12,10 +11,10 @@ public class NioServerChannelFactory implements io.netty.bootstrap.ChannelFactor
     @Override
     public NioServerSocketChannel newChannel() {
         try {
-//            MyNioServerSocketChannel myNioServerSocketChannel = new MyNioServerSocketChannel(eventLoop,childGroup);
-            NioServerSocketChannel myNioServerSocketChannel = ProxyUtil.newProxyByCglib(NioServerSocketChannel.class,
-                    toString() + "-"+ NamespaceUtil.newIdName(this,"serverSocketChannel"),
-                    true);
+            NioServerSocketChannel myNioServerSocketChannel = new NioServerSocketChannel();
+//            NioServerSocketChannel myNioServerSocketChannel = ProxyUtil.newProxyByCglib(NioServerSocketChannel.class,
+//                    toString() + "-"+ NamespaceUtil.newIdName(this,"serverSocketChannel"),
+//                    true);
 
             return myNioServerSocketChannel;
         } catch (Throwable t) {

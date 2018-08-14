@@ -5,7 +5,7 @@ import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletFilterRegistration;
 import com.github.netty.servlet.ServletRegistration;
 import com.github.netty.servlet.support.ServletEventListenerManager;
-import com.github.netty.util.TodoOptimize;
+import com.github.netty.core.util.TodoOptimize;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;

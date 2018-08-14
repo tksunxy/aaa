@@ -1,4 +1,4 @@
-package com.github.netty.util;
+package com.github.netty.core.util;
 
 
 import java.lang.reflect.Array;
@@ -22,43 +22,6 @@ public class ObjectUtil {
     private static final String EMPTY_ARRAY = "{}";
     private static final String ARRAY_ELEMENT_SEPARATOR = ", ";
 
-    public static void checkState(boolean b, String errorMessageTemplate, Object p1, Object p2, Object p3, Object p4) {
-        if(!b) {
-            throw new IllegalStateException(format(errorMessageTemplate, new Object[]{p1, p2, p3, p4}));
-        }
-    }
-
-    public static <T> T checkNotNull(T reference) {
-        if(reference == null) {
-            throw new NullPointerException();
-        } else {
-            return reference;
-        }
-    }
-
-    public static boolean isCheckedException(Throwable ex) {
-        return !(ex instanceof RuntimeException) && !(ex instanceof Error);
-    }
-
-    public static boolean isCompatibleWithThrowsClause(Throwable ex, Class... declaredExceptions) {
-        if(!isCheckedException(ex)) {
-            return true;
-        } else {
-            if(declaredExceptions != null) {
-                Class[] var2 = declaredExceptions;
-                int var3 = declaredExceptions.length;
-
-                for(int var4 = 0; var4 < var3; ++var4) {
-                    Class declaredException = var2[var4];
-                    if(declaredException.isInstance(ex)) {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
-        }
-    }
 
     public static boolean isArray(Object obj) {
         return obj != null && obj.getClass().isArray();

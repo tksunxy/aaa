@@ -1,7 +1,7 @@
 package com.github.netty;
 
 import com.github.netty.springboot.NettyEmbeddedServletContainerFactory;
-import com.github.netty.util.ProxyUtil;
+import com.github.netty.servlet.util.ProxyUtil;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;

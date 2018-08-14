@@ -1,11 +1,10 @@
-package com.github.netty.util;
+package com.github.netty.core.util;
 
 import com.github.netty.core.NettyHttpRequest;
 import com.github.netty.core.NettyHttpResponse;
 import com.github.netty.core.constants.HttpHeaderConstants;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.*;
-import org.springframework.http.HttpStatus;
 
 import java.util.Iterator;
 import java.util.List;
@@ -153,7 +152,7 @@ public class HttpHeaderUtil {
             }
         } else if (message instanceof NettyHttpResponse) {
             NettyHttpResponse res = (NettyHttpResponse) message;
-            if (res.getStatus().code() == HttpStatus.SWITCHING_PROTOCOLS.value() &&
+            if (res.getStatus().code() == HttpResponseStatus.SWITCHING_PROTOCOLS.code() &&
                     h.contains(HttpHeaderConstants.SEC_WEBSOCKET_ORIGIN) &&
                     h.contains(HttpHeaderConstants.SEC_WEBSOCKET_LOCATION)) {
                 return 16;

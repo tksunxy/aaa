@@ -2,7 +2,8 @@ package com.github.netty.servlet.support;
 
 import com.github.netty.core.support.AbstractRecycler;
 import com.github.netty.core.support.Recyclable;
-import com.github.netty.util.TodoOptimize;
+import com.github.netty.core.util.RecyclableUtil;
+import com.github.netty.core.util.TodoOptimize;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,14 +82,16 @@ public class UrlMapper<T> {
             String pattern = urlPattern.substring(0, urlPattern.length() - 1);
             for (Element ms : urlPatternContext.wildcardObjectList) {
                 if (ms.pattern.equals(pattern)) {
-                    throwsIf("URL Pattern('" + urlPattern + "') already exists!",singlePattern);
+                    if(singlePattern) {
+                        throw new IllegalArgumentException("URL Pattern('" + urlPattern + "') already exists!");
+                    }
                 }
             }
             element = new Element(pattern, object, objectName);
             urlPatternContext.wildcardObjectList.add(element);
             urlPatternContext.wildcardObjectList.sort((o1, o2) -> o2.pattern.compareTo(o1.pattern));
             urlPatternContext.addElement(element);
-            log.debug("Curretn Wildcard URL Pattern List = " + Arrays.toString(urlPatternContext.wildcardObjectList.toArray()));
+//            log.debug("Curretn Wildcard URL Pattern List = " + Arrays.toString(urlPatternContext.wildcardObjectList.toArray()));
             return;
         }
 
@@ -96,19 +99,23 @@ public class UrlMapper<T> {
         if (urlPattern.startsWith("*.")) {
             String pattern = urlPattern.substring(2);
             if (urlPatternContext.extensionObjectMap.get(pattern) != null) {
-                throwsIf("URL Pattern('" + urlPattern + "') already exists!",singlePattern);
+                if(singlePattern) {
+                    throw new IllegalArgumentException("URL Pattern('" + urlPattern + "') already exists!");
+                }
             }
             element = new Element(pattern, object, objectName);
             urlPatternContext.extensionObjectMap.put(pattern, element);
             urlPatternContext.addElement(element);
-            log.debug("Curretn Extension URL Pattern List = " + Arrays.toString(urlPatternContext.extensionObjectMap.keySet().toArray()));
+//            log.debug("Curretn Extension URL Pattern List = " + Arrays.toString(urlPatternContext.extensionObjectMap.keySet().toArray()));
             return;
         }
 
         // Default资源匹配
-        if (urlPattern.equals("/")) {
+        if (urlPattern.length() ==1 && urlPattern.charAt(0) == '/') {
             if (urlPatternContext.defaultObject != null) {
-                throwsIf("URL Pattern('" + urlPattern + "') already exists!",singlePattern);
+                if(singlePattern) {
+                    throw new IllegalArgumentException("URL Pattern('" + urlPattern + "') already exists!");
+                }
             }
             element = new Element("", object, objectName);
             urlPatternContext.defaultObject = element;
@@ -124,12 +131,14 @@ public class UrlMapper<T> {
             pattern = urlPattern;
         }
         if (urlPatternContext.exactObjectMap.get(pattern) != null) {
-            throwsIf("URL Pattern('" + urlPattern + "') already exists!",singlePattern);
+            if(singlePattern) {
+                throw new IllegalArgumentException("URL Pattern('" + urlPattern + "') already exists!");
+            }
         }
         element = new Element(pattern, object, objectName);
         urlPatternContext.exactObjectMap.put(pattern, element);
         urlPatternContext.addElement(element);
-        log.debug("Curretn Exact URL Pattern List = " + Arrays.toString(urlPatternContext.exactObjectMap.keySet().toArray()));
+//        log.debug("Curretn Exact URL Pattern List = " + Arrays.toString(urlPatternContext.exactObjectMap.keySet().toArray()));
     }
 
     /**
@@ -146,14 +155,14 @@ public class UrlMapper<T> {
         }
 
         // 扩展名匹配
-        if (urlPattern.startsWith("*.")) {
+        if (urlPattern.length() == 2 && urlPattern.charAt(0)=='*' && urlPattern.charAt(1)=='.') {
             String pattern = urlPattern.substring(2);
             urlPatternContext.extensionObjectMap.remove(pattern);
             return;
         }
 
         // Default资源匹配
-        if (urlPattern.equals("/")) {
+        if ("/".equals(urlPattern)) {
             urlPatternContext.defaultObject = null;
             return;
         }
@@ -181,7 +190,7 @@ public class UrlMapper<T> {
     }
 
     public List<T> getMappingObjectsByUri(String absoluteUri) {
-        List<T> list = new LinkedList<>();
+        List<T> list = RecyclableUtil.newRecyclableList(10);
 
         for(Element element : urlPatternContext.totalObjectList){
             if("*".equals(element.pattern) || "/".equals(element.pattern) || "/*".equals(element.pattern) || "/**".equals(element.pattern)){
@@ -264,12 +273,6 @@ public class UrlMapper<T> {
 
         }
         return null;
-    }
-
-    private void throwsIf(String msg,boolean isThrows) throws IllegalArgumentException{
-        if(isThrows) {
-            throw new IllegalArgumentException(msg);
-        }
     }
 
     private class UrlPatternContext {

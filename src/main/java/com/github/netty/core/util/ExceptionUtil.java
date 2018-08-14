@@ -1,6 +1,5 @@
-package com.github.netty.util;
+package com.github.netty.core.util;
 
-import javax.servlet.http.HttpServletRequest;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -610,21 +609,6 @@ public class ExceptionUtil {
         PrintWriter pw = new PrintWriter(sw, true);
         throwable.printStackTrace(pw);
         return sw.getBuffer().toString();
-    }
-
-    /**
-     * 在request中获取异常类
-     * @param request
-     * @return
-     */
-    public static Throwable getThrowable(HttpServletRequest request){
-        Throwable ex = null;
-        if (request.getAttribute(STR_EXCEPTION) != null) {
-            ex = (Throwable) request.getAttribute(STR_EXCEPTION);
-        } else if (request.getAttribute(STR_JAVAX_ERROR_EXCEPTION) != null) {
-            ex = (Throwable) request.getAttribute(STR_JAVAX_ERROR_EXCEPTION);
-        }
-        return ex;
     }
 
     /**

@@ -1,7 +1,4 @@
-package com.github.netty.util;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+package com.github.netty.core.util;
 
 import java.lang.reflect.*;
 import java.util.List;
@@ -24,8 +21,6 @@ public class ReflectUtil {
 
 	private static final String CGLIB_CLASS_SEPARATOR = "$$";
 	
-	private static Logger logger = LoggerFactory.getLogger(ReflectUtil.class);
-
 	/**
 	 * 调用Getter方法.
 	 * 支持多级，如：对象名.对象名.方法
@@ -76,7 +71,7 @@ public class ReflectUtil {
 		try {
 			result = field.get(obj);
 		} catch (IllegalAccessException e) {
-			logger.error("不可能抛出的异常{}", e.getMessage());
+			e.printStackTrace();
 		}
 		return result;
 	}
@@ -92,7 +87,7 @@ public class ReflectUtil {
 		try {
 			field.set(obj, value);
 		} catch (IllegalAccessException e) {
-			logger.error("不可能抛出的异常: {}", e.getMessage());
+			e.printStackTrace();
 		}
 	}
 
@@ -300,19 +295,16 @@ public class ReflectUtil {
 		Type genType = clazz.getGenericSuperclass();
 
 		if (!(genType instanceof ParameterizedType)) {
-			logger.warn(clazz.getSimpleName() + "'s superclass not ParameterizedType");
+
 			return Object.class;
 		}
 
 		Type[] params = ((ParameterizedType) genType).getActualTypeArguments();
 
 		if (index >= params.length || index < 0) {
-			logger.warn("Index: " + index + ", Size of " + clazz.getSimpleName() + "'s Parameterized Type: "
-					+ params.length);
 			return Object.class;
 		}
 		if (!(params[index] instanceof Class)) {
-			logger.warn(clazz.getSimpleName() + " not set the actual class on superclass generic parameter");
 			return Object.class;
 		}
 

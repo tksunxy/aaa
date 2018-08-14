@@ -2,11 +2,10 @@ package com.github.netty.servlet;
 
 import com.github.netty.core.support.CompositeByteBufX;
 import com.github.netty.core.support.Wrapper;
+import com.github.netty.core.util.ByteBufferUtil;
+import com.github.netty.core.util.ExceptionUtil;
 import com.github.netty.servlet.support.ChannelInvoker;
 import com.github.netty.servlet.support.HttpServletObject;
-import com.github.netty.util.ByteBufferUtil;
-import com.github.netty.util.ExceptionUtil;
-import com.github.netty.util.ObjectUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
@@ -14,6 +13,7 @@ import io.netty.channel.ChannelFutureListener;
 import javax.servlet.WriteListener;
 import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 
@@ -45,7 +45,7 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream imple
 
     @Override
     public void setWriteListener(WriteListener writeListener) {
-        ObjectUtil.checkNotNull(writeListener);
+        Objects.requireNonNull(writeListener);
         //只能设置一次
         if(this.writeListener != null){
             return;

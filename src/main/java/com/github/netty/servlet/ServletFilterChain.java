@@ -4,7 +4,7 @@ import com.github.netty.servlet.support.ServletEventListenerManager;
 
 import javax.servlet.*;
 import java.io.IOException;
-import java.util.Iterator;
+import java.util.List;
 
 /**
  * @author 84215
@@ -15,14 +15,14 @@ public class ServletFilterChain implements FilterChain {
      * 考虑到每个请求只有一个线程处理，而且ServletContext在每次请求时都会new 一个SimpleFilterChain对象
      * 所以这里把过滤器链的Iterator作为FilterChain的私有变量，没有线程安全问题
      */
-    private final Iterator<Filter> filterIterator;
+    private final List<Filter> filterList;
     private final Servlet servlet;
-    private boolean isFirstDoFilter = false;
     private ServletContext servletContext;
+    private int pos;
 
-    public ServletFilterChain(ServletContext servletContext, Servlet servlet, Iterable<Filter> filters) throws ServletException {
+    ServletFilterChain(ServletContext servletContext, Servlet servlet, List<Filter> filterList){
         this.servletContext = servletContext;
-        this.filterIterator = filters.iterator();
+        this.filterList = filterList;
         this.servlet = servlet;
     }
 
@@ -35,17 +35,17 @@ public class ServletFilterChain implements FilterChain {
     public void doFilter(ServletRequest request, ServletResponse response) throws IOException, ServletException {
         ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
 
-        if(isFirstDoFilter){
-            isFirstDoFilter = false;
+        if(pos == 0){
             if(listenerManager.hasServletRequestListener()) {
                 listenerManager.onServletRequestInitialized(new ServletRequestEvent(servletContext,request));
             }
         }
 
-        if (filterIterator.hasNext()) {
-            Filter filter = filterIterator.next();
+        if(pos < filterList.size()){
+            Filter filter = filterList.get(pos);
+            pos++;
             filter.doFilter(request, response, this);
-        } else {
+        }else {
             try {
                 servlet.service(request, response);
             }finally {
@@ -54,6 +54,7 @@ public class ServletFilterChain implements FilterChain {
                 }
             }
         }
+
     }
 
 }

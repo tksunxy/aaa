@@ -1,4 +1,4 @@
-package com.github.netty.util;
+package com.github.netty.core.util;
 
 import java.util.*;
 
@@ -435,61 +435,6 @@ public class StringUtil {
             throw new IllegalArgumentException("Invalid time zone specification \'" + timeZoneString + "\'");
         } else {
             return timeZone;
-        }
-    }
-
-//    public static String[] addStringToArray(String[] array, String str) {
-//        if(ObjectUtil.isEmpty(array)) {
-//            return new String[]{str};
-//        } else {
-//            String[] newArr = new String[array.length + 1];
-//            System.arraycopy(array, 0, newArr, 0, array.length);
-//            newArr[array.length] = str;
-//            return newArr;
-//        }
-//    }
-
-    public static String[] concatenateStringArrays(String[] array1, String[] array2) {
-        if(ObjectUtil.isEmpty(array1)) {
-            return array2;
-        } else if(ObjectUtil.isEmpty(array2)) {
-            return array1;
-        } else {
-            String[] newArr = new String[array1.length + array2.length];
-            System.arraycopy(array1, 0, newArr, 0, array1.length);
-            System.arraycopy(array2, 0, newArr, array1.length, array2.length);
-            return newArr;
-        }
-    }
-
-    public static String[] mergeStringArrays(String[] array1, String[] array2) {
-        if(ObjectUtil.isEmpty(array1)) {
-            return array2;
-        } else if(ObjectUtil.isEmpty(array2)) {
-            return array1;
-        } else {
-            ArrayList result = new ArrayList();
-            result.addAll(Arrays.asList(array1));
-            String[] var3 = array2;
-            int var4 = array2.length;
-
-            for(int var5 = 0; var5 < var4; ++var5) {
-                String str = var3[var5];
-                if(!result.contains(str)) {
-                    result.add(str);
-                }
-            }
-
-            return toStringArray((Collection)result);
-        }
-    }
-
-    public static String[] sortStringArray(String[] array) {
-        if(ObjectUtil.isEmpty(array)) {
-            return new String[0];
-        } else {
-            Arrays.sort(array);
-            return array;
         }
     }
 

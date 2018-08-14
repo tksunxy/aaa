@@ -1,5 +1,6 @@
-package com.github.netty.util;
+package com.github.netty.servlet.util;
 
+import com.github.netty.core.util.NamespaceUtil;
 import org.springframework.cglib.core.DebuggingClassWriter;
 import org.springframework.cglib.proxy.Enhancer;
 import org.springframework.cglib.proxy.MethodInterceptor;

@@ -1,10 +1,9 @@
 package com.github.netty.core;
 
 import com.github.netty.core.support.PartialPooledByteBufAllocator;
-import com.github.netty.util.ExceptionUtil;
-import com.github.netty.util.HostUtil;
-import com.github.netty.util.NamespaceUtil;
-import com.github.netty.util.ProxyUtil;
+import com.github.netty.core.util.ExceptionUtil;
+import com.github.netty.core.util.HostUtil;
+import com.github.netty.core.util.NamespaceUtil;
 import io.netty.bootstrap.ChannelFactory;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
@@ -63,8 +62,7 @@ public abstract class AbstractNettyServer implements Runnable{
         if(enableEpoll){
             worker = new EpollEventLoopGroup(nEventLoopCount);
         }else {
-            NioEventLoopWorkerGroup jdkWorker = new NioEventLoopWorkerGroup(nEventLoopCount);
-            worker = ProxyUtil.newProxyByJdk(jdkWorker, jdkWorker.toString(), true);
+            worker = new NioEventLoopWorkerGroup(nEventLoopCount);
         }
         return worker;
     }
@@ -78,7 +76,7 @@ public abstract class AbstractNettyServer implements Runnable{
         }else {
             NioEventLoopBossGroup jdkBoss = new NioEventLoopBossGroup(1);
             jdkBoss.setIoRatio(100);
-            boss = ProxyUtil.newProxyByJdk(jdkBoss, jdkBoss.toString(), true);
+            boss = jdkBoss;
         }
         return boss;
     }
@@ -88,9 +86,7 @@ public abstract class AbstractNettyServer implements Runnable{
         if(enableEpoll){
             channelFactory = EpollServerSocketChannel::new;
         }else {
-            ChannelFactory<NioServerSocketChannel> serverChannelFactory = new NioServerChannelFactory();
-
-            channelFactory = ProxyUtil.newProxyByJdk(serverChannelFactory, serverChannelFactory.toString(), true);
+            channelFactory = new NioServerChannelFactory();
         }
         return channelFactory;
     }

@@ -1,14 +1,13 @@
 package com.github.netty.servlet;
 
 import com.github.netty.servlet.support.ServletEventListenerManager;
-import com.github.netty.util.ObjectUtil;
 
 import javax.servlet.http.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.github.netty.util.ObjectUtil.NULL;
+import static com.github.netty.core.util.ObjectUtil.NULL;
 
 /**
  * Created by acer01 on 2018/7/15/015.
@@ -104,7 +103,7 @@ public class ServletHttpSession implements HttpSession{
 
     @Override
     public void setAttribute(String name, Object value) {
-        ObjectUtil.checkNotNull(name);
+        Objects.requireNonNull(name);
 
         if(value == null){
             removeValue(name);

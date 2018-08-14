@@ -9,8 +9,8 @@ import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletHttpServletResponse;
 import com.github.netty.servlet.ServletRequestDispatcher;
 import com.github.netty.servlet.support.HttpServletObject;
-import com.github.netty.util.ExceptionUtil;
-import com.github.netty.util.HttpHeaderUtil;
+import com.github.netty.core.util.ExceptionUtil;
+import com.github.netty.core.util.HttpHeaderUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
@@ -89,20 +89,6 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
         };
     }
 
-    /**
-     * 加spring业务的代码
-     * @param context
-     * @param fullHttpRequest
-     * @return
-     */
-    private Runnable newTask(ChannelHandlerContext context,FullHttpRequest fullHttpRequest){
-
-
-        Runnable task = () -> {
-
-        };
-        return task;
-    }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
@@ -143,7 +129,7 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
             ServletHttpServletResponse httpServletResponse = httpServletObject.getHttpServletResponse();
 
             try {
-                long beginTime = System.currentTimeMillis();
+//                long beginTime = System.currentTimeMillis();
                 ServletRequestDispatcher dispatcher = httpServletRequest.getRequestDispatcher(httpServletRequest.getRequestURI());
                 if (dispatcher == null) {
                     httpServletResponse.sendError(HttpServletResponse.SC_NOT_FOUND);
@@ -151,10 +137,10 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
                 }
                 dispatcher.dispatch(httpServletRequest, httpServletResponse, DispatcherType.REQUEST);
 
-                long totalTime = System.currentTimeMillis() - beginTime;
-                if(totalTime > 10) {
-                    System.out.println("-" + (totalTime)+" 请求耗时");
-                }
+//                long totalTime = System.currentTimeMillis() - beginTime;
+//                if(totalTime > 10) {
+//                    System.out.println("-" + (totalTime)+" 请求耗时");
+//                }
             }catch (Throwable throwable){
                 ExceptionUtil.printRootCauseStackTrace(throwable);
             }finally {

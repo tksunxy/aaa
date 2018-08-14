@@ -1,12 +1,9 @@
 package com.github.netty.servlet;
 
 import com.github.netty.core.constants.HttpConstants;
+import com.github.netty.core.util.*;
 import com.github.netty.servlet.support.ServletEventListenerManager;
 import com.github.netty.servlet.support.UrlMapper;
-import com.github.netty.util.MimeTypeUtil;
-import com.github.netty.util.NamespaceUtil;
-import com.github.netty.util.ObjectUtil;
-import com.github.netty.util.TypeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -141,7 +138,8 @@ public class ServletContext implements javax.servlet.ServletContext {
     }
 
     private List<Filter> matchFilterByName(String servletName){
-        List<Filter> allNeedFilters = new ArrayList<>();
+        List<Filter> allNeedFilters = RecyclableUtil.newRecyclableList(10);
+
         for (ServletFilterRegistration registration : filterRegistrationMap.values()) {
             for(String name : registration.getServletNameMappings()){
                 if(servletName.equals(name)){
@@ -360,7 +358,7 @@ public class ServletContext implements javax.servlet.ServletContext {
 
     @Override
     public void setAttribute(String name, Object object) {
-        ObjectUtil.checkNotNull(name);
+        Objects.requireNonNull(name);
 
         if(object == null){
             removeAttribute(name);
@@ -528,7 +526,7 @@ public class ServletContext implements javax.servlet.ServletContext {
 
     @Override
     public <T extends EventListener> void addListener(T listener) {
-        ObjectUtil.checkNotNull(listener);
+        Objects.requireNonNull(listener);
 
         ServletEventListenerManager listenerManager = getServletEventListenerManager();
         if(listener instanceof ServletContextAttributeListener){

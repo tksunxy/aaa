@@ -1,6 +1,6 @@
 package com.github.netty.core;
 
-import com.github.netty.util.NamespaceUtil;
+import com.github.netty.core.util.NamespaceUtil;
 import io.netty.channel.nio.NioEventLoopGroup;
 
 /**

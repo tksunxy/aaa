@@ -1,7 +1,6 @@
 package com.github.netty.servlet;
 
 import com.github.netty.core.support.Wrapper;
-import com.github.netty.util.ObjectUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCountUtil;
 
@@ -36,7 +35,7 @@ public class ServletInputStream extends javax.servlet.ServletInputStream impleme
 
     @Override
     public int readLine(byte[] b, int off, int len) throws IOException {
-        ObjectUtil.checkNotNull(b);
+        Objects.requireNonNull(b);
         return super.readLine(b, off, len); //模板方法，会调用当前类实现的read()方法
     }
 
@@ -62,7 +61,7 @@ public class ServletInputStream extends javax.servlet.ServletInputStream impleme
     @Override
     public void setReadListener(ReadListener readListener) {
         checkNotClosed();
-        ObjectUtil.checkNotNull(readListener);
+        Objects.requireNonNull(readListener);
         this.readListener = readListener;
     }
 
@@ -101,7 +100,7 @@ public class ServletInputStream extends javax.servlet.ServletInputStream impleme
      */
     @Override
     public int read(byte[] b, int off, int len) throws IOException {
-        ObjectUtil.checkNotNull(b);
+        Objects.requireNonNull(b);
         if (0 == len) {
             return 0;
         }

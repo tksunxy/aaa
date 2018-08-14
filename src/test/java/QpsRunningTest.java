@@ -18,8 +18,8 @@ public class QpsRunningTest {
     int queryCount = 10000;//===========一次qps任务的调用次数=================
     int waitTime = 10;//===========一次qps任务的等待时间(秒)=================
 
-    static final long reportPrintTime = 2;//===========qps统计间隔时间(秒)=================
-    static final long onceSleep = 500;//===========下次调用qps任务的暂停时间(毫秒)=================
+    static final long reportPrintTime = 5;//===========qps统计间隔时间(秒)=================
+    static final long onceSleep = 300;//===========下次调用qps任务的暂停时间(毫秒)=================
 
     AtomicInteger successCount = new AtomicInteger();
     AtomicInteger errorCount = new AtomicInteger();
@@ -94,7 +94,7 @@ public class QpsRunningTest {
             System.err.println(
                     "===============================\r\n"+
                             "第("+printCount.incrementAndGet()+")次统计, "+
-                            "时间 = " + totalTime + "毫秒["+(totalTime/1000/60)+"分钟], " +
+                            "时间 = " + totalTime + "毫秒["+(totalTime/60000)+"分"+((totalTime % 60000 ) / 1000)+"秒], " +
                             "成功 = " + successCount + ", " +
                             "失败 = " + errorCount + ", " +
                             "qps = " + new BigDecimal((double) successCount/(double) totalTime * 1000).setScale(2,BigDecimal.ROUND_HALF_DOWN)

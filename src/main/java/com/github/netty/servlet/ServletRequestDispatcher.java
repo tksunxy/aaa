@@ -2,7 +2,7 @@ package com.github.netty.servlet;
 
 import com.github.netty.core.support.AbstractRecycler;
 import com.github.netty.core.support.Recyclable;
-import com.github.netty.util.TodoOptimize;
+import com.github.netty.core.util.TodoOptimize;
 
 import javax.servlet.*;
 import javax.servlet.http.HttpServletRequest;

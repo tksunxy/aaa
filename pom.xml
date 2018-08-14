@@ -109,6 +109,11 @@
         <!-- 测试用的,用作客户端 => https://mvnrepository.com/artifact/io.vertx/vertx-web -->
         <dependency>
             <groupId>io.vertx</groupId>
+            <artifactId>vertx-core</artifactId>
+            <version>3.5.3</version>
+        </dependency>
+        <dependency>
+            <groupId>io.vertx</groupId>
             <artifactId>vertx-web</artifactId>
             <version>3.5.3</version>
         </dependency>

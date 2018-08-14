@@ -10,9 +10,9 @@ import com.github.netty.core.support.Recyclable;
 import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletHttpServletResponse;
 import com.github.netty.servlet.ServletHttpSession;
-import com.github.netty.util.ExceptionUtil;
-import com.github.netty.util.HttpHeaderUtil;
-import com.github.netty.util.ServletUtil;
+import com.github.netty.core.util.ExceptionUtil;
+import com.github.netty.core.util.HttpHeaderUtil;
+import com.github.netty.servlet.util.ServletUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -23,7 +23,6 @@ import io.netty.handler.codec.http.HttpHeaders;
 
 import javax.servlet.http.Cookie;
 import java.util.List;
-import java.util.StringJoiner;
 
 /**
  *
@@ -31,6 +30,9 @@ import java.util.StringJoiner;
  *  2018/7/28/028
  */
 public class ChannelInvoker {
+
+    private static final StringBuilder SESSION_COOKIE_1 = new StringBuilder(HttpConstants.JSESSION_ID_COOKIE + "=");
+    private static final StringBuilder SESSION_COOKIE_2 = new StringBuilder(";" + HttpHeaderConstants.PATH + "=/;" + HttpHeaderConstants.HTTPONLY);
 
     public void writeAndReleaseFlushAndIfNeedClose(HttpServletObject httpServletObject, ByteBuf content, ChannelFutureListener[] finishListeners) {
         ChannelHandlerContext context = httpServletObject.getChannelHandlerContext();
@@ -83,7 +85,13 @@ public class ChannelInvoker {
         HttpHeaders headers = nettyResponse.headers();
         if (null != contentType) {
             //Content Type 响应头的内容
-            String value = (null == characterEncoding) ? contentType : contentType + "; "+HttpHeaderConstants.CHARSET+"=" + characterEncoding;
+            String value = (null == characterEncoding) ? contentType :
+                    new StringBuilder(contentType)
+                            .append(';')
+                            .append(HttpHeaderConstants.CHARSET)
+                            .append('=')
+                            .append(characterEncoding).toString();
+
             headers.set(HttpHeaderConstants.CONTENT_TYPE, value);
         }
         // 时间日期响应头
@@ -96,23 +104,8 @@ public class ChannelInvoker {
         //先处理Session ，如果是新Session 或 session失效 需要通过Cookie写入
         ServletHttpSession httpSession = servletRequest.getSession(true);
         if (httpSession.isNew()) {
-            StringJoiner cookieStrJoiner = new StringJoiner(";");
-            cookieStrJoiner.add(HttpConstants.JSESSION_ID_COOKIE + "=" + servletRequest.getRequestedSessionId());
-            cookieStrJoiner.add(HttpHeaderConstants.PATH + "=/");
-            cookieStrJoiner.add(HttpHeaderConstants.HTTPONLY);
-//            cookieStrJoiner.add("Secure");
-//            cookieStrJoiner.add("Expires=-1");
-//
-//            String serverName = servletRequest.getServerName();
-//            int port = servletRequest.getServerPort();
-//            if(!ServletUtil.isLocalhost(serverName)){
-//                if (port != HttpConstants.HTTP_PORT && port != HttpConstants.HTTPS_PORT) {
-//                    serverName+= ":" + port;
-//                }
-//                cookieStrJoiner.add("Domain=" + serverName);
-//            }
-
-            headers.add(HttpHeaderConstants.SET_COOKIE, cookieStrJoiner.toString());
+            String cookieStr = new StringBuilder(SESSION_COOKIE_1).append(servletRequest.getRequestedSessionId()).append(SESSION_COOKIE_2).toString();
+            headers.add(HttpHeaderConstants.SET_COOKIE, cookieStr);
         }
 
         //其他业务或框架设置的cookie，逐条写入到响应头去
@@ -120,9 +113,6 @@ public class ChannelInvoker {
             NettyHttpCookie nettyCookie = new NettyHttpCookie();
             for (Cookie cookie : cookies) {
                 nettyCookie.wrap(ServletUtil.toNettyCookie(cookie));
-                if(cookie == null){
-                    continue;
-                }
                 headers.add(HttpHeaderConstants.SET_COOKIE, ServletUtil.encodeCookie(nettyCookie));
             }
         }

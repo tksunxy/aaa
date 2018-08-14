@@ -1,4 +1,4 @@
-package com.github.netty.util;
+package com.github.netty.core.util;
 
 /**
  * Created by acer01 on 2018/7/15/015.

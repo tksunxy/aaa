@@ -3,11 +3,15 @@ package com.github.netty.servlet;
 import com.github.netty.core.NettyHttpRequest;
 import com.github.netty.core.constants.HttpConstants;
 import com.github.netty.core.constants.HttpHeaderConstants;
-import com.github.netty.core.support.Recyclable;
 import com.github.netty.core.support.AbstractRecycler;
+import com.github.netty.core.support.Recyclable;
+import com.github.netty.core.util.HttpHeaderUtil;
+import com.github.netty.core.util.StringUtil;
+import com.github.netty.core.util.TodoOptimize;
 import com.github.netty.servlet.support.HttpServletObject;
 import com.github.netty.servlet.support.ServletEventListenerManager;
-import com.github.netty.util.*;
+import com.github.netty.servlet.util.ProxyUtil;
+import com.github.netty.servlet.util.ServletUtil;
 import io.netty.handler.codec.http.HttpHeaders;
 
 import javax.servlet.*;
@@ -26,7 +30,7 @@ import java.security.Principal;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static com.github.netty.util.ObjectUtil.NULL;
+import static com.github.netty.core.util.ObjectUtil.NULL;
 
 /**
  *
@@ -48,7 +52,6 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         }
     };
 
-    public static final boolean ASYNC_SUPPORTED_FLAG = true;
     public static final String DISPATCHER_TYPE = ServletRequestDispatcher.class.getName().concat(".DISPATCHER_TYPE");
 
     private HttpServletObject httpServletObject;
@@ -66,7 +69,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     private String sessionId;
     private int sessionIdSource;
 
-    private boolean parsePathsFlag = false;
+    private boolean decodePathsFlag = false;
     private boolean decodeCookieFlag = false;
     private boolean decodeParameterByUrlFlag = false;
     private boolean decodeParameterByBodyFlag = false;
@@ -163,15 +166,11 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     }
 
     @TodoOptimize("加上pathInfo")
-    private void checkAndParsePaths(){
-        if(parsePathsFlag){
-            return;
-        }
-
+    private void decodePaths(){
         ServletContext servletContext = getServletContext();
         String servletPath = nettyRequest.uri().replace(servletContext.getContextPath(), "");
-        if (!servletPath.startsWith("/")) {
-            servletPath = "/" + servletPath;
+        if (servletPath.isEmpty() || servletPath.charAt(0)!= '/') {
+            servletPath = '/' + servletPath;
         }
         int queryInx = servletPath.indexOf('?');
         if (queryInx > -1) {
@@ -184,7 +183,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         // 1.加上pathInfo
         this.pathInfo = null;
 
-        parsePathsFlag = true;
+        this.decodePathsFlag = true;
     }
 
     private String newSessionId(){
@@ -306,19 +305,28 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     @TodoOptimize("ServletPath和PathInfo应该是互补的，根据URL-Pattern匹配的路径不同而不同")
     @Override
     public String getPathInfo() {
-        checkAndParsePaths();
+        if(!decodePathsFlag){
+            decodePaths();
+        }
+
         return this.pathInfo;
     }
 
     @Override
     public String getQueryString() {
-        checkAndParsePaths();
+        if(!decodePathsFlag){
+            decodePaths();
+        }
+
         return this.queryString;
     }
 
     @Override
     public String getRequestURI() {
-        checkAndParsePaths();
+        if(!decodePathsFlag){
+            decodePaths();
+        }
+
         return this.requestUri;
     }
 
@@ -329,7 +337,10 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
      */
     @Override
     public String getServletPath() {
-        checkAndParsePaths();
+        if(!decodePathsFlag){
+            decodePaths();
+        }
+
         return this.servletPath;
     }
 
@@ -625,7 +636,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public void setAttribute(String name, Object object) {
-        ObjectUtil.checkNotNull(name);
+        Objects.requireNonNull(name);
 
         if(object == null){
             removeAttribute(name);
@@ -821,7 +832,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         this.decodeParameterByUrlFlag = false;
         this.decodeParameterByBodyFlag = false;
         this.decodeCookieFlag = false;
-        this.parsePathsFlag = false;
+        this.decodePathsFlag = false;
         this.sessionIdSource = 0;
         this.scheme = null;
         this.servletPath = null;

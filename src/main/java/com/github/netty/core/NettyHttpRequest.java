@@ -4,7 +4,7 @@ import com.github.netty.core.constants.VersionConstants;
 import com.github.netty.core.support.AbstractRecycler;
 import com.github.netty.core.support.Recyclable;
 import com.github.netty.core.support.Wrapper;
-import com.github.netty.util.ReflectUtil;
+import com.github.netty.core.util.ReflectUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.http.*;
@@ -41,9 +41,7 @@ public class NettyHttpRequest implements FullHttpRequest,Wrapper<FullHttpRequest
     private List<Method> touch1MethodList;
     private List<Method> copyMethodList;
 
-    protected NettyHttpRequest() {
-
-    }
+    protected NettyHttpRequest() {}
 
     public static NettyHttpRequest newInstance(FullHttpRequest source) {
         Objects.requireNonNull(source);

@@ -1,11 +1,10 @@
-package com.github.netty.util;
+package com.github.netty.core.util;
 
 import com.github.netty.core.constants.HttpHeaderConstants;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.DefaultCookie;
 import io.netty.handler.codec.http.HttpConstants;
 import io.netty.handler.codec.http.HttpHeaderDateFormat;
-import io.netty.util.internal.InternalThreadLocalMap;
 
 import java.util.Collections;
 import java.util.Date;
@@ -199,7 +198,7 @@ public class CookieCodecUtil {
 
 
     static StringBuilder stringBuilder() {
-        return InternalThreadLocalMap.get().stringBuilder();
+        return RecyclableUtil.newStringBuilder();
     }
 
     /**

@@ -278,7 +278,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         String scheme = getScheme();
         int port = getServerPort();
         if (port < 0){
-            port = 80; // Work around java.net.URL bug
+            port = HttpConstants.HTTP_PORT;
         }
 
         url.append(scheme);

@@ -659,9 +659,10 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     public void removeAttribute(String name) {
         Object oldObject = getAttributeMap().remove(name);
 
-        ServletEventListenerManager listenerManager = getServletContext().getServletEventListenerManager();
+        ServletContext servletContext = getServletContext();
+        ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
         if(listenerManager.hasServletRequestAttributeListener()){
-            listenerManager.onServletRequestAttributeRemoved(new ServletRequestAttributeEvent(getServletContext(),this,name,oldObject == NULL?null:oldObject));
+            listenerManager.onServletRequestAttributeRemoved(new ServletRequestAttributeEvent(servletContext,this,name,oldObject == NULL?null:oldObject));
         }
     }
 

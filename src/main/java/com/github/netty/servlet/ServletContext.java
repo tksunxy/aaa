@@ -147,7 +147,7 @@ public class ServletContext implements javax.servlet.ServletContext {
                     if (sessionService == null) {
                         sessionService = new SessionServiceImpl();
                     }
-                    logger.info("SessionService using ["+sessionService+"]");
+                    logger.info(SessionService.class.getSimpleName()+" using ["+sessionService+"]");
                 }
             }
         }

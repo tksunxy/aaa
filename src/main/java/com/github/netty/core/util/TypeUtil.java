@@ -534,6 +534,19 @@ public class TypeUtil {
         return null;
     }
 
+    public static int castToInt(Object value,int def) {
+        Integer ret;
+        try {
+            ret = castToInt(value);
+            if(ret != null){
+                return ret;
+            }
+        }catch (Exception e){
+            //
+        }
+        return def;
+    }
+
     public static Integer castToInt(Object value) {
         if (value == null) {
             return null;

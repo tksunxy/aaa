@@ -15,7 +15,7 @@ import java.io.IOException;
  */
 public class ServletRequestDispatcher implements RequestDispatcher,Recyclable {
 
-    FilterChain filterChain;
+    private FilterChain filterChain;
 
     private static final AbstractRecycler<ServletRequestDispatcher> RECYCLER = new AbstractRecycler<ServletRequestDispatcher>() {
         @Override

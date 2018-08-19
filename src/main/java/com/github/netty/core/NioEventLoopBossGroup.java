@@ -8,6 +8,8 @@ import io.netty.channel.nio.NioEventLoopGroup;
  */
 public class NioEventLoopBossGroup extends NioEventLoopGroup {
 
+    private String name = NamespaceUtil.newIdName(getClass());
+
     public NioEventLoopBossGroup() {
         super();
     }
@@ -26,7 +28,7 @@ public class NioEventLoopBossGroup extends NioEventLoopGroup {
 
     @Override
     public String toString() {
-        return NamespaceUtil.getIdNameClass(this,"boos");
+        return name;
     }
 
 

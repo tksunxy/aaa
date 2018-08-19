@@ -62,7 +62,7 @@ public class ProxyUtil {
     }
 
     public static <T>T newProxyByCglib(Class<T> sourceClass){
-        String logName = NamespaceUtil.getIdNameClass(sourceClass,sourceClass.getSimpleName());
+        String logName = NamespaceUtil.newIdName(sourceClass);
         return newProxyByCglib(sourceClass,logName, true,new Class[]{},new Object[]{});
     }
 

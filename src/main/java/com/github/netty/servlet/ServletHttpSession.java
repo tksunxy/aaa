@@ -1,18 +1,19 @@
 package com.github.netty.servlet;
 
+import com.github.netty.core.support.Recyclable;
+import com.github.netty.core.support.Wrapper;
 import com.github.netty.servlet.support.ServletEventListenerManager;
+import com.github.netty.session.Session;
 
 import javax.servlet.http.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.github.netty.core.util.ObjectUtil.NULL;
-
 /**
  * Created by acer01 on 2018/7/15/015.
  */
-public class ServletHttpSession implements HttpSession{
+public class ServletHttpSession implements HttpSession,Wrapper<Session>,Recyclable{
 
     private ServletContext servletContext;
     private String id;
@@ -22,20 +23,24 @@ public class ServletHttpSession implements HttpSession{
     private long currAccessedTime;
     private long lastAccessedTime;
     //单位 秒
-    private volatile int maxInactiveInterval;
-    private volatile boolean newSessionFlag;
-    private transient AtomicInteger accessCount;
+    private int maxInactiveInterval;
+    private boolean newSessionFlag;
+    private AtomicInteger accessCount;
 
     private List<HttpSessionBindingListener> httpSessionBindingListenerList;
 
-    ServletHttpSession(String id, ServletContext servletContext, ServletSessionCookieConfig sessionCookieConfig) {
-        this.id = id;
+    private Session source;
+
+    ServletHttpSession() {
+
+    }
+
+    public void setServletContext(ServletContext servletContext) {
         this.servletContext = servletContext;
-        this.attributeMap = null;
-        this.creationTime = System.currentTimeMillis();
-        this.newSessionFlag = true;
-        this.maxInactiveInterval = sessionCookieConfig.getSessionTimeout();
-        this.accessCount = new AtomicInteger(0);
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
 
     private Map<String, Object> getAttributeMap() {
@@ -83,7 +88,7 @@ public class ServletHttpSession implements HttpSession{
     @Override
     public Object getAttribute(String name) {
         Object value = getAttributeMap().get(name);
-        return value == NULL? null: value;
+        return value;
     }
 
     @Override
@@ -186,20 +191,13 @@ public class ServletHttpSession implements HttpSession{
             listenerManager.onHttpSessionDestroyed(new HttpSessionEvent(this));
         }
 
-        servletContext.getHttpSessionMap().remove(id);
+//        servletContext.getSessionClient().remove(id);
         if(attributeMap != null) {
             attributeMap.clear();
             attributeMap = null;
         }
         servletContext = null;
         maxInactiveInterval = -1;
-    }
-
-    public void init() {
-        ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
-        if(listenerManager.hasHttpSessionListener()){
-            listenerManager.onHttpSessionCreated(new HttpSessionEvent(this));
-        }
     }
 
     @Override
@@ -212,17 +210,73 @@ public class ServletHttpSession implements HttpSession{
      * @return true 有效, false无效
      */
     public boolean isValid() {
-        return System.currentTimeMillis() < (creationTime + (maxInactiveInterval * 1000));
+        return id != null && System.currentTimeMillis() < (creationTime + (maxInactiveInterval * 1000));
     }
 
     public void setNewSessionFlag(boolean newSessionFlag) {
         this.newSessionFlag = newSessionFlag;
+
+        if(newSessionFlag){
+            ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
+            if(listenerManager.hasHttpSessionListener()){
+                listenerManager.onHttpSessionCreated(new HttpSessionEvent(this));
+            }
+        }
     }
 
     public ServletHttpSession access(){
-        lastAccessedTime = currAccessedTime = System.currentTimeMillis();
+        currAccessedTime = System.currentTimeMillis();
+        lastAccessedTime = currAccessedTime;
         accessCount.incrementAndGet();
         return this;
+    }
+
+    @Override
+    public void wrap(Session source) {
+        this.source = source;
+
+        this.id = source.getId();
+        this.attributeMap = source.getAttributeMap();
+        this.creationTime = source.getCreationTime();
+        this.lastAccessedTime = source.getLastAccessedTime();
+        //单位 秒
+        this.maxInactiveInterval = source.getMaxInactiveInterval();
+        this.accessCount = new AtomicInteger(source.getAccessCount());
+
+        if(attributeMap != null) {
+            for (Object value : attributeMap.values()) {
+                if(!(value instanceof HttpSessionBindingListener)){
+                    continue;
+                }
+
+                if(httpSessionBindingListenerList == null){
+                    httpSessionBindingListenerList = new ArrayList<>();
+                }
+                httpSessionBindingListenerList.add((HttpSessionBindingListener) value);
+            }
+        }
+    }
+
+    @Override
+    public Session unwrap() {
+        source.setId(id);
+        source.setCreationTime(creationTime);
+        source.setLastAccessedTime(lastAccessedTime);
+
+        source.setAccessCount(accessCount.get());
+        source.setMaxInactiveInterval(maxInactiveInterval);
+        source.setAttributeMap(attributeMap);
+        return source;
+    }
+
+    @Override
+    public void recycle() {
+        this.id = null;
+        this.attributeMap = null;
+        this.creationTime = 0;
+        this.lastAccessedTime = 0;
+        this.maxInactiveInterval = 0;
+        this.accessCount = null;
     }
 
 }

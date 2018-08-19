@@ -81,8 +81,8 @@ public class HttpServletObject implements Recyclable{
         return channelHandlerContext;
     }
 
-    public InetSocketAddress getServerSocketAddress(){
-        return servletContext.getServerSocketAddress();
+    public InetSocketAddress getServletServerAddress(){
+        return servletContext.getServletServerAddress();
     }
 
     public InetSocketAddress getLocalAddress(){

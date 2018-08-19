@@ -8,6 +8,8 @@ import io.netty.channel.ChannelException;
  */
 public class NioServerChannelFactory implements io.netty.bootstrap.ChannelFactory<NioServerSocketChannel>  {
 
+    private String name = NamespaceUtil.newIdName(getClass());
+
     @Override
     public NioServerSocketChannel newChannel() {
         try {
@@ -24,7 +26,7 @@ public class NioServerChannelFactory implements io.netty.bootstrap.ChannelFactor
 
     @Override
     public String toString() {
-        return NamespaceUtil.getIdNameClass(this,getClass().getSimpleName());
+        return name;
     }
 
 }

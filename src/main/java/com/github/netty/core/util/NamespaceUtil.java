@@ -26,6 +26,10 @@ public class NamespaceUtil {
         return getDefaultNamespace().getIdName(obj,name);
     }
 
+    public static String newIdName(Class obj){
+        return getDefaultNamespace().newIdName(obj,obj.getSimpleName());
+    }
+
     public static String getIdNameClass(Object obj,String name){
         return getDefaultNamespace().getIdNameClass(obj,name);
     }
@@ -98,8 +102,11 @@ public class NamespaceUtil {
             AtomicInteger atomicInteger = idIncrMap.get(obj);
             if (atomicInteger == null) {
                 synchronized (idIncrMap) {
-                    atomicInteger = new AtomicInteger(0);
-                    idIncrMap.put(obj, atomicInteger);
+                    atomicInteger = idIncrMap.get(obj);
+                    if (atomicInteger == null) {
+                        atomicInteger = new AtomicInteger(0);
+                        idIncrMap.put(obj, atomicInteger);
+                    }
                 }
             }
             return atomicInteger.incrementAndGet();

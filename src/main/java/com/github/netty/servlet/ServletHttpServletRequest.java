@@ -12,6 +12,8 @@ import com.github.netty.servlet.support.HttpServletObject;
 import com.github.netty.servlet.support.ServletEventListenerManager;
 import com.github.netty.servlet.util.ProxyUtil;
 import com.github.netty.servlet.util.ServletUtil;
+import com.github.netty.session.Session;
+import com.github.netty.session.SessionService;
 import io.netty.handler.codec.http.HttpHeaders;
 
 import javax.servlet.*;
@@ -29,8 +31,6 @@ import java.nio.charset.Charset;
 import java.security.Principal;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-
-import static com.github.netty.core.util.ObjectUtil.NULL;
 
 /**
  *
@@ -57,7 +57,6 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     private HttpServletObject httpServletObject;
     private NettyHttpRequest nettyRequest;
     private HttpHeaders nettyHeaders;
-    private ServletHttpSession httpSession;
     private ServletAsyncContext asyncContext;
 
     private String scheme;
@@ -74,6 +73,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     private boolean decodeParameterByUrlFlag = false;
     private boolean decodeParameterByBodyFlag = false;
 
+    private ServletHttpSession httpSession = new ServletHttpSession();
     private ServletInputStream inputStream = new ServletInputStream();
     private Map<String,Object> attributeMap = new ConcurrentHashMap<>(16);
     private Map<String,String[]> parameterMap;
@@ -91,6 +91,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         instance.nettyRequest = nettyRequest;
         instance.nettyHeaders = nettyRequest.headers();
         instance.inputStream.wrap(nettyRequest.content());
+        instance.httpSession.setServletContext(httpServletObject.getServletContext());
         return instance;
     }
 
@@ -188,14 +189,6 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     private String newSessionId(){
         return UUID.randomUUID().toString().replace("-","");
-    }
-
-    private ServletHttpSession newHttpSession(String sessionId){
-        ServletContext servletContext = getServletContext();
-        ServletHttpSession session = new ServletHttpSession(sessionId, servletContext, servletContext.getSessionCookieConfig());
-        session.access();
-        session.init();
-        return session;
     }
 
     @Override
@@ -397,28 +390,37 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public ServletHttpSession getSession(boolean create) {
-        if(httpSession != null && httpSession.isValid()){
+        if(httpSession.isValid()){
             return httpSession;
         }
 
         String sessionId = getRequestedSessionId();
-        Map<String,ServletHttpSession> sessionMap = getServletContext().getHttpSessionMap();
-        ServletHttpSession session = sessionMap.get(sessionId);
-        if(session == null){
-            if(create) {
-                session = newHttpSession(sessionId);
-//                if(isRequestedSessionIdValid()) {
-                    sessionMap.put(sessionId, session);
-//                }
-            }
-        }else {
-            session.access().setNewSessionFlag(false);
+        ServletContext servletContext = getServletContext();
+        SessionService sessionService = servletContext.getSessionService();
+        Session session = sessionService.getSession(sessionId);
+
+        if(session != null){
+            httpSession.wrap(session);
+            httpSession.access();
+            httpSession.setNewSessionFlag(false);
+            return httpSession;
         }
 
-        this.httpSession = session;
-        return session;
-    }
+        if(!create) {
+            return null;
+        }
 
+        long currTime = System.currentTimeMillis();
+        session = new Session(sessionId);
+        session.setCreationTime(currTime);
+        session.setLastAccessedTime(currTime);
+        session.setMaxInactiveInterval(servletContext.getSessionCookieConfig().getSessionTimeout());
+
+        httpSession.wrap(session);
+        httpSession.access();
+        httpSession.setNewSessionFlag(true);
+        return httpSession;
+    }
 
     @Override
     public ServletHttpSession getSession() {
@@ -432,11 +434,10 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         String newSessionId = newSessionId();
         ServletContext servletContext = getServletContext();
 
-        Map<String,ServletHttpSession> httpSessionMap = servletContext.getHttpSessionMap();
-        if(StringUtil.isNotEmpty(oldSessionId)) {
-            httpSessionMap.put(newSessionId, httpSessionMap.remove(oldSessionId));
-        }
+        servletContext.getSessionService().changeSessionId(oldSessionId,newSessionId);
+
         sessionId = newSessionId;
+        httpSession.setId(sessionId);
 
         ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
         if(listenerManager.hasHttpSessionIdListener()){
@@ -498,7 +499,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     public Object getAttribute(String name) {
         Object value = getAttributeMap().get(name);
 
-        return value == NULL? null:value;
+        return value;
     }
 
     @Override
@@ -595,7 +596,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public int getServerPort() {
-        return httpServletObject.getServerSocketAddress().getPort();
+        return httpServletObject.getServletServerAddress().getPort();
     }
 
     @Override
@@ -650,7 +651,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         if(listenerManager.hasServletRequestAttributeListener()){
             listenerManager.onServletRequestAttributeAdded(new ServletRequestAttributeEvent(servletContext,this,name,object));
             if(oldObject != null){
-                listenerManager.onServletRequestAttributeReplaced(new ServletRequestAttributeEvent(servletContext,this,name,oldObject == NULL?null:oldObject));
+                listenerManager.onServletRequestAttributeReplaced(new ServletRequestAttributeEvent(servletContext,this,name,oldObject));
             }
         }
     }
@@ -662,7 +663,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         ServletContext servletContext = getServletContext();
         ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
         if(listenerManager.hasServletRequestAttributeListener()){
-            listenerManager.onServletRequestAttributeRemoved(new ServletRequestAttributeEvent(servletContext,this,name,oldObject == NULL?null:oldObject));
+            listenerManager.onServletRequestAttributeRemoved(new ServletRequestAttributeEvent(servletContext,this,name,oldObject));
         }
     }
 
@@ -708,17 +709,17 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String getLocalName() {
-        return getServletContext().getServerSocketAddress().getHostName();
+        return getServletContext().getServletServerAddress().getHostName();
     }
 
     @Override
     public String getLocalAddr() {
-        return getServletContext().getServerSocketAddress().getAddress().getHostAddress();
+        return getServletContext().getServletServerAddress().getAddress().getHostAddress();
     }
 
     @Override
     public int getLocalPort() {
-        return getServletContext().getServerSocketAddress().getPort();
+        return getServletContext().getServletServerAddress().getPort();
     }
 
     @Override
@@ -828,6 +829,10 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
             }
         }
 
+        SessionService sessionService = getServletContext().getSessionService();
+        sessionService.saveSession(httpSession.unwrap());
+
+        this.httpSession.recycle();
         this.nettyRequest.recycle();
 
         this.decodeParameterByUrlFlag = false;
@@ -845,7 +850,6 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         this.parameterMap = null;
         this.cookies = null;
         this.locale = null;
-        this.httpSession = null;
         this.asyncContext = null;
         this.nettyRequest = null;
         this.nettyHeaders = null;

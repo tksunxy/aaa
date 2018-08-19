@@ -8,6 +8,8 @@ import io.netty.channel.nio.NioEventLoopGroup;
  */
 public class NioEventLoopWorkerGroup extends NioEventLoopGroup {
 
+    private String name = NamespaceUtil.newIdName(getClass());
+
     public NioEventLoopWorkerGroup() {
         super();
     }
@@ -28,10 +30,9 @@ public class NioEventLoopWorkerGroup extends NioEventLoopGroup {
 //        return ProxyUtil.newProxyByJdk(eventLoop,newName ,true);
 //    }
 
-
     @Override
     public String toString() {
-        return NamespaceUtil.getIdNameClass(this,"worker");
+        return name;
     }
 
 }

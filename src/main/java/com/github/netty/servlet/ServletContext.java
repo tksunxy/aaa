@@ -1,9 +1,14 @@
 package com.github.netty.servlet;
 
 import com.github.netty.core.constants.HttpConstants;
-import com.github.netty.core.util.*;
+import com.github.netty.core.rpc.RpcClient;
+import com.github.netty.core.util.MimeTypeUtil;
+import com.github.netty.core.util.RecyclableUtil;
+import com.github.netty.core.util.TypeUtil;
 import com.github.netty.servlet.support.ServletEventListenerManager;
 import com.github.netty.servlet.support.UrlMapper;
+import com.github.netty.session.SessionServiceImpl;
+import com.github.netty.session.SessionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +24,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 
@@ -32,7 +36,6 @@ public class ServletContext implements javax.servlet.ServletContext {
 
     private Logger logger = LoggerFactory.getLogger(getClass());
 
-    private Map<String,ServletHttpSession> httpSessionMap;
     private Map<String,Object> attributeMap;
     private Map<String,String> initParamMap;
 
@@ -49,10 +52,13 @@ public class ServletContext implements javax.servlet.ServletContext {
     private UrlMapper<Filter> filterUrlMapper;
     private String rootDirStr;
     private Charset defaultCharset;
-    private InetSocketAddress serverSocketAddress;
+    private InetSocketAddress servletServerAddress;
+    private InetSocketAddress sessionServerAddress;
     private final String serverInfo;
     private final ClassLoader classLoader;
     private String contextPath;
+
+    private SessionService sessionService;
 
     public ServletContext(InetSocketAddress socketAddress,
                           ClassLoader classLoader,
@@ -67,10 +73,9 @@ public class ServletContext implements javax.servlet.ServletContext {
         this.defaultCharset = null;
         this.asyncExecutorSupplier = null;
         this.sessionTrackingModeSet = null;
-        this.serverSocketAddress = socketAddress;
+        this.servletServerAddress = socketAddress;
         this.classLoader = classLoader;
 
-        this.httpSessionMap = new ConcurrentHashMap<>(128);
         this.attributeMap = new HashMap<>(16);
         this.initParamMap = new HashMap<>(16);
         this.servletRegistrationMap = new HashMap<>(8);
@@ -78,10 +83,8 @@ public class ServletContext implements javax.servlet.ServletContext {
         this.servletUrlMapper = new UrlMapper<>(contextPath,true);
         this.filterUrlMapper = new UrlMapper<>(contextPath,false);
         this.servletEventListenerManager = new ServletEventListenerManager();
-
-        //20秒检查一次过期session
-        new SessionInvalidThread(NamespaceUtil.newIdName(this,"SessionInvalidThread"),20 * 1000).start();
     }
+
 
     public void setAsyncExecutorSupplier(Supplier<ExecutorService> asyncExecutorSupplier) {
         this.asyncExecutorSupplier = asyncExecutorSupplier;
@@ -118,12 +121,37 @@ public class ServletContext implements javax.servlet.ServletContext {
         }
     }
 
-    public InetSocketAddress getServerSocketAddress() {
-        return serverSocketAddress;
+    public InetSocketAddress getServletServerAddress() {
+        return servletServerAddress;
     }
 
-    public Map<String, ServletHttpSession> getHttpSessionMap() {
-        return httpSessionMap;
+    public void setSessionServerAddress(InetSocketAddress sessionServerAddress) {
+        this.sessionServerAddress = sessionServerAddress;
+    }
+
+    public InetSocketAddress getSessionServerAddress() {
+        return sessionServerAddress;
+    }
+
+    public SessionService getSessionService() {
+        if(sessionService == null){
+            synchronized (this) {
+                if(sessionService == null) {
+                    if (sessionServerAddress != null) {
+                        RpcClient rpcClient = new RpcClient("Session",sessionServerAddress);
+                        if (rpcClient.isConnect()) {
+                            sessionService = rpcClient.newInstance(SessionService.SERVICE_NAME, SessionService.class);
+                        }
+                    }
+
+                    if (sessionService == null) {
+                        sessionService = new SessionServiceImpl();
+                    }
+                    logger.info("SessionService using ["+sessionService+"]");
+                }
+            }
+        }
+        return sessionService;
     }
 
     public Charset getDefaultCharset() {
@@ -596,38 +624,8 @@ public class ServletContext implements javax.servlet.ServletContext {
 
     @Override
     public String getVirtualServerName() {
-        return serverSocketAddress.getHostString();
+        return servletServerAddress.getHostString();
     }
 
-    /**
-     * 超时的Session无效化，定期执行
-     */
-    class SessionInvalidThread extends Thread {
-        Logger logger = LoggerFactory.getLogger(getClass());
 
-        private final long sessionLifeCheckInter;
-
-        SessionInvalidThread(String name,long sessionLifeCheckInter) {
-            this.sessionLifeCheckInter = sessionLifeCheckInter;
-            setName(name);
-        }
-
-        @Override
-        public void run() {
-            logger.info("Session Manager CheckInvalidSessionThread has been started...");
-            while(true){
-                try {
-                    Thread.sleep(sessionLifeCheckInter);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                for(ServletHttpSession session : httpSessionMap.values()){
-                    if(!session.isValid()){
-                        logger.info("Session(ID={}) is invalidated by Session Manager", session.getId());
-                        session.invalidate();
-                    }
-                }
-            }
-        }
-    }
 }

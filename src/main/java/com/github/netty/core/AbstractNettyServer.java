@@ -11,6 +11,8 @@ import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.util.internal.PlatformDependent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 
@@ -21,6 +23,7 @@ import java.net.InetSocketAddress;
  */
 public abstract class AbstractNettyServer implements Runnable{
 
+    protected Logger logger;
     private String name;
     private ServerBootstrap bootstrap;
 
@@ -30,7 +33,7 @@ public abstract class AbstractNettyServer implements Runnable{
     private ChannelInitializer<?extends Channel> initializerChannelHandler;
     private ChannelFuture closeFuture;
     private Channel serverChannel;
-    private InetSocketAddress socketAddress;
+    private InetSocketAddress serverAddress;
     private boolean enableEpoll;
 
     public AbstractNettyServer(int port) {
@@ -38,15 +41,20 @@ public abstract class AbstractNettyServer implements Runnable{
     }
 
     public AbstractNettyServer(InetSocketAddress address) {
+        this("", address);
+    }
+
+    public AbstractNettyServer(String preName,InetSocketAddress address) {
         super();
         this.enableEpoll = HostUtil.isLinux() && Epoll.isAvailable();
-        this.socketAddress = address;
-        this.name = NamespaceUtil.newIdName(this.getClass(),"nettyServer");
+        this.serverAddress = address;
+        this.name = preName + NamespaceUtil.newIdName(getClass());
         this.bootstrap = newServerBootstrap();
         this.boss = newBossEventLoopGroup();
         this.worker = newWorkerEventLoopGroup();
         this.channelFactory = newServerChannelFactory();
         this.initializerChannelHandler = newInitializerChannelHandler();
+        this.logger = LoggerFactory.getLogger(getClass());
     }
 
 
@@ -111,7 +119,7 @@ public abstract class AbstractNettyServer implements Runnable{
                     .childOption(ChannelOption.ALLOCATOR, PartialPooledByteBufAllocator.INSTANCE);
 //                    .childOption(ChannelOption.ALLOCATOR, ByteBufAllocator.DEFAULT);
 
-            ChannelFuture channelFuture = bootstrap.bind(socketAddress);
+            ChannelFuture channelFuture = bootstrap.bind(serverAddress);
             //堵塞
             channelFuture.await();
             //唤醒后获取异常
@@ -131,24 +139,45 @@ public abstract class AbstractNettyServer implements Runnable{
     }
 
     public void stop() {
+        Throwable cause = null;
         try {
-            boss.shutdownGracefully().sync();
-            worker.shutdownGracefully().sync();
-            serverChannel.close();
+            if(boss != null) {
+                boss.shutdownGracefully().sync();
+            }
+            if(worker != null) {
+                worker.shutdownGracefully().sync();
+            }
+            if(serverChannel != null) {
+                serverChannel.close();
+            }
+
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            cause = e;
         }finally {
             if(closeFuture != null) {
                 closeFuture.notify();
             }
         }
+        stopAfter(cause);
+    }
+
+    public String getName() {
+        return name;
     }
 
     public int getPort() {
-        if(socketAddress == null){
+        if(serverAddress == null){
             return 0;
         }
-        return socketAddress.getPort();
+        return serverAddress.getPort();
+    }
+
+    protected void stopAfter(Throwable cause){
+        //有异常抛出
+        if(cause != null){
+            ExceptionUtil.printRootCauseStackTrace(cause);
+        }
+        logger.info(name + " stop [port = "+getPort()+"]...");
     }
 
     protected void startAfter(Throwable cause){
@@ -156,7 +185,7 @@ public abstract class AbstractNettyServer implements Runnable{
         if(cause != null){
             PlatformDependent.throwException(cause);
         }
-        System.out.println("netty serverStart["+getPort()+"]...");
+        logger.info(name + " start [port = "+getPort()+"]...");
     }
 
     @Override

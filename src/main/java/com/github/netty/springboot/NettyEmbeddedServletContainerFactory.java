@@ -1,8 +1,6 @@
 package com.github.netty.springboot;
 
-import com.github.netty.servlet.ServletContext;
-import com.github.netty.servlet.ServletDefaultHttpServlet;
-import com.github.netty.servlet.ServletSessionCookieConfig;
+import com.github.netty.servlet.*;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import org.springframework.boot.context.embedded.*;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
@@ -11,9 +9,11 @@ import org.springframework.core.io.ResourceLoader;
 import org.springframework.util.ClassUtils;
 
 import javax.net.ssl.SSLException;
+import javax.servlet.ServletException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 
@@ -51,9 +51,44 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
             for (ServletContextInitializer initializer : initializers) {
                 initializer.onStartup(servletContext);
             }
+
+            initFilter(servletContext);
+            initServlet(servletContext);
             return container;
         }catch (Exception e){
             throw new IllegalStateException(e);
+        }
+    }
+
+    /**
+     * 初始化过滤器
+     * @param servletContext
+     */
+    private void initFilter(ServletContext servletContext){
+        Map<String, ServletFilterRegistration> servletFilterRegistrationMap = servletContext.getFilterRegistrations();
+        for(Map.Entry<String,ServletFilterRegistration> entry : servletFilterRegistrationMap.entrySet()){
+            ServletFilterRegistration registration = entry.getValue();
+            try {
+                registration.getFilter().init(registration.getFilterConfig());
+            } catch (ServletException e) {
+                throw new EmbeddedServletContainerException(e.getMessage(),e);
+            }
+        }
+    }
+
+    /**
+     * 初始化servlet
+     * @param servletContext
+     */
+    private void initServlet(ServletContext servletContext){
+        Map<String, ServletRegistration> servletRegistrationMap = servletContext.getServletRegistrations();
+        for(Map.Entry<String,ServletRegistration> entry : servletRegistrationMap.entrySet()){
+            ServletRegistration registration = entry.getValue();
+            try {
+                registration.getServlet().init(registration.getServletConfig());
+            } catch (ServletException e) {
+                throw new EmbeddedServletContainerException(e.getMessage(),e);
+            }
         }
     }
 
@@ -117,7 +152,7 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
                     synchronized (this){
                         if(executorService == null) {
 //                            executorService = Executors.newFixedThreadPool(8);
-                            executorService = new DefaultEventExecutorGroup(20);
+                            executorService = new DefaultEventExecutorGroup(15);
                         }
                     }
                 }

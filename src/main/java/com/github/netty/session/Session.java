@@ -1,11 +1,12 @@
 package com.github.netty.session;
 
+import java.io.Serializable;
 import java.util.Map;
 
 /**
  * Created by acer01 on 2018/8/18/018.
  */
-public class Session {
+public class Session implements Serializable{
 
     private String id;
 
@@ -76,4 +77,12 @@ public class Session {
         this.accessCount = accessCount;
     }
 
+    @Override
+    public String toString() {
+        return "Session{" +
+                "id='" + id + '\'' +
+                ", isValid=" + isValid() +
+                ", accessCount=" + accessCount +
+                '}';
+    }
 }

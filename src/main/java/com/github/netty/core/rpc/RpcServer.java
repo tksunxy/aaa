@@ -10,8 +10,10 @@ import io.netty.handler.codec.serialization.ObjectEncoder;
 
 import java.lang.reflect.InvocationTargetException;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Created by acer01 on 2018/8/18/018.
@@ -56,6 +58,7 @@ public class RpcServer extends AbstractNettyServer{
     @ChannelHandler.Sharable
     private class RpcSessionServerHandler extends AbstractChannelHandler<RpcRequest> {
         private Map<String,RpcService> serviceMap = new HashMap<>();
+        private Map<String,Channel> channelMap = new ConcurrentHashMap<>();
 
         @Override
         protected void onMessageReceived(ChannelHandlerContext ctx, RpcRequest rpcRequest) throws Exception {
@@ -98,11 +101,35 @@ public class RpcServer extends AbstractNettyServer{
             ExceptionUtil.printRootCauseStackTrace(cause);
         }
 
-        public void addService(String serviceName, Object service){
+        @Override
+        public void channelActive(ChannelHandlerContext ctx) throws Exception {
+            super.channelActive(ctx);
+            Channel channel = ctx.channel();
+
+            InetSocketAddress remoteAddress = getInetSocketAddress(channel.remoteAddress());
+            channelMap.put(remoteAddress.getHostString()+":"+remoteAddress.getPort(),channel);
+
+            logger.info("新入链接 = "+ctx.channel().toString());
+        }
+
+        @Override
+        public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+            super.channelInactive(ctx);
+            logger.info("断开链接" + ctx.channel().toString());
+        }
+
+        void addService(String serviceName, Object service){
             Object oldService = serviceMap.put(serviceName,new RpcService(serviceName,service));
             if(oldService != null){
                 throw new RuntimeException("service exist ["+serviceName+"]");
             }
+        }
+
+        private InetSocketAddress getInetSocketAddress(SocketAddress socketAddress){
+            if(socketAddress instanceof InetSocketAddress){
+                return (InetSocketAddress) socketAddress;
+            }
+            return null;
         }
     }
 

@@ -1,15 +1,14 @@
 package com.github.netty.servlet.util;
 
 import com.github.netty.core.util.NamespaceUtil;
+import com.github.netty.core.util.ReflectUtil;
 import org.springframework.cglib.core.DebuggingClassWriter;
 import org.springframework.cglib.proxy.Enhancer;
 import org.springframework.cglib.proxy.MethodInterceptor;
 import org.springframework.cglib.proxy.MethodProxy;
 
 import java.lang.reflect.*;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 /**
  *
@@ -100,7 +99,7 @@ public class ProxyUtil {
         }
     }
     public static <T>T newProxyByJdk(T source){
-        return newProxyByJdk(source,source.toString(),true,getInterfaces(source));
+        return newProxyByJdk(source,source.toString(),true,ReflectUtil.getInterfaces(source));
     }
 
     public static <T>T newProxyByJdk(T source, String logName,boolean isEnableLog,Class[] interfaces){
@@ -114,7 +113,7 @@ public class ProxyUtil {
     }
 
     public static <T>T newProxyByJdk(T source, String logName,boolean isEnableLog){
-        return newProxyByJdk(source,logName,isEnableLog,getInterfaces(source));
+        return newProxyByJdk(source,logName,isEnableLog, ReflectUtil.getInterfaces(source));
     }
 
     //============================JdkProxy=================================
@@ -146,16 +145,6 @@ public class ProxyUtil {
     private static boolean isProxyByJdk(Object object){
         return Proxy.isProxyClass(object.getClass());
     }
-
-    public static Class[] getInterfaces(Object source){
-        List<Class> interfaceList = new ArrayList<>();
-        Class sourceClass = source.getClass();
-        for(Class currClass = sourceClass; currClass != null; currClass = currClass.getSuperclass()){
-            interfaceList.addAll(Arrays.asList(currClass.getInterfaces()));
-        }
-        return interfaceList.toArray(new Class[interfaceList.size()]);
-    }
-
 
     static void log(String proxyName, Method method,Object[] args,Object result,long beginTime){
 //        if(!method.getName().contains("Heade")){

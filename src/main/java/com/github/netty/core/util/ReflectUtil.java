@@ -1,8 +1,8 @@
 package com.github.netty.core.util;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * 反射工具类.
@@ -20,7 +20,37 @@ public class ReflectUtil {
 	private static final String GETTER_PREFIX = "get";
 
 	private static final String CGLIB_CLASS_SEPARATOR = "$$";
-	
+
+
+	public static Class[] getInterfaces(Object source){
+		List<Class> interfaceList = new ArrayList<>();
+		Class sourceClass = source.getClass();
+		for(Class currClass = sourceClass; currClass != null; currClass = currClass.getSuperclass()){
+			interfaceList.addAll(Arrays.asList(currClass.getInterfaces()));
+		}
+		return interfaceList.toArray(new Class[interfaceList.size()]);
+	}
+
+	public static <A extends Annotation>A  findAnnotation(Class claz, Class<A>ann ){
+		Annotation a;
+		for (Class clazz = claz; clazz != null; clazz = clazz.getSuperclass()) {
+			if(null != (a = clazz.getAnnotation(ann)))
+				return (A) a;
+		}
+		return null;
+	}
+
+	public static Class findFormAnnotation(Class clazz,Collection<Class<? extends Annotation>> annotations){
+		for(Annotation a : clazz.getAnnotations()){
+			Class aClass = a.annotationType();
+			for(Class e : annotations){
+				if(e.isAssignableFrom(aClass))
+					return aClass;
+			}
+		}
+		return null;
+	}
+
 	/**
 	 * 调用Getter方法.
 	 * 支持多级，如：对象名.对象名.方法

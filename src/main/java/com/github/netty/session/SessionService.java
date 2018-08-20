@@ -1,13 +1,14 @@
 package com.github.netty.session;
 
+import com.github.netty.core.rpc.RpcInterface;
+
 import java.util.List;
 
 /**
  * Created by acer01 on 2018/8/19/019.
  */
+@RpcInterface("/SessionService")
 public interface SessionService {
-
-    String SERVICE_NAME = "/sessionApi";
 
     void saveSession(Session session);
 

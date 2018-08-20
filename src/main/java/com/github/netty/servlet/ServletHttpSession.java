@@ -277,6 +277,7 @@ public class ServletHttpSession implements HttpSession,Wrapper<Session>,Recyclab
         this.lastAccessedTime = 0;
         this.maxInactiveInterval = 0;
         this.accessCount = null;
+        this.source = null;
     }
 
 }

@@ -140,7 +140,7 @@ public class ServletContext implements javax.servlet.ServletContext {
                     if (sessionServerAddress != null) {
                         RpcClient rpcClient = new RpcClient("Session",sessionServerAddress);
                         if (rpcClient.isConnect()) {
-                            sessionService = rpcClient.newInstance(SessionService.SERVICE_NAME, SessionService.class);
+                            sessionService = rpcClient.newInstance(SessionService.class);
                         }
                     }
 

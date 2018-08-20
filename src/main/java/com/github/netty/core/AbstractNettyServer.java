@@ -155,7 +155,9 @@ public abstract class AbstractNettyServer implements Runnable{
             cause = e;
         }finally {
             if(closeFuture != null) {
-                closeFuture.notify();
+                synchronized (closeFuture) {
+                    closeFuture.notify();
+                }
             }
         }
         stopAfter(cause);

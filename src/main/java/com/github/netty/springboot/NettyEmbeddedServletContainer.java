@@ -6,7 +6,7 @@ import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletFilterRegistration;
 import com.github.netty.servlet.ServletRegistration;
 import com.github.netty.servlet.support.ServletEventListenerManager;
-import com.github.netty.session.SessionRpcServer;
+import com.github.netty.session.RemoteSessionRpcServer;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
@@ -41,7 +41,7 @@ public class NettyEmbeddedServletContainer implements EmbeddedServletContainer {
     private final ServletContext servletContext;
 
     private ServletServer servletServer;
-    private SessionRpcServer sessionRpcServer;
+    private RemoteSessionRpcServer remoteSessionRpcServer;
 
     //服务器地址
     private InetSocketAddress servletServerAddress;
@@ -66,8 +66,8 @@ public class NettyEmbeddedServletContainer implements EmbeddedServletContainer {
         servletServer.start();
 
         if(sessionServerAddress != null) {
-            sessionRpcServer = new SessionRpcServer(sessionServerAddress);
-            sessionRpcServer.start();
+            remoteSessionRpcServer = new RemoteSessionRpcServer(sessionServerAddress);
+            remoteSessionRpcServer.start();
 
             servletContext.setSessionServerAddress(sessionServerAddress);
             servletContext.getSessionService();
@@ -82,8 +82,8 @@ public class NettyEmbeddedServletContainer implements EmbeddedServletContainer {
         }
 
         servletServer.stop();
-        if(sessionRpcServer != null){
-            sessionRpcServer.stop();
+        if(remoteSessionRpcServer != null){
+            remoteSessionRpcServer.stop();
         }
     }
 

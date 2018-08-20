@@ -3,6 +3,7 @@ package com.github.netty.core.rpc;
 import com.github.netty.core.AbstractChannelHandler;
 import com.github.netty.core.AbstractNettyServer;
 import com.github.netty.core.util.ExceptionUtil;
+import com.github.netty.core.util.ReflectUtil;
 import io.netty.channel.*;
 import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
@@ -20,18 +21,26 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class RpcServer extends AbstractNettyServer{
 
-    private RpcSessionServerHandler handler = new RpcSessionServerHandler();
+    private RpcServerHandler rpcServerHandler = new RpcServerHandler();
 
     public RpcServer(int port) {
-        super(port);
+        this("",port);
     }
 
     public RpcServer(String preName, int port) {
-        super(preName,new InetSocketAddress(port));
+        this(preName,new InetSocketAddress(port));
     }
 
-    public RpcServer(InetSocketAddress address) {
-        super(address);
+    public RpcServer(String preName,InetSocketAddress address) {
+        super(preName,address);
+        this.rpcServerHandler = newRpcServerHandler();
+    }
+
+    protected RpcServerHandler newRpcServerHandler(){
+        RpcServerHandler rpcServerHandler = new RpcServerHandler();
+        //默认开启rpc基本命令服务
+        rpcServerHandler.addService(new RpcCommandServiceImpl());
+        return rpcServerHandler;
     }
 
     @Override
@@ -46,30 +55,31 @@ public class RpcServer extends AbstractNettyServer{
 
                 pipeline.addLast(encoder);
                 pipeline.addLast(new ObjectDecoder(ClassResolvers.cacheDisabled(null)));
-                pipeline.addLast(handler);
+                pipeline.addLast(rpcServerHandler);
             }
         };
     }
 
-    public void addService(String serviceName,Object service){
-        handler.addService(serviceName,service);
+    public void addService(Object service){
+        rpcServerHandler.addService(service);
     }
 
     @ChannelHandler.Sharable
-    private class RpcSessionServerHandler extends AbstractChannelHandler<RpcRequest> {
-        private Map<String,RpcService> serviceMap = new HashMap<>();
+    protected class RpcServerHandler extends AbstractChannelHandler<RpcRequest> {
+        private final Map<String,RpcService> serviceInstanceMap = new HashMap<>();
         private Map<String,Channel> channelMap = new ConcurrentHashMap<>();
 
         @Override
         protected void onMessageReceived(ChannelHandlerContext ctx, RpcRequest rpcRequest) throws Exception {
             String serviceName = rpcRequest.getServiceName();
             String methodName = rpcRequest.getMethodName();
+            logger.info(serviceName+"--"+methodName);
 
             Object result = null;
             int status;
             String message;
 
-            RpcService rpcService = serviceMap.get(serviceName);
+            RpcService rpcService = serviceInstanceMap.get(serviceName);
             if(rpcService == null){
                 status = RpcResponse.NO_SUCH_SERVICE;
                 message = "not found service ["+ serviceName +"]";
@@ -107,8 +117,11 @@ public class RpcServer extends AbstractNettyServer{
             Channel channel = ctx.channel();
 
             InetSocketAddress remoteAddress = getInetSocketAddress(channel.remoteAddress());
-            channelMap.put(remoteAddress.getHostString()+":"+remoteAddress.getPort(),channel);
+            if(remoteAddress == null){
+                return;
+            }
 
+            channelMap.put(remoteAddress.getHostString() + ":" + remoteAddress.getPort(),channel);
             logger.info("新入链接 = "+ctx.channel().toString());
         }
 
@@ -118,10 +131,36 @@ public class RpcServer extends AbstractNettyServer{
             logger.info("断开链接" + ctx.channel().toString());
         }
 
-        void addService(String serviceName, Object service){
-            Object oldService = serviceMap.put(serviceName,new RpcService(serviceName,service));
-            if(oldService != null){
-                throw new RuntimeException("service exist ["+serviceName+"]");
+        private RpcInterface findRpcInterfaceAnn(Object service){
+            Class[] interfaces = ReflectUtil.getInterfaces(service);
+            for(Class i : interfaces){
+                RpcInterface rpcInterfaceAnn = ReflectUtil.findAnnotation(i, RpcInterface.class);
+                if(rpcInterfaceAnn != null){
+                    return rpcInterfaceAnn;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * 增加服务
+         * @param service
+         */
+        public void addService(Object service){
+            RpcInterface rpcInterfaceAnn = findRpcInterfaceAnn(service);
+            if (rpcInterfaceAnn == null) {
+                //缺少RpcInterface注解
+                throw new IllegalStateException("The class is not exist Annotation, you must coding @RpcInterface");
+            }
+
+            String serviceName = rpcInterfaceAnn.value();
+
+            synchronized (serviceInstanceMap) {
+                Object oldService = serviceInstanceMap.get(serviceName);
+                if (oldService != null) {
+                    throw new IllegalStateException("The service exist [" + serviceName + "]");
+                }
+                serviceInstanceMap.put(serviceName, new RpcService(serviceName, service));
             }
         }
 

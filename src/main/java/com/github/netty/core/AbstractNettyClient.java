@@ -42,6 +42,11 @@ public abstract class AbstractNettyClient implements Runnable{
         this("",remoteAddress);
     }
 
+    /**
+     *
+     * @param namePre 名称前缀
+     * @param remoteAddress 远程地址
+     */
     public AbstractNettyClient(String namePre,InetSocketAddress remoteAddress) {
         super();
         this.enableEpoll = HostUtil.isLinux() && Epoll.isAvailable();
@@ -131,8 +136,8 @@ public abstract class AbstractNettyClient implements Runnable{
 
             socketChannel = (SocketChannel) channelFuture.channel();
             return true;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            logger.error("connect fail : on "+remoteAddress);
             return false;
         }
     }

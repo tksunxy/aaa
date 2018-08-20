@@ -104,6 +104,10 @@ public class RpcClient extends AbstractNettyClient implements InvocationHandler 
         return instance;
     }
 
+    /**
+     * 初始化所有处理器
+     * @return
+     */
     @Override
     protected ChannelInitializer<? extends Channel> newInitializerChannelHandler() {
         return new ChannelInitializer<Channel>() {
@@ -121,6 +125,10 @@ public class RpcClient extends AbstractNettyClient implements InvocationHandler 
         };
     }
 
+    /**
+     * 获取链接
+     * @return
+     */
     @Override
     public SocketChannel getSocketChannel() {
         SocketChannel socketChannel = super.getSocketChannel();
@@ -130,6 +138,14 @@ public class RpcClient extends AbstractNettyClient implements InvocationHandler 
         return socketChannel;
     }
 
+    /**
+     * 进行rpc调用
+     * @param proxy
+     * @param method
+     * @param args
+     * @return
+     * @throws Throwable
+     */
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         String methodName = method.getName();

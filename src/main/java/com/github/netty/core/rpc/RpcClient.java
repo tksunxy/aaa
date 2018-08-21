@@ -3,6 +3,7 @@ package com.github.netty.core.rpc;
 import com.github.netty.core.AbstractChannelHandler;
 import com.github.netty.core.AbstractNettyClient;
 import com.github.netty.core.rpc.exception.RpcConnectException;
+import com.github.netty.core.rpc.exception.RpcException;
 import com.github.netty.core.rpc.exception.RpcTimeoutException;
 import com.github.netty.core.util.ReflectUtil;
 import io.netty.channel.*;
@@ -16,18 +17,24 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.InetSocketAddress;
 import java.util.*;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 /**
- * Created by acer01 on 2018/8/18/018.
+ *
+ * @author acer01
+ *  2018/8/18/018
  */
-public class RpcClient extends AbstractNettyClient implements InvocationHandler {
+public class RpcClient extends AbstractNettyClient{
 
-    private RpcCommandService commandService;
-    private Timer timer;
-
-    //不需要代理的方法
+    /**
+     * 线程调度执行器
+     */
+    private static RpcScheduledThreadPoolExecutor SCHEDULE_SERVICE;
+    /**
+     * 不需要代理的方法
+     */
     private static final Collection<String> NO_PROXY_METHOD_LIST;
     static {
         NO_PROXY_METHOD_LIST = new HashSet<>();
@@ -36,13 +43,26 @@ public class RpcClient extends AbstractNettyClient implements InvocationHandler 
         }
     }
 
-    //请求锁
+    /**
+     * rpc命令服务
+     */
+    private RpcCommandService commandService;
+    /**
+     * 请求锁
+     */
     private final Map<Integer,RpcLock> requestLockMap = new HashMap<>();
-    //生成请求id
+    /**
+     * 生成请求id
+     */
     private final AtomicInteger requestIdIncr = new AtomicInteger();
-    //实例配置项
-    private final Map<Class,RpcInstanceConfig> instanceConfigMap = new HashMap<>();
-
+    /**
+     * 实例
+     */
+    private final Map<String,RpcInstance> instanceMap = new WeakHashMap<>();
+    /**
+     * 方法重写
+     */
+    private final Map<String,RpcOverrideMethod> methodOverrideMap = new HashMap<>();
 
     public RpcClient(String remoteHost, int remotePort) {
         this(new InetSocketAddress(remoteHost, remotePort));
@@ -60,11 +80,34 @@ public class RpcClient extends AbstractNettyClient implements InvocationHandler 
     /**
      * 开启自动重连
      * @param heartIntervalSecond 心跳检测间隔
+     * @param timeUnit 时间单位
+     * @param reconnectSuccessHandler 重连成功后
      */
-    public void enableAutoReconnect(int heartIntervalSecond){
-        timer = new Timer();
-        RpcHeartbeatTask heartbeatTask = new RpcHeartbeatTask();
-        timer.schedule(heartbeatTask,0,heartIntervalSecond);
+    public void enableAutoReconnect(int heartIntervalSecond, TimeUnit timeUnit, Consumer<SocketChannel> reconnectSuccessHandler){
+        if(commandService == null){
+            //自动重连依赖命令服务
+            throw new IllegalStateException("if enableAutoReconnect, you must has commandService");
+        }
+        RpcHeartbeatTask heartbeatTask = new RpcHeartbeatTask(reconnectSuccessHandler);
+        getScheduleService().scheduleWithFixedDelay(heartbeatTask,heartIntervalSecond,heartIntervalSecond,timeUnit);
+    }
+
+    /**
+     * 开启自动重连
+     * @param reconnectSuccessHandler 重连成功后
+     */
+    public void enableAutoReconnect(Consumer<SocketChannel> reconnectSuccessHandler){
+        enableAutoReconnect(10,TimeUnit.SECONDS,reconnectSuccessHandler);
+    }
+
+    /**
+     * 添加方法重写
+     * @param methodName 需要重写的方法名
+     * @param method 执行方法
+     * @return 旧的方法
+     */
+    public RpcOverrideMethod addOverrideMethod(String methodName, RpcOverrideMethod method){
+        return methodOverrideMap.put(methodName,method);
     }
 
     /**
@@ -88,19 +131,12 @@ public class RpcClient extends AbstractNettyClient implements InvocationHandler 
             throw new IllegalStateException("The interface is not exist Annotation, you must coding @RpcInterface");
         }
 
-        synchronized (instanceConfigMap) {
-            RpcInstanceConfig config = instanceConfigMap.get(clazz);
-            if (config != null) {
-                //同一个接口不允许在同一个客户端上建立多个实例
-                throw new IllegalStateException("The same interface does not allow multiple instances of the same client");
-            }
+        String serviceName = rpcInterfaceAnn.value();
+        int timeout = rpcInterfaceAnn.timeout();
+        RpcInstance rpcInstance = new RpcInstance(timeout, serviceName);
 
-            String serviceName = rpcInterfaceAnn.value();
-            int timeout = rpcInterfaceAnn.timeout();
-            instanceConfigMap.put(clazz, new RpcInstanceConfig(timeout, serviceName));
-        }
-
-        T instance = (T) Proxy.newProxyInstance(clazz.getClassLoader(), new Class[]{clazz}, this);
+        T instance = (T) Proxy.newProxyInstance(clazz.getClassLoader(), new Class[]{clazz}, rpcInstance);
+        instanceMap.put(serviceName,rpcInstance);
         return instance;
     }
 
@@ -138,51 +174,28 @@ public class RpcClient extends AbstractNettyClient implements InvocationHandler 
         return socketChannel;
     }
 
-    /**
-     * 进行rpc调用
-     * @param proxy
-     * @param method
-     * @param args
-     * @return
-     * @throws Throwable
-     */
+
     @Override
-    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        String methodName = method.getName();
-        if(NO_PROXY_METHOD_LIST.contains(methodName)){
-            return method.invoke(this,args);
+    public boolean isConnect() {
+        if(commandService == null){
+            return super.isConnect();
         }
 
-        Integer requestId = newRequestId();
-        RpcInstanceConfig instanceConfig = instanceConfigMap.get(method.getDeclaringClass());
-
-        RpcRequest rpcRequest = new RpcRequest(requestId);
-        rpcRequest.setServiceName(instanceConfig.serviceName);
-        rpcRequest.setMethodName(methodName);
-        rpcRequest.setParametersVal(args);
-
-        getSocketChannel().writeAndFlush(rpcRequest);
-
-        RpcLock lock = new RpcLock();
-        requestLockMap.put(requestId,lock);
-        //上锁, 等待服务端响应释放锁
-        RpcResponse rpcResponse = lock.lock(instanceConfig.timeout);
-        //移除锁
-        requestLockMap.remove(requestId);
-
-        if(rpcResponse != null && rpcResponse.getStatus() == RpcResponse.OK){
-            return rpcResponse.getData();
+        SocketChannel channel = super.getSocketChannel();
+        if(channel == null){
+            return false;
         }
-        return null;
+        try {
+            return commandService.ping() != null;
+        }catch (RpcException e){
+            return false;
+        }
     }
 
     @Override
     protected void startAfter() {
         super.startAfter();
         commandService = newInstance(RpcCommandService.class);
-
-        //开启自动重连, 默认10秒心跳检测一次
-        enableAutoReconnect(10 * 1000);
     }
 
     /**
@@ -204,7 +217,8 @@ public class RpcClient extends AbstractNettyClient implements InvocationHandler 
     /**
      * 心跳任务
      */
-    private class RpcHeartbeatTask extends TimerTask{
+    private class RpcHeartbeatTask implements Runnable{
+        private Consumer<SocketChannel> reconnectSuccessHandler;
         /**
          * 重连次数
          */
@@ -212,20 +226,28 @@ public class RpcClient extends AbstractNettyClient implements InvocationHandler 
         /**
          * 最大超时重试次数
          */
-        private int maxTimeoutRetryNum = 6;
+        private int maxTimeoutRetryNum = 3;
+
+        private RpcHeartbeatTask(Consumer<SocketChannel> reconnectSuccessHandler) {
+            this.reconnectSuccessHandler = reconnectSuccessHandler;
+        }
 
         private boolean reconnect(String causeMessage){
             int count = ++reconnectCount;
             boolean success = connect();
 
-            String logMsg;
             if (success) {
                 reconnectCount = 0;
-                logMsg = "第[" + count + "]次断线重连 : 成功" + getSocketChannel()+", 重连原因["+ causeMessage +"]";
+                SocketChannel socketChannel = getSocketChannel();
+
+                logger.info("第[" + count + "]次断线重连 : 成功" + socketChannel +", 重连原因["+ causeMessage +"]");
+                if(reconnectSuccessHandler != null){
+                    reconnectSuccessHandler.accept(socketChannel);
+                }
+
             } else {
-                logMsg = "第[" + count + "]次断线重连 : 失败, 重连原因["+ causeMessage +"]";;
+                logger.info("第[" + count + "]次断线重连 : 失败, 重连原因["+ causeMessage +"]");
             }
-            logger.info(logMsg);
             return success;
         }
 
@@ -263,7 +285,7 @@ public class RpcClient extends AbstractNettyClient implements InvocationHandler 
         private long beginTime;
         private RpcResponse rpcResponse;
 
-        private RpcResponse lock(int timeout) throws InterruptedException, TimeoutException {
+        private RpcResponse lock(int timeout) throws InterruptedException {
             this.beginTime = System.currentTimeMillis();
             synchronized (RpcLock.this){
                 wait(timeout);
@@ -289,14 +311,82 @@ public class RpcClient extends AbstractNettyClient implements InvocationHandler 
     }
 
     /**
-     * 客户端实例配置
+     * 客户端实例
      */
-    private class RpcInstanceConfig {
-        int timeout;
-        String serviceName;
-        private RpcInstanceConfig(int timeout, String serviceName) {
+    private class RpcInstance implements InvocationHandler{
+        private int timeout;
+        private String serviceName;
+        private RpcInstance(int timeout, String serviceName) {
             this.timeout = timeout;
             this.serviceName = serviceName;
         }
+
+        /**
+         * 进行rpc调用
+         * @param proxy
+         * @param method
+         * @param args
+         * @return
+         * @throws Throwable
+         */
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+            String methodName = method.getName();
+            //重写的方法
+            RpcOverrideMethod overrideMethod = methodOverrideMap.get(methodName);
+            if(overrideMethod != null){
+                return overrideMethod.invoke(proxy,method,args);
+            }
+
+            //不代理的方法
+            if(NO_PROXY_METHOD_LIST.contains(methodName)){
+                return method.invoke(RpcInstance.this,args);
+            }
+
+            //其他方法
+            Integer requestId = newRequestId();
+
+            RpcRequest rpcRequest = new RpcRequest(requestId);
+            rpcRequest.setServiceName(serviceName);
+            rpcRequest.setMethodName(methodName);
+            rpcRequest.setParametersVal(args);
+
+            getSocketChannel().writeAndFlush(rpcRequest);
+
+            RpcLock lock = new RpcLock();
+            requestLockMap.put(requestId,lock);
+            //上锁, 等待服务端响应释放锁
+            RpcResponse rpcResponse = lock.lock(timeout);
+            //移除锁
+            requestLockMap.remove(requestId);
+
+            if(rpcResponse != null && rpcResponse.getStatus() == RpcResponse.OK){
+                return rpcResponse.getData();
+            }
+            return null;
+        }
+
+        @Override
+        public String toString() {
+            return "RpcInstance{" +
+                    "serviceName='" + serviceName + '\'' +
+                    '}';
+        }
     }
+
+    /**
+     * 获取线程调度执行器, 注: 延迟创建
+     * @return
+     */
+    private static RpcScheduledThreadPoolExecutor getScheduleService() {
+        if(SCHEDULE_SERVICE == null){
+            synchronized (RpcClient.class){
+                if(SCHEDULE_SERVICE == null){
+                    SCHEDULE_SERVICE = new RpcScheduledThreadPoolExecutor(1);
+                }
+            }
+        }
+        return SCHEDULE_SERVICE;
+    }
+
 }

@@ -829,7 +829,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
             }
         }
 
-        if(httpSession.isValid()) {
+        if(this.httpSession.isValid()) {
             SessionService sessionService = getServletContext().getSessionService();
             sessionService.saveSession(httpSession.unwrap());
         }

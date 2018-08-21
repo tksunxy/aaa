@@ -1,6 +1,8 @@
-package com.github.netty.session;
+package com.github.netty.session.impl;
 
 import com.github.netty.core.util.NamespaceUtil;
+import com.github.netty.session.Session;
+import com.github.netty.session.SessionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,15 +12,17 @@ import java.util.RandomAccess;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Created by acer01 on 2018/8/19/019.
+ *
+ * @author acer01
+ * 2018/8/19/019
  */
-public class SessionServiceImpl implements SessionService {
+public class LocalSessionServiceImpl implements SessionService {
 
     private String name = NamespaceUtil.newIdName(getClass());
 
     private Map<String,Session> sessionMap = new ConcurrentHashMap<>(128);
 
-    public SessionServiceImpl() {
+    public LocalSessionServiceImpl() {
         //20秒检查一次过期session
         new SessionInvalidThread(20 * 1000).start();
     }

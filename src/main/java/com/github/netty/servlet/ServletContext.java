@@ -1,13 +1,11 @@
 package com.github.netty.servlet;
 
 import com.github.netty.core.constants.HttpConstants;
-import com.github.netty.core.rpc.RpcClient;
 import com.github.netty.core.util.MimeTypeUtil;
 import com.github.netty.core.util.RecyclableUtil;
 import com.github.netty.core.util.TypeUtil;
 import com.github.netty.servlet.support.ServletEventListenerManager;
 import com.github.netty.servlet.support.UrlMapper;
-import com.github.netty.session.SessionServiceImpl;
 import com.github.netty.session.SessionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +51,6 @@ public class ServletContext implements javax.servlet.ServletContext {
     private String rootDirStr;
     private Charset defaultCharset;
     private InetSocketAddress servletServerAddress;
-    private InetSocketAddress sessionServerAddress;
     private final String serverInfo;
     private final ClassLoader classLoader;
     private String contextPath;
@@ -125,32 +122,11 @@ public class ServletContext implements javax.servlet.ServletContext {
         return servletServerAddress;
     }
 
-    public void setSessionServerAddress(InetSocketAddress sessionServerAddress) {
-        this.sessionServerAddress = sessionServerAddress;
-    }
-
-    public InetSocketAddress getSessionServerAddress() {
-        return sessionServerAddress;
+    public void setSessionService(SessionService sessionService) {
+        this.sessionService = sessionService;
     }
 
     public SessionService getSessionService() {
-        if(sessionService == null){
-            synchronized (this) {
-                if(sessionService == null) {
-                    if (sessionServerAddress != null) {
-                        RpcClient rpcClient = new RpcClient("Session",sessionServerAddress);
-                        if (rpcClient.isConnect()) {
-                            sessionService = rpcClient.newInstance(SessionService.class);
-                        }
-                    }
-
-                    if (sessionService == null) {
-                        sessionService = new SessionServiceImpl();
-                    }
-                    logger.info(SessionService.class.getSimpleName()+" using ["+sessionService+"]");
-                }
-            }
-        }
         return sessionService;
     }
 

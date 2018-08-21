@@ -6,7 +6,6 @@ import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletFilterRegistration;
 import com.github.netty.servlet.ServletRegistration;
 import com.github.netty.servlet.support.ServletEventListenerManager;
-import com.github.netty.session.RemoteSessionRpcServer;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
@@ -41,17 +40,15 @@ public class NettyEmbeddedServletContainer implements EmbeddedServletContainer {
     private final ServletContext servletContext;
 
     private ServletServer servletServer;
-    private RemoteSessionRpcServer remoteSessionRpcServer;
 
-    //服务器地址
+    /**
+     * 服务器地址
+     */
     private InetSocketAddress servletServerAddress;
-    //会话服务地址
-    private InetSocketAddress sessionServerAddress;
 
     public NettyEmbeddedServletContainer(ServletContext servletContext,Ssl ssl) throws SSLException {
         this.servletContext = servletContext;
         this.servletServerAddress = servletContext.getServletServerAddress();
-        this.sessionServerAddress = new InetSocketAddress(servletServerAddress.getPort() + 1);
 
         this.servletServer = new ServletServer(servletServerAddress,ssl);
     }
@@ -64,14 +61,6 @@ public class NettyEmbeddedServletContainer implements EmbeddedServletContainer {
         }
 
         servletServer.start();
-
-        if(sessionServerAddress != null) {
-            remoteSessionRpcServer = new RemoteSessionRpcServer(sessionServerAddress);
-            remoteSessionRpcServer.start();
-
-            servletContext.setSessionServerAddress(sessionServerAddress);
-            servletContext.getSessionService();
-        }
     }
 
     @Override
@@ -82,9 +71,6 @@ public class NettyEmbeddedServletContainer implements EmbeddedServletContainer {
         }
 
         servletServer.stop();
-        if(remoteSessionRpcServer != null){
-            remoteSessionRpcServer.stop();
-        }
     }
 
     @Override

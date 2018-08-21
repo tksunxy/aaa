@@ -1,6 +1,9 @@
 package com.github.netty.springboot;
 
 import com.github.netty.servlet.*;
+import com.github.netty.session.RemoteCommandServer;
+import com.github.netty.session.SessionService;
+import com.github.netty.session.impl.CompositeSessionServiceImpl;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import org.springframework.boot.context.embedded.*;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
@@ -99,7 +102,6 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
     private ServletContext newServletContext(){
         ClassLoader parentClassLoader = resourceLoader != null ? resourceLoader.getClassLoader() : ClassUtils.getDefaultClassLoader();
         ServletSessionCookieConfig sessionCookieConfig = loadSessionCookieConfig();
-        Supplier<ExecutorService> asyncExecutorSupplier = newAsyncExecutorSupplier();
 
         ServletContext servletContext = new ServletContext(
                 new InetSocketAddress(getAddress(),getPort()),
@@ -108,8 +110,31 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
                 getServerHeader(),
                 sessionCookieConfig);
 
-        servletContext.setAsyncExecutorSupplier(asyncExecutorSupplier);
+        servletContext.setSessionService(newSessionService());
+        logger.info("NewInstance "+SessionService.class.getSimpleName()+" using ["+servletContext.getSessionService()+"]");
+
+        servletContext.setAsyncExecutorSupplier(newAsyncExecutorSupplier());
         return servletContext;
+    }
+
+    /**
+     * 新建会话服务
+     * @return
+     */
+    protected SessionService newSessionService(){
+        //组合会话
+        CompositeSessionServiceImpl compositeSessionService = new CompositeSessionServiceImpl();
+
+        //远程会话地址
+        InetSocketAddress remoteSessionServerAddress = new InetSocketAddress(getPort() + 1);
+        //远程命令启动服务
+        RemoteCommandServer remoteCommandServer = new RemoteCommandServer(remoteSessionServerAddress);
+        remoteCommandServer.executeCommand("java -jar ",result ->{
+            if(result.isSuccess()) {
+                compositeSessionService.enableRemoteSession(remoteSessionServerAddress);
+            }
+        });
+        return compositeSessionService;
     }
 
     /**
@@ -137,7 +162,6 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
      */
     protected NettyEmbeddedServletContainer newNettyEmbeddedServletContainer(ServletContext servletContext) throws SSLException {
         Ssl ssl = getSsl();
-
         NettyEmbeddedServletContainer container = new NettyEmbeddedServletContainer(servletContext,ssl);
         return container;
     }

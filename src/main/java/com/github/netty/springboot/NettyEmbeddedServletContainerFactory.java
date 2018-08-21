@@ -129,8 +129,9 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
         InetSocketAddress remoteSessionServerAddress = new InetSocketAddress(getPort() + 1);
         //远程命令启动服务
         RemoteCommandServer remoteCommandServer = new RemoteCommandServer(remoteSessionServerAddress);
-        remoteCommandServer.executeCommand("java -jar ",result ->{
+        remoteCommandServer.execLocalCommand("cmd", result ->{
             if(result.isSuccess()) {
+                System.out.println(result.getMessage());
                 compositeSessionService.enableRemoteSession(remoteSessionServerAddress);
             }
         });

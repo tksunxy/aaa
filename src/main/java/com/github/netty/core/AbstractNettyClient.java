@@ -137,7 +137,8 @@ public abstract class AbstractNettyClient implements Runnable{
             socketChannel = (SocketChannel) channelFuture.channel();
             return true;
         } catch (Exception e) {
-            logger.error("connect fail : on "+remoteAddress);
+            Throwable root = ExceptionUtil.getRootCauseNotNull(e);
+            logger.error("Connect fail "+remoteAddress +"  : ["+ root.toString()+"]");
             return false;
         }
     }

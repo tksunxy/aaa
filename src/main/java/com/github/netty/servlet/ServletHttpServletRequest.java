@@ -829,9 +829,11 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
             }
         }
 
-        if(this.httpSession.isValid()) {
-            SessionService sessionService = getServletContext().getSessionService();
+        SessionService sessionService = getServletContext().getSessionService();
+        if(httpSession.isValid()) {
             sessionService.saveSession(httpSession.unwrap());
+        }else if(httpSession.getId() != null){
+            sessionService.removeSession(httpSession.getId());
         }
 
         this.httpSession.recycle();

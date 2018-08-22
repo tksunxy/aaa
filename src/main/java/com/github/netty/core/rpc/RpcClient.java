@@ -44,6 +44,10 @@ public class RpcClient extends AbstractNettyClient{
     }
 
     /**
+     * 连接状态
+     */
+    private State state;
+    /**
      * rpc命令服务
      */
     private RpcCommandService commandService;
@@ -108,6 +112,14 @@ public class RpcClient extends AbstractNettyClient{
      */
     public RpcOverrideMethod addOverrideMethod(String methodName, RpcOverrideMethod method){
         return methodOverrideMap.put(methodName,method);
+    }
+
+    /**
+     * 获取连接状态
+     * @return
+     */
+    public State getState() {
+        return state;
     }
 
     /**
@@ -196,6 +208,17 @@ public class RpcClient extends AbstractNettyClient{
     protected void startAfter() {
         super.startAfter();
         commandService = newInstance(RpcCommandService.class);
+    }
+
+    @Override
+    public boolean connect() {
+        boolean success = super.connect();
+        if(success){
+            state = State.UP;
+        }else {
+            state = State.DOWN;
+        }
+        return success;
     }
 
     /**
@@ -389,4 +412,11 @@ public class RpcClient extends AbstractNettyClient{
         return SCHEDULE_SERVICE;
     }
 
+    /**
+     * 客户端连接状态
+     */
+    public enum State{
+        DOWN,
+        UP
+    }
 }

@@ -29,27 +29,32 @@ public class RemoteSessionServiceImpl implements SessionService {
 
     @Override
     public void saveSession(Session session) {
-        rpcSessionService.saveSession(session);
+        getRpcSessionService().saveSession(session);
     }
 
     @Override
     public void removeSession(String sessionId) {
-        rpcSessionService.removeSession(sessionId);
+        getRpcSessionService().removeSession(sessionId);
     }
 
     @Override
     public void removeSessionBatch(List<String> sessionIdList) {
-        rpcSessionService.removeSessionBatch(sessionIdList);
+        getRpcSessionService().removeSessionBatch(sessionIdList);
     }
 
     @Override
     public Session getSession(String sessionId) {
-        return rpcSessionService.getSession(sessionId);
+        return getRpcSessionService().getSession(sessionId);
     }
 
     @Override
     public void changeSessionId(String oldSessionId, String newSessionId) {
-        rpcSessionService.changeSessionId(oldSessionId,newSessionId);;
+        getRpcSessionService().changeSessionId(oldSessionId,newSessionId);;
+    }
+
+    public SessionService getRpcSessionService() {
+//        return rpcClient.newInstance(SessionService.class);
+        return rpcSessionService;
     }
 
     @Override

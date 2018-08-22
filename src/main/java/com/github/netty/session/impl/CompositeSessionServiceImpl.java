@@ -23,7 +23,6 @@ public class CompositeSessionServiceImpl implements SessionService {
         this.localSessionService = new LocalSessionServiceImpl();
     }
 
-
     public void enableRemoteSession(InetSocketAddress remoteSessionServerAddress){
         if(remoteSessionServerAddress != null) {
             this.remoteSessionService = new RemoteSessionServiceImpl(remoteSessionServerAddress);
@@ -32,47 +31,34 @@ public class CompositeSessionServiceImpl implements SessionService {
 
     @Override
     public void saveSession(Session session) {
-        if(remoteSessionService != null) {
-            remoteSessionService.saveSession(session);
-        }else {
-            localSessionService.saveSession(session);
-        }
+        getSessionServiceImpl().saveSession(session);
     }
 
     @Override
     public void removeSession(String sessionId) {
-        if(remoteSessionService != null) {
-            remoteSessionService.removeSession(sessionId);
-        }else {
-            localSessionService.removeSession(sessionId);
-        }
+        getSessionServiceImpl().removeSession(sessionId);
     }
 
     @Override
     public void removeSessionBatch(List<String> sessionIdList) {
-        if(remoteSessionService != null) {
-            remoteSessionService.removeSessionBatch(sessionIdList);
-        }else {
-            localSessionService.removeSessionBatch(sessionIdList);
-        }
+        getSessionServiceImpl().removeSessionBatch(sessionIdList);
     }
 
     @Override
     public Session getSession(String sessionId) {
-        if(remoteSessionService != null) {
-            return remoteSessionService.getSession(sessionId);
-        }else {
-            return localSessionService.getSession(sessionId);
-        }
+        return getSessionServiceImpl().getSession(sessionId);
     }
 
     @Override
     public void changeSessionId(String oldSessionId, String newSessionId) {
+        getSessionServiceImpl().changeSessionId(oldSessionId, newSessionId);
+    }
+
+    public SessionService getSessionServiceImpl() {
         if(remoteSessionService != null) {
-            remoteSessionService.changeSessionId(oldSessionId, newSessionId);
-        }else {
-            localSessionService.changeSessionId(oldSessionId, newSessionId);
+            return remoteSessionService;
         }
+        return localSessionService;
     }
 
     @Override

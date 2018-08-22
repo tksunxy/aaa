@@ -131,7 +131,7 @@ public abstract class AbstractNettyServer implements Runnable{
             if(cause == null) {
                 serverChannel = channelFuture.channel();
                 closeFuture = serverChannel.closeFuture();
-                closeFuture.sync();
+//                closeFuture.sync();
             }
         } catch (Throwable throwable) {
             ExceptionUtil.printRootCauseStackTrace(throwable);
@@ -153,12 +153,12 @@ public abstract class AbstractNettyServer implements Runnable{
 
         } catch (InterruptedException e) {
             cause = e;
-        }finally {
-            if(closeFuture != null) {
-                synchronized (closeFuture) {
-                    closeFuture.notify();
-                }
-            }
+//        }finally {
+//            if(closeFuture != null) {
+//                synchronized (closeFuture) {
+//                    closeFuture.notify();
+//                }
+//            }
         }
         stopAfter(cause);
     }

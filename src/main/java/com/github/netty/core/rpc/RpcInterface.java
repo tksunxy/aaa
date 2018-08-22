@@ -20,5 +20,5 @@ public @interface RpcInterface {
      * 超时时间 (毫秒)
      * @return
      */
-    int timeout() default 5;
+    int timeout() default 20;
 }

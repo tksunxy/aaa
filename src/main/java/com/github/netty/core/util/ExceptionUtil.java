@@ -93,7 +93,7 @@ public class ExceptionUtil {
      */
     @Deprecated
     public static Throwable getCause(Throwable throwable) {
-        return getCause(throwable, CAUSE_METHOD_NAMES);
+        return throwable.getCause();
     }
 
 
@@ -184,8 +184,26 @@ public class ExceptionUtil {
      *  <code>null</code> if none found or null throwable input
      */
     public static Throwable getRootCause(Throwable throwable) {
-        List<Throwable> list = getThrowableList(throwable);
-        return (list.size() < 2 ? null : (Throwable)list.get(list.size() - 1));
+        Throwable current = throwable;
+        while (current != null) {
+            Throwable next = current.getCause();
+            if(next == null){
+                break;
+            }
+            current = next;
+        }
+        if(throwable == current){
+            return null;
+        }
+        return current;
+    }
+
+    public static Throwable getRootCauseNotNull(Throwable throwable) {
+        Throwable root = getRootCause(throwable);
+        if(root == null){
+            return throwable;
+        }
+        return root;
     }
 
     /**
@@ -287,7 +305,7 @@ public class ExceptionUtil {
         List<Throwable> list = new ArrayList<Throwable>();
         while (throwable != null && list.contains(throwable) == false) {
             list.add(throwable);
-            throwable = getCause(throwable);
+            throwable = throwable.getCause();
         }
         return list;
     }

@@ -40,6 +40,8 @@ public class RpcServer extends AbstractNettyServer{
         RpcServerHandler rpcServerHandler = new RpcServerHandler();
         //默认开启rpc基本命令服务
         rpcServerHandler.addService(new RpcCommandServiceImpl());
+        //默认开启DB服务
+        rpcServerHandler.addService(new RpcDBServiceImpl());
         return rpcServerHandler;
     }
 

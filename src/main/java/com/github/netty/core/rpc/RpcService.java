@@ -33,7 +33,8 @@ public class RpcService {
     }
 
     public Object invoke(String methodName,Object[] args) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        Method method = getMethod(methodName);
+        int argsCount = args == null?0: args.length;
+        Method method = getMethod(methodName,argsCount);
         if(method == null){
             throw new NoSuchMethodException("not found method ["+methodName+"]");
         }
@@ -45,12 +46,12 @@ public class RpcService {
         return serviceId;
     }
 
-    public Method getMethod(String methodName) {
+    public Method getMethod(String methodName,int argsCount) {
         if(methodList instanceof RandomAccess) {
             int size = methodList.size();
             for (int i=0; i<size; i++){
                 Method method = methodList.get(i);
-                if(method.getName().equals(methodName)){
+                if(method.getName().equals(methodName) && method.getParameterCount() == argsCount){
                     return method;
                 }
             }

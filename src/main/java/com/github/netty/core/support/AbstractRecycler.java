@@ -15,15 +15,27 @@ public abstract class AbstractRecycler<T>   {
     private List<AbstractRecycler> globalList;
 
     public AbstractRecycler() {
+        this(20);
+    }
+
+    public AbstractRecycler(int instanceCount) {
         this.stack = new Stack<>();
         RECYCLER_LIST.add(this);
         globalList = RECYCLER_LIST;
+
+        for(int i=0; i< instanceCount; i++) {
+            recycle(newInstance());
+        }
     }
 
     public static List<AbstractRecycler> getRecyclerList() {
         return RECYCLER_LIST;
     }
 
+    /**
+     * 新建实例
+     * @return
+     */
     protected abstract T newInstance();
 
     public T get() {
@@ -35,7 +47,7 @@ public abstract class AbstractRecycler<T>   {
         stack.push(value);
     }
 
-    private class Stack<E> extends ConcurrentLinkedDeque<E>{
+    private class Stack<E> extends ConcurrentLinkedDeque<E> {
 //         ReferenceQueue<E> queue = new ReferenceQueue<>();
 //
 //         public void push0(E value) {

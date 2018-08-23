@@ -50,7 +50,11 @@ public class RpcClient extends AbstractNettyClient{
     /**
      * rpc命令服务
      */
-    private RpcCommandService commandService;
+    private RpcCommandService rpcCommandService;
+    /**
+     * rpc数据服务
+     */
+    private RpcDBService rpcDBService;
     /**
      * 请求锁
      */
@@ -88,7 +92,7 @@ public class RpcClient extends AbstractNettyClient{
      * @param reconnectSuccessHandler 重连成功后
      */
     public void enableAutoReconnect(int heartIntervalSecond, TimeUnit timeUnit, Consumer<SocketChannel> reconnectSuccessHandler){
-        if(commandService == null){
+        if(rpcCommandService == null){
             //自动重连依赖命令服务
             throw new IllegalStateException("if enableAutoReconnect, you must has commandService");
         }
@@ -189,7 +193,7 @@ public class RpcClient extends AbstractNettyClient{
 
     @Override
     public boolean isConnect() {
-        if(commandService == null){
+        if(rpcCommandService == null){
             return super.isConnect();
         }
 
@@ -198,7 +202,7 @@ public class RpcClient extends AbstractNettyClient{
             return false;
         }
         try {
-            return commandService.ping() != null;
+            return rpcCommandService.ping() != null;
         }catch (RpcException e){
             return false;
         }
@@ -207,7 +211,16 @@ public class RpcClient extends AbstractNettyClient{
     @Override
     protected void startAfter() {
         super.startAfter();
-        commandService = newInstance(RpcCommandService.class);
+        rpcCommandService = newInstance(RpcCommandService.class);
+        rpcDBService = newInstance(RpcDBService.class);
+    }
+
+    public RpcDBService getRpcDBService() {
+        return rpcDBService;
+    }
+
+    public RpcCommandService getRpcCommandService() {
+        return rpcCommandService;
     }
 
     @Override
@@ -277,7 +290,7 @@ public class RpcClient extends AbstractNettyClient{
         @Override
         public void run() {
             try {
-                byte[] msg = commandService.ping();
+                byte[] msg = rpcCommandService.ping();
                 logger.info("心跳包 : " + new String(msg));
 
             }catch (RpcConnectException e) {
@@ -287,7 +300,7 @@ public class RpcClient extends AbstractNettyClient{
                 //重ping N次, 如果N次后还ping不通, 则进行重连
                 for(int i = 0; i< maxTimeoutRetryNum; i++) {
                     try {
-                        byte[] msg = commandService.ping();
+                        byte[] msg = rpcCommandService.ping();
                         return;
                     } catch (RpcConnectException e1) {
                         reconnect(e1.getMessage());

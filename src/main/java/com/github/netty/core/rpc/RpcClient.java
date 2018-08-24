@@ -2,14 +2,22 @@ package com.github.netty.core.rpc;
 
 import com.github.netty.core.AbstractChannelHandler;
 import com.github.netty.core.AbstractNettyClient;
+import com.github.netty.core.rpc.codec.RpcDataCodec;
+import com.github.netty.core.rpc.codec.RpcJsonDataCodec;
+import com.github.netty.core.rpc.codec.RpcProto;
 import com.github.netty.core.rpc.exception.RpcConnectException;
 import com.github.netty.core.rpc.exception.RpcException;
 import com.github.netty.core.rpc.exception.RpcTimeoutException;
+import com.github.netty.core.rpc.service.RpcCommandService;
+import com.github.netty.core.rpc.service.RpcDBService;
 import com.github.netty.core.util.ReflectUtil;
+import com.google.protobuf.ByteString;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.serialization.ClassResolvers;
-import io.netty.handler.codec.serialization.ObjectDecoder;
+import io.netty.handler.codec.protobuf.ProtobufDecoder;
+import io.netty.handler.codec.protobuf.ProtobufEncoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 
 import java.lang.reflect.InvocationHandler;
@@ -18,11 +26,11 @@ import java.lang.reflect.Proxy;
 import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 /**
- *
+ * rpc客户端
  * @author acer01
  *  2018/8/18/018
  */
@@ -44,6 +52,10 @@ public class RpcClient extends AbstractNettyClient{
     }
 
     /**
+     * 数据编码解码器
+     */
+    private RpcDataCodec rpcDataCodec = new RpcJsonDataCodec();
+    /**
      * 连接状态
      */
     private State state;
@@ -58,11 +70,11 @@ public class RpcClient extends AbstractNettyClient{
     /**
      * 请求锁
      */
-    private final Map<Integer,RpcLock> requestLockMap = new HashMap<>();
+    private final Map<Long,RpcLock> requestLockMap = new HashMap<>();
     /**
      * 生成请求id
      */
-    private final AtomicInteger requestIdIncr = new AtomicInteger();
+    private final AtomicLong requestIdIncr = new AtomicLong();
     /**
      * 实例
      */
@@ -130,7 +142,7 @@ public class RpcClient extends AbstractNettyClient{
      * 新建请求id
      * @return
      */
-    protected Integer newRequestId(){
+    protected Long newRequestId(){
         return requestIdIncr.incrementAndGet();
     }
 
@@ -170,8 +182,13 @@ public class RpcClient extends AbstractNettyClient{
             protected void initChannel(Channel ch) throws Exception {
                 ChannelPipeline pipeline = ch.pipeline();
 
-                pipeline.addLast(encoder);
-                pipeline.addLast(new ObjectDecoder(ClassResolvers.cacheDisabled(null)));
+                pipeline.addLast("protobufVarint32FrameDecoder", new ProtobufVarint32FrameDecoder());
+                pipeline.addLast("protobufDecoder", new ProtobufDecoder(RpcProto.Response.getDefaultInstance()));
+                pipeline.addLast("protobufVarint32LengthFieldPrepender", new ProtobufVarint32LengthFieldPrepender());
+                pipeline.addLast("protobufEncoder", new ProtobufEncoder());
+
+//                pipeline.addLast(encoder);
+//                pipeline.addLast(new ObjectDecoder(ClassResolvers.cacheDisabled(null)));
                 pipeline.addLast(handler);
             }
         };
@@ -238,9 +255,10 @@ public class RpcClient extends AbstractNettyClient{
      * 客户端处理器
      */
     @ChannelHandler.Sharable
-    private class RpcClientHandler extends AbstractChannelHandler<RpcResponse> {
+    private class RpcClientHandler extends AbstractChannelHandler<RpcProto.Response> {
         @Override
-        protected void onMessageReceived(ChannelHandlerContext ctx, RpcResponse rpcResponse) throws Exception {
+        protected void onMessageReceived(ChannelHandlerContext ctx, RpcProto.Response rpcResponse) throws Exception {
+            Long.valueOf(1L);
             RpcLock lock = requestLockMap.get(rpcResponse.getRequestId());
             //如果获取不到锁 说明已经超时, 被释放了
             if(lock == null){
@@ -310,6 +328,8 @@ public class RpcClient extends AbstractNettyClient{
                     }
                 }
                 reconnect(e.getMessage());
+            }catch (Exception e){
+                e.printStackTrace();
             }
         }
     }
@@ -319,9 +339,9 @@ public class RpcClient extends AbstractNettyClient{
      */
     private class RpcLock{
         private long beginTime;
-        private RpcResponse rpcResponse;
+        private RpcProto.Response rpcResponse;
 
-        private RpcResponse lock(int timeout) throws InterruptedException {
+        private RpcProto.Response lock(int timeout) throws InterruptedException {
             this.beginTime = System.currentTimeMillis();
             synchronized (RpcLock.this){
                 wait(timeout);
@@ -333,7 +353,7 @@ public class RpcClient extends AbstractNettyClient{
             return rpcResponse;
         }
 
-        private void unlock(RpcResponse rpcResponse){
+        private void unlock(RpcProto.Response rpcResponse){
             this.rpcResponse = rpcResponse;
             long time = (System.currentTimeMillis() - beginTime );
 
@@ -380,24 +400,29 @@ public class RpcClient extends AbstractNettyClient{
             }
 
             //其他方法
-            Integer requestId = newRequestId();
+            Long requestId = newRequestId();
+            byte[] requestDataBytes = rpcDataCodec.encodeRequestData(args);
 
-            RpcRequest rpcRequest = new RpcRequest(requestId);
-            rpcRequest.setServiceName(serviceName);
-            rpcRequest.setMethodName(methodName);
-            rpcRequest.setParametersVal(args);
+            RpcProto.Request request = RpcProto.Request.newBuilder()
+                    .setRequestId(requestId)
+                    .setServiceName(serviceName)
+                    .setMethodName(methodName)
+                    .setData(ByteString.copyFrom(requestDataBytes))
+                    .build();
 
-            getSocketChannel().writeAndFlush(rpcRequest);
+            getSocketChannel().writeAndFlush(request);
 
             RpcLock lock = new RpcLock();
             requestLockMap.put(requestId,lock);
             //上锁, 等待服务端响应释放锁
-            RpcResponse rpcResponse = lock.lock(timeout);
+            RpcProto.Response rpcResponse = lock.lock(timeout);
             //移除锁
             requestLockMap.remove(requestId);
 
             if(rpcResponse != null && rpcResponse.getStatus() == RpcResponse.OK){
-                return rpcResponse.getData();
+                byte[] responseDataBytes = rpcResponse.getData().toByteArray();
+                Object responseData = rpcDataCodec.decodeResponseData(responseDataBytes);
+                return responseData;
             }
             return null;
         }

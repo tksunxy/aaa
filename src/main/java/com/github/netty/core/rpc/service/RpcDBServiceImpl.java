@@ -1,7 +1,11 @@
-package com.github.netty.core.rpc;
+package com.github.netty.core.rpc.service;
 
 import java.util.*;
 
+/**
+ * 数据存储服务
+ * @author 84215
+ */
 public class RpcDBServiceImpl implements RpcDBService {
 
     private ExpiryMap<String,byte[]> memExpiryMap = new ExpiryMap<>(-1);

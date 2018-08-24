@@ -83,9 +83,7 @@ public class RemoteSessionServiceImpl extends RpcClient implements SessionServic
             T data = (T) ois.readObject();
             return data;
         } catch (IOException | ClassNotFoundException e) {
-            RpcDecodeException rpcDecodeException = new RpcDecodeException(e.getMessage(),e);
-            rpcDecodeException.setStackTrace(e.getStackTrace());
-            throw rpcDecodeException;
+            throw new RpcDecodeException(e.getMessage(),e);
         } finally {
             try {
                 if(ois != null) {

@@ -2,12 +2,19 @@ package com.github.netty.core.rpc;
 
 import com.github.netty.core.AbstractChannelHandler;
 import com.github.netty.core.AbstractNettyServer;
+import com.github.netty.core.rpc.codec.RpcDataCodec;
+import com.github.netty.core.rpc.codec.RpcJsonDataCodec;
+import com.github.netty.core.rpc.codec.RpcProto;
+import com.github.netty.core.rpc.service.RpcCommandServiceImpl;
+import com.github.netty.core.rpc.service.RpcDBServiceImpl;
 import com.github.netty.core.util.ExceptionUtil;
 import com.github.netty.core.util.ReflectUtil;
+import com.google.protobuf.ByteString;
 import io.netty.channel.*;
-import io.netty.handler.codec.serialization.ClassResolvers;
-import io.netty.handler.codec.serialization.ObjectDecoder;
-import io.netty.handler.codec.serialization.ObjectEncoder;
+import io.netty.handler.codec.protobuf.ProtobufDecoder;
+import io.netty.handler.codec.protobuf.ProtobufEncoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 
 import java.lang.reflect.InvocationTargetException;
 import java.net.InetSocketAddress;
@@ -20,6 +27,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * Created by acer01 on 2018/8/18/018.
  */
 public class RpcServer extends AbstractNettyServer{
+
+    /**
+     * 数据编码解码器
+     */
+    private RpcDataCodec rpcDataCodec = new RpcJsonDataCodec();
 
     private RpcServerHandler rpcServerHandler = new RpcServerHandler();
 
@@ -48,15 +60,19 @@ public class RpcServer extends AbstractNettyServer{
     @Override
     protected ChannelInitializer<? extends Channel> newInitializerChannelHandler() {
         return new ChannelInitializer<Channel>() {
-
-            private ObjectEncoder encoder = new ObjectEncoder();
+//            private ObjectEncoder encoder = new ObjectEncoder();
 
             @Override
             protected void initChannel(Channel ch) throws Exception {
                 ChannelPipeline pipeline = ch.pipeline();
 
-                pipeline.addLast(encoder);
-                pipeline.addLast(new ObjectDecoder(ClassResolvers.cacheDisabled(null)));
+                pipeline.addLast("protobufVarint32FrameDecoder", new ProtobufVarint32FrameDecoder());
+                pipeline.addLast("protobufDecoder", new ProtobufDecoder(RpcProto.Request.getDefaultInstance()));
+                pipeline.addLast("protobufVarint32LengthFieldPrepender", new ProtobufVarint32LengthFieldPrepender());
+                pipeline.addLast("protobufEncoder", new ProtobufEncoder());
+
+//                pipeline.addLast(encoder);
+//                pipeline.addLast(new ObjectDecoder(ClassResolvers.cacheDisabled(null)));
                 pipeline.addLast(rpcServerHandler);
             }
         };
@@ -66,16 +82,19 @@ public class RpcServer extends AbstractNettyServer{
         rpcServerHandler.addService(service);
     }
 
+    public RpcDataCodec getRpcDataCodec() {
+        return rpcDataCodec;
+    }
+
     @ChannelHandler.Sharable
-    protected class RpcServerHandler extends AbstractChannelHandler<RpcRequest> {
+    protected class RpcServerHandler extends AbstractChannelHandler<RpcProto.Request> {
         private final Map<String,RpcService> serviceInstanceMap = new HashMap<>();
         private Map<String,Channel> channelMap = new ConcurrentHashMap<>();
 
         @Override
-        protected void onMessageReceived(ChannelHandlerContext ctx, RpcRequest rpcRequest) throws Exception {
+        protected void onMessageReceived(ChannelHandlerContext ctx, RpcProto.Request rpcRequest) throws Exception {
             String serviceName = rpcRequest.getServiceName();
             String methodName = rpcRequest.getMethodName();
-            logger.info(serviceName+"--"+methodName);
 
             Object result = null;
             int status;
@@ -87,7 +106,10 @@ public class RpcServer extends AbstractNettyServer{
                 message = "not found service ["+ serviceName +"]";
             }else {
                 try {
-                    result = rpcService.invoke(methodName, rpcRequest.getParametersVal());
+                    byte[] requestDataBytes = rpcRequest.getData().toByteArray();
+                    Object[] requestData = rpcDataCodec.decodeRequestData(requestDataBytes);
+
+                    result = rpcService.invoke(methodName, requestData);
                     status = RpcResponse.OK;
                     message = "ok";
                 } catch (NoSuchMethodException | IllegalAccessException e) {
@@ -101,10 +123,24 @@ public class RpcServer extends AbstractNettyServer{
                 }
             }
 
-            RpcResponse response = new RpcResponse(status,message);
-            response.setRequestId(rpcRequest.getRequestId());
-            response.setData(result);
-            ctx.writeAndFlush(response);
+            logger.info(serviceName+"--"+methodName+"--["+status+"]--"+result+"");
+
+            byte[] responseDataBytes;
+            if(result instanceof byte[]){
+                responseDataBytes = (byte[]) result;
+            }else {
+
+            }
+            responseDataBytes = rpcDataCodec.encodeResponseData(result);
+
+            RpcProto.Response rpcResponse = RpcProto.Response.newBuilder()
+                    .setRequestId(rpcRequest.getRequestId())
+                    .setStatus(status)
+                    .setMessage(message)
+                    .setData(ByteString.copyFrom(responseDataBytes))
+                    .build();
+
+            ctx.writeAndFlush(rpcResponse);
         }
 
         @Override
@@ -162,7 +198,7 @@ public class RpcServer extends AbstractNettyServer{
                 if (oldService != null) {
                     throw new IllegalStateException("The service exist [" + serviceName + "]");
                 }
-                serviceInstanceMap.put(serviceName, new RpcService(serviceName, service));
+                serviceInstanceMap.put(serviceName, new RpcService(serviceName, service,RpcServer.this));
             }
         }
 

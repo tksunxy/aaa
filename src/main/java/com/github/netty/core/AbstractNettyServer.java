@@ -112,7 +112,7 @@ public abstract class AbstractNettyServer implements Runnable{
 //                    .option(ChannelOption.SO_BACKLOG, 1024) // determining the number of connections queued
 
                     //禁用Nagle算法，即数据包立即发送出去 (在TCP_NODELAY模式下，假设有3个小包要发送，第一个小包发出后，接下来的小包需要等待之前的小包被ack，在这期间小包会合并，直到接收到之前包的ack后才会发生)
-//                    .childOption(ChannelOption.TCP_NODELAY, true)
+                    .childOption(ChannelOption.TCP_NODELAY, true)
                     //开启TCP/IP协议实现的心跳机制
                     .childOption(ChannelOption.SO_KEEPALIVE, true)
                     //netty的默认内存分配器

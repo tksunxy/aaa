@@ -1,5 +1,7 @@
 package com.github.netty.core.rpc;
 
+import com.github.netty.core.rpc.codec.RpcDataCodec;
+
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -15,13 +17,14 @@ public class RpcService {
     private String serviceId;
     private Object service;
     private List<Method> methodList;
-    private List<Class> interfaceList;
+    private RpcServer rpcServer;
 
-    public RpcService(String serviceId, Object service) {
+    public RpcService(String serviceId, Object service,RpcServer rpcServer) {
         this.serviceId = serviceId;
         this.service = service;
+        this.rpcServer = rpcServer;
 
-        this.interfaceList = getInterfaceList(service);
+        List<Class> interfaceList = getInterfaceList(service);
         if(interfaceList.isEmpty()){
             throw new RuntimeException("rpc服务必须至少拥有一个接口");
         }
@@ -38,8 +41,32 @@ public class RpcService {
         if(method == null){
             throw new NoSuchMethodException("not found method ["+methodName+"]");
         }
+
+        if(argsCount > 0) {
+            checkTypeAutoCast(method.getParameterTypes(),args);
+        }
+
         Object result = method.invoke(service,args);
         return result;
+    }
+
+    /**
+     * 检查参数类型并自动转换
+     * @param types 类型
+     * @param args 参数
+     */
+    private void checkTypeAutoCast(Class<?>[] types,Object[] args){
+        RpcDataCodec rpcDataCodec = rpcServer.getRpcDataCodec();
+        int size = types.length;
+        for (int i = 0; i < size; i++) {
+            Object arg = args[i];
+            Class type = types[i];
+
+            //type 所对应类信息是arg对象所对应的类信息的父类或者是父接口，简单理解即type是arg的父类或接口
+            if(!type.isAssignableFrom(arg.getClass())){
+                args[i] = rpcDataCodec.cast(arg, type);
+            }
+        }
     }
 
     public String getServiceId() {
@@ -57,7 +84,7 @@ public class RpcService {
             }
         }else {
             for(Method method : methodList){
-                if(method.getName().equals(methodName)){
+                if(method.getName().equals(methodName) && method.getParameterCount() == argsCount){
                     return method;
                 }
             }

@@ -1,7 +1,9 @@
-package com.github.netty.core.rpc;
+package com.github.netty.core.rpc.service;
 
 /**
- * Created by acer01 on 2018/8/20/020.
+ *
+ * @author acer01
+ * 2018/8/20/020
  */
 public class RpcCommandServiceImpl implements RpcCommandService {
 

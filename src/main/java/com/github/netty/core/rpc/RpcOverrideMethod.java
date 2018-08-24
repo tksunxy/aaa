@@ -3,6 +3,8 @@ package com.github.netty.core.rpc;
 import java.lang.reflect.Method;
 
 /**
+ * 该接口可以重写rpc接口的方法
+ *
  * @author 84215
  */
 @FunctionalInterface

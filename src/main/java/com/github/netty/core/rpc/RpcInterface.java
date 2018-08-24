@@ -3,7 +3,7 @@ package com.github.netty.core.rpc;
 import java.lang.annotation.*;
 
 /**
- * Created by acer01 on 2018/8/20/020.
+ * rpc接口 注:(要使用rpc, 必须接口上有这个注解)
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)

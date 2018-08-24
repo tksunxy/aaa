@@ -14,6 +14,9 @@ public class RpcDecodeException extends RpcException {
 
     public RpcDecodeException(String message, Throwable cause) {
         super(message, cause, false, false);
+        if(cause != null) {
+            setStackTrace(cause.getStackTrace());
+        }
     }
 
 

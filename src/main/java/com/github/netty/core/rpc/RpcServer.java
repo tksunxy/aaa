@@ -2,21 +2,27 @@ package com.github.netty.core.rpc;
 
 import com.github.netty.core.AbstractChannelHandler;
 import com.github.netty.core.AbstractNettyServer;
-import com.github.netty.core.rpc.codec.RpcDataCodec;
-import com.github.netty.core.rpc.codec.RpcJsonDataCodec;
+import com.github.netty.core.rpc.codec.DataCodec;
+import com.github.netty.core.rpc.codec.JsonDataCodec;
 import com.github.netty.core.rpc.codec.RpcProto;
+import com.github.netty.core.rpc.codec.RpcResponseStatus;
 import com.github.netty.core.rpc.service.RpcCommandServiceImpl;
 import com.github.netty.core.rpc.service.RpcDBServiceImpl;
 import com.github.netty.core.util.ExceptionUtil;
 import com.github.netty.core.util.ReflectUtil;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.MessageLiteOrBuilder;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
+import io.netty.handler.codec.ByteToMessageDecoder;
+import io.netty.handler.codec.MessageToByteEncoder;
+import io.netty.handler.codec.MessageToMessageDecoder;
+import io.netty.handler.codec.MessageToMessageEncoder;
 import io.netty.handler.codec.protobuf.ProtobufDecoder;
 import io.netty.handler.codec.protobuf.ProtobufEncoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 
-import java.lang.reflect.InvocationTargetException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.HashMap;
@@ -24,15 +30,19 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Created by acer01 on 2018/8/18/018.
+ * rpc服务端
+ * @author acer01
+ *  2018/8/18/018
  */
 public class RpcServer extends AbstractNettyServer{
 
     /**
      * 数据编码解码器
      */
-    private RpcDataCodec rpcDataCodec = new RpcJsonDataCodec();
-
+    private DataCodec dataCodec = new JsonDataCodec();
+    /**
+     * rpc服务端处理器
+     */
     private RpcServerHandler rpcServerHandler = new RpcServerHandler();
 
     public RpcServer(int port) {
@@ -60,19 +70,19 @@ public class RpcServer extends AbstractNettyServer{
     @Override
     protected ChannelInitializer<? extends Channel> newInitializerChannelHandler() {
         return new ChannelInitializer<Channel>() {
-//            private ObjectEncoder encoder = new ObjectEncoder();
+            MessageToByteEncoder<ByteBuf> varintEncoder = new ProtobufVarint32LengthFieldPrepender();
+            MessageToMessageDecoder<ByteBuf> protobufDecoder = new ProtobufDecoder(RpcProto.Request.getDefaultInstance());
+            MessageToMessageEncoder<MessageLiteOrBuilder> protobufEncoder = new ProtobufEncoder();
 
             @Override
             protected void initChannel(Channel ch) throws Exception {
                 ChannelPipeline pipeline = ch.pipeline();
 
-                pipeline.addLast("protobufVarint32FrameDecoder", new ProtobufVarint32FrameDecoder());
-                pipeline.addLast("protobufDecoder", new ProtobufDecoder(RpcProto.Request.getDefaultInstance()));
-                pipeline.addLast("protobufVarint32LengthFieldPrepender", new ProtobufVarint32LengthFieldPrepender());
-                pipeline.addLast("protobufEncoder", new ProtobufEncoder());
-
-//                pipeline.addLast(encoder);
-//                pipeline.addLast(new ObjectDecoder(ClassResolvers.cacheDisabled(null)));
+                ByteToMessageDecoder varintDecoder = new ProtobufVarint32FrameDecoder();
+                pipeline.addLast(varintDecoder);
+                pipeline.addLast(protobufDecoder);
+                pipeline.addLast(varintEncoder);
+                pipeline.addLast(protobufEncoder);
                 pipeline.addLast(rpcServerHandler);
             }
         };
@@ -82,8 +92,8 @@ public class RpcServer extends AbstractNettyServer{
         rpcServerHandler.addService(service);
     }
 
-    public RpcDataCodec getRpcDataCodec() {
-        return rpcDataCodec;
+    public DataCodec getDataCodec() {
+        return dataCodec;
     }
 
     @ChannelHandler.Sharable
@@ -102,41 +112,43 @@ public class RpcServer extends AbstractNettyServer{
 
             RpcService rpcService = serviceInstanceMap.get(serviceName);
             if(rpcService == null){
-                status = RpcResponse.NO_SUCH_SERVICE;
+                status = RpcResponseStatus.NO_SUCH_SERVICE;
                 message = "not found service ["+ serviceName +"]";
             }else {
                 try {
                     byte[] requestDataBytes = rpcRequest.getData().toByteArray();
-                    Object[] requestData = rpcDataCodec.decodeRequestData(requestDataBytes);
-
+                    Object[] requestData = dataCodec.decodeRequestData(requestDataBytes);
                     result = rpcService.invoke(methodName, requestData);
-                    status = RpcResponse.OK;
+
+                    status = RpcResponseStatus.OK;
                     message = "ok";
                 } catch (NoSuchMethodException | IllegalAccessException e) {
-                    status = RpcResponse.NO_SUCH_METHOD;
+                    status = RpcResponseStatus.NO_SUCH_METHOD;
                     message = e.getMessage();
-                    e.printStackTrace();
-                } catch (InvocationTargetException e) {
-                    status = RpcResponse.SERVER_ERROR;
-                    message = e.getTargetException().getMessage();
-                    e.printStackTrace();
+                } catch (Throwable e) {
+                    status = RpcResponseStatus.SERVER_ERROR;
+                    message = e.getCause() == null? e.toString() : e.getCause().getMessage();
                 }
             }
 
             logger.info(serviceName+"--"+methodName+"--["+status+"]--"+result+"");
 
+            //是否进行编码
+            int isEncode;
             byte[] responseDataBytes;
             if(result instanceof byte[]){
+                isEncode = 0;
                 responseDataBytes = (byte[]) result;
             }else {
-
+                isEncode = 1;
+                responseDataBytes = dataCodec.encodeResponseData(result);
             }
-            responseDataBytes = rpcDataCodec.encodeResponseData(result);
 
             RpcProto.Response rpcResponse = RpcProto.Response.newBuilder()
                     .setRequestId(rpcRequest.getRequestId())
                     .setStatus(status)
                     .setMessage(message)
+                    .setEncode(isEncode)
                     .setData(ByteString.copyFrom(responseDataBytes))
                     .build();
 
@@ -152,13 +164,12 @@ public class RpcServer extends AbstractNettyServer{
         @Override
         public void channelActive(ChannelHandlerContext ctx) throws Exception {
             super.channelActive(ctx);
-            Channel channel = ctx.channel();
 
+            Channel channel = ctx.channel();
             InetSocketAddress remoteAddress = getInetSocketAddress(channel.remoteAddress());
             if(remoteAddress == null){
                 return;
             }
-
             channelMap.put(remoteAddress.getHostString() + ":" + remoteAddress.getPort(),channel);
             logger.info("新入链接 = "+ctx.channel().toString());
         }
@@ -166,18 +177,14 @@ public class RpcServer extends AbstractNettyServer{
         @Override
         public void channelInactive(ChannelHandlerContext ctx) throws Exception {
             super.channelInactive(ctx);
-            logger.info("断开链接" + ctx.channel().toString());
-        }
 
-        private RpcInterface findRpcInterfaceAnn(Object service){
-            Class[] interfaces = ReflectUtil.getInterfaces(service);
-            for(Class i : interfaces){
-                RpcInterface rpcInterfaceAnn = ReflectUtil.findAnnotation(i, RpcInterface.class);
-                if(rpcInterfaceAnn != null){
-                    return rpcInterfaceAnn;
-                }
+            Channel channel = ctx.channel();
+            InetSocketAddress remoteAddress = getInetSocketAddress(channel.remoteAddress());
+            if(remoteAddress == null){
+                return;
             }
-            return null;
+            channelMap.remove(remoteAddress.getHostString() + ":" + remoteAddress.getPort(),channel);
+            logger.info("断开链接" + ctx.channel().toString());
         }
 
         /**
@@ -200,6 +207,17 @@ public class RpcServer extends AbstractNettyServer{
                 }
                 serviceInstanceMap.put(serviceName, new RpcService(serviceName, service,RpcServer.this));
             }
+        }
+
+        private RpcInterface findRpcInterfaceAnn(Object service){
+            Class[] interfaces = ReflectUtil.getInterfaces(service);
+            for(Class i : interfaces){
+                RpcInterface rpcInterfaceAnn = ReflectUtil.findAnnotation(i, RpcInterface.class);
+                if(rpcInterfaceAnn != null){
+                    return rpcInterfaceAnn;
+                }
+            }
+            return null;
         }
 
         private InetSocketAddress getInetSocketAddress(SocketAddress socketAddress){

@@ -1,10 +1,10 @@
 package com.github.netty.core;
 
+import com.github.netty.core.util.Logger;
+import com.github.netty.core.util.LoggerFactory;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.timeout.IdleStateEvent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *  用于兼容 netty4 与netty5

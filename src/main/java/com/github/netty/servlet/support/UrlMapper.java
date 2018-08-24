@@ -4,8 +4,6 @@ import com.github.netty.core.support.AbstractRecycler;
 import com.github.netty.core.support.Recyclable;
 import com.github.netty.core.util.RecyclableUtil;
 import com.github.netty.core.util.TodoOptimize;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
@@ -49,7 +47,6 @@ import java.util.*;
  * Created on 2017-08-25 11:32.
  */
 public class UrlMapper<T> {
-    private final Logger log = LoggerFactory.getLogger(getClass());
 
     private UrlPatternContext urlPatternContext;
     private String contextPath;

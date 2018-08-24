@@ -7,8 +7,8 @@ import com.github.netty.core.util.TypeUtil;
 import com.github.netty.servlet.support.ServletEventListenerManager;
 import com.github.netty.servlet.support.UrlMapper;
 import com.github.netty.session.SessionService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.github.netty.core.util.Logger;
+import com.github.netty.core.util.LoggerFactory;
 
 import javax.servlet.*;
 import javax.servlet.descriptor.JspConfigDescriptor;

@@ -12,8 +12,8 @@ import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.socket.SocketChannel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.github.netty.core.util.Logger;
+import com.github.netty.core.util.LoggerFactory;
 
 import java.net.InetSocketAddress;
 

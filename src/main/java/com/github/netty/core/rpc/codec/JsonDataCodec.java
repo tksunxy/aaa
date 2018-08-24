@@ -11,7 +11,7 @@ import java.util.List;
 /**
  * @author 84215
  */
-public class RpcJsonDataCodec implements RpcDataCodec{
+public class JsonDataCodec implements DataCodec {
 
     private static final SerializerFeature[] SERIALIZER_FEATURES = {
             SerializerFeature.WriteClassName
@@ -19,7 +19,7 @@ public class RpcJsonDataCodec implements RpcDataCodec{
 
     private ParserConfig parserConfig;
 
-    public RpcJsonDataCodec() {
+    public JsonDataCodec() {
         this.parserConfig = new ParserConfig();
     }
     private static final byte[] EMPTY = new byte[0];

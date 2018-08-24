@@ -3,8 +3,8 @@ package com.github.netty.session.impl;
 import com.github.netty.core.util.NamespaceUtil;
 import com.github.netty.session.Session;
 import com.github.netty.session.SessionService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.github.netty.core.util.Logger;
+import com.github.netty.core.util.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -108,7 +108,7 @@ public class LocalSessionServiceImpl implements SessionService {
                 for(Session session : sessionMap.values()){
                     if(!session.isValid()){
                         String id = session.getId();
-                        logger.info("Session(ID={}) is invalidated by Session Manager", id);
+                        logger.info("Session(ID="+id+") is invalidated by Session Manager");
                         sessionMap.remove(id);
                     }
                 }

@@ -2,7 +2,6 @@ package com.github.netty.session.impl;
 
 import com.github.netty.core.rpc.RpcClient;
 import com.github.netty.core.rpc.exception.RpcDecodeException;
-import com.github.netty.core.util.NamespaceUtil;
 import com.github.netty.session.Session;
 import com.github.netty.session.SessionService;
 import io.netty.buffer.ByteBufInputStream;
@@ -22,8 +21,6 @@ import java.util.List;
  */
 public class RemoteSessionServiceImpl extends RpcClient implements SessionService {
 
-    private String name = NamespaceUtil.newIdName(getClass());
-
     private static final byte[] EMPTY = new byte[0];
 
     public RemoteSessionServiceImpl(InetSocketAddress remoteSessionServerAddress) {
@@ -36,9 +33,13 @@ public class RemoteSessionServiceImpl extends RpcClient implements SessionServic
     @Override
     public void saveSession(Session session) {
         byte[] bytes = encode(session);
-        long expireSecond = (System.currentTimeMillis() - (session.getCreationTime() + (session.getMaxInactiveInterval() * 1000))) / 1000;
+        long expireSecond = (session.getMaxInactiveInterval() * 1000 + session.getCreationTime() - System.currentTimeMillis()) / 1000;
 
-        getRpcDBService().put(session.getId(),bytes, (int) expireSecond);
+        if(expireSecond > 0){
+            getRpcDBService().put(session.getId(),bytes, (int) expireSecond);
+        }else {
+            getRpcDBService().remove(session.getId());
+        }
     }
 
     @Override
@@ -143,7 +144,7 @@ public class RemoteSessionServiceImpl extends RpcClient implements SessionServic
 
     @Override
     public String toString() {
-        return name;
+        return getName();
     }
 
 }

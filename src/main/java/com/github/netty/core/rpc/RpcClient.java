@@ -2,23 +2,30 @@ package com.github.netty.core.rpc;
 
 import com.github.netty.core.AbstractChannelHandler;
 import com.github.netty.core.AbstractNettyClient;
-import com.github.netty.core.rpc.codec.RpcDataCodec;
-import com.github.netty.core.rpc.codec.RpcJsonDataCodec;
+import com.github.netty.core.rpc.codec.DataCodec;
+import com.github.netty.core.rpc.codec.JsonDataCodec;
+import com.github.netty.core.rpc.codec.RpcResponseStatus;
 import com.github.netty.core.rpc.codec.RpcProto;
 import com.github.netty.core.rpc.exception.RpcConnectException;
 import com.github.netty.core.rpc.exception.RpcException;
+import com.github.netty.core.rpc.exception.RpcResponseException;
 import com.github.netty.core.rpc.exception.RpcTimeoutException;
 import com.github.netty.core.rpc.service.RpcCommandService;
 import com.github.netty.core.rpc.service.RpcDBService;
 import com.github.netty.core.util.ReflectUtil;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.MessageLiteOrBuilder;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.ByteToMessageDecoder;
+import io.netty.handler.codec.MessageToByteEncoder;
+import io.netty.handler.codec.MessageToMessageDecoder;
+import io.netty.handler.codec.MessageToMessageEncoder;
 import io.netty.handler.codec.protobuf.ProtobufDecoder;
 import io.netty.handler.codec.protobuf.ProtobufEncoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
-import io.netty.handler.codec.serialization.ObjectEncoder;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -54,7 +61,11 @@ public class RpcClient extends AbstractNettyClient{
     /**
      * 数据编码解码器
      */
-    private RpcDataCodec rpcDataCodec = new RpcJsonDataCodec();
+    private DataCodec dataCodec = new JsonDataCodec();
+    /**
+     * rpc客户端处理器
+     */
+    private ChannelHandler rpcClientHandler = new RpcClientHandler();
     /**
      * 连接状态
      */
@@ -175,21 +186,20 @@ public class RpcClient extends AbstractNettyClient{
     @Override
     protected ChannelInitializer<? extends Channel> newInitializerChannelHandler() {
         return new ChannelInitializer<Channel>() {
-            private ChannelHandler handler = new RpcClientHandler();
-            private ObjectEncoder encoder = new ObjectEncoder();
+            MessageToByteEncoder<ByteBuf> varintEncoder = new ProtobufVarint32LengthFieldPrepender();
+            MessageToMessageDecoder<ByteBuf> protobufDecoder = new ProtobufDecoder(RpcProto.Response.getDefaultInstance());
+            MessageToMessageEncoder<MessageLiteOrBuilder> protobufEncoder = new ProtobufEncoder();
 
             @Override
             protected void initChannel(Channel ch) throws Exception {
                 ChannelPipeline pipeline = ch.pipeline();
 
-                pipeline.addLast("protobufVarint32FrameDecoder", new ProtobufVarint32FrameDecoder());
-                pipeline.addLast("protobufDecoder", new ProtobufDecoder(RpcProto.Response.getDefaultInstance()));
-                pipeline.addLast("protobufVarint32LengthFieldPrepender", new ProtobufVarint32LengthFieldPrepender());
-                pipeline.addLast("protobufEncoder", new ProtobufEncoder());
-
-//                pipeline.addLast(encoder);
-//                pipeline.addLast(new ObjectDecoder(ClassResolvers.cacheDisabled(null)));
-                pipeline.addLast(handler);
+                ByteToMessageDecoder varintDecoder = new ProtobufVarint32FrameDecoder();
+                pipeline.addLast(varintDecoder);
+                pipeline.addLast(protobufDecoder);
+                pipeline.addLast(varintEncoder);
+                pipeline.addLast(protobufEncoder);
+                pipeline.addLast(rpcClientHandler);
             }
         };
     }
@@ -258,7 +268,6 @@ public class RpcClient extends AbstractNettyClient{
     private class RpcClientHandler extends AbstractChannelHandler<RpcProto.Response> {
         @Override
         protected void onMessageReceived(ChannelHandlerContext ctx, RpcProto.Response rpcResponse) throws Exception {
-            Long.valueOf(1L);
             RpcLock lock = requestLockMap.get(rpcResponse.getRequestId());
             //如果获取不到锁 说明已经超时, 被释放了
             if(lock == null){
@@ -347,9 +356,6 @@ public class RpcClient extends AbstractNettyClient{
                 wait(timeout);
             }
 
-            if(rpcResponse == null){
-                throw new RpcTimeoutException("requestTimeout : maxTimeout is ["+timeout+"]");
-            }
             return rpcResponse;
         }
 
@@ -401,7 +407,7 @@ public class RpcClient extends AbstractNettyClient{
 
             //其他方法
             Long requestId = newRequestId();
-            byte[] requestDataBytes = rpcDataCodec.encodeRequestData(args);
+            byte[] requestDataBytes = dataCodec.encodeRequestData(args);
 
             RpcProto.Request request = RpcProto.Request.newBuilder()
                     .setRequestId(requestId)
@@ -419,12 +425,23 @@ public class RpcClient extends AbstractNettyClient{
             //移除锁
             requestLockMap.remove(requestId);
 
-            if(rpcResponse != null && rpcResponse.getStatus() == RpcResponse.OK){
-                byte[] responseDataBytes = rpcResponse.getData().toByteArray();
-                Object responseData = rpcDataCodec.decodeResponseData(responseDataBytes);
-                return responseData;
+            if(rpcResponse == null){
+                throw new RpcTimeoutException("requestTimeout : maxTimeout is ["+timeout+"]");
             }
-            return null;
+
+            int status = rpcResponse.getStatus();
+            //400以上的状态都是错误状态
+            if(status >= RpcResponseStatus.NO_SUCH_METHOD){
+                throw new RpcResponseException(status,rpcResponse.getMessage());
+            }
+
+            byte[] responseDataBytes = rpcResponse.getData().toByteArray();
+            //如果服务器进行编码了, 就解码
+            if(rpcResponse.getEncode() == 1) {
+                return dataCodec.decodeResponseData(responseDataBytes);
+            }else {
+                return responseDataBytes;
+            }
         }
 
         @Override

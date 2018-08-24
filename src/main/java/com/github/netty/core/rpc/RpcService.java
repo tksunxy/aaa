@@ -1,6 +1,6 @@
 package com.github.netty.core.rpc;
 
-import com.github.netty.core.rpc.codec.RpcDataCodec;
+import com.github.netty.core.rpc.codec.DataCodec;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -36,7 +36,7 @@ public class RpcService {
     }
 
     public Object invoke(String methodName,Object[] args) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        int argsCount = args == null?0: args.length;
+        int argsCount = args == null? 0: args.length;
         Method method = getMethod(methodName,argsCount);
         if(method == null){
             throw new NoSuchMethodException("not found method ["+methodName+"]");
@@ -56,7 +56,7 @@ public class RpcService {
      * @param args 参数
      */
     private void checkTypeAutoCast(Class<?>[] types,Object[] args){
-        RpcDataCodec rpcDataCodec = rpcServer.getRpcDataCodec();
+        DataCodec rpcDataCodec = rpcServer.getDataCodec();
         int size = types.length;
         for (int i = 0; i < size; i++) {
             Object arg = args[i];

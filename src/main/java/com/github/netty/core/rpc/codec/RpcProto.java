@@ -831,7 +831,12 @@ public final class RpcProto {
         getMessageBytes();
 
     /**
-     * <code>bytes data = 4;</code>
+     * <code>int32 encode = 4;</code>
+     */
+    int getEncode();
+
+    /**
+     * <code>bytes data = 5;</code>
      */
     com.google.protobuf.ByteString getData();
   }
@@ -851,6 +856,7 @@ public final class RpcProto {
       requestId_ = 0L;
       status_ = 0;
       message_ = "";
+      encode_ = 0;
       data_ = com.google.protobuf.ByteString.EMPTY;
     }
 
@@ -901,7 +907,12 @@ public final class RpcProto {
               message_ = s;
               break;
             }
-            case 34: {
+            case 32: {
+
+              encode_ = input.readInt32();
+              break;
+            }
+            case 42: {
 
               data_ = input.readBytes();
               break;
@@ -982,10 +993,19 @@ public final class RpcProto {
       }
     }
 
-    public static final int DATA_FIELD_NUMBER = 4;
+    public static final int ENCODE_FIELD_NUMBER = 4;
+    private int encode_;
+    /**
+     * <code>int32 encode = 4;</code>
+     */
+    public int getEncode() {
+      return encode_;
+    }
+
+    public static final int DATA_FIELD_NUMBER = 5;
     private com.google.protobuf.ByteString data_;
     /**
-     * <code>bytes data = 4;</code>
+     * <code>bytes data = 5;</code>
      */
     public com.google.protobuf.ByteString getData() {
       return data_;
@@ -1012,8 +1032,11 @@ public final class RpcProto {
       if (!getMessageBytes().isEmpty()) {
         com.google.protobuf.GeneratedMessageV3.writeString(output, 3, message_);
       }
+      if (encode_ != 0) {
+        output.writeInt32(4, encode_);
+      }
       if (!data_.isEmpty()) {
-        output.writeBytes(4, data_);
+        output.writeBytes(5, data_);
       }
       unknownFields.writeTo(output);
     }
@@ -1034,9 +1057,13 @@ public final class RpcProto {
       if (!getMessageBytes().isEmpty()) {
         size += com.google.protobuf.GeneratedMessageV3.computeStringSize(3, message_);
       }
+      if (encode_ != 0) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt32Size(4, encode_);
+      }
       if (!data_.isEmpty()) {
         size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(4, data_);
+          .computeBytesSize(5, data_);
       }
       size += unknownFields.getSerializedSize();
       memoizedSize = size;
@@ -1060,6 +1087,8 @@ public final class RpcProto {
           == other.getStatus());
       result = result && getMessage()
           .equals(other.getMessage());
+      result = result && (getEncode()
+          == other.getEncode());
       result = result && getData()
           .equals(other.getData());
       result = result && unknownFields.equals(other.unknownFields);
@@ -1080,6 +1109,8 @@ public final class RpcProto {
       hash = (53 * hash) + getStatus();
       hash = (37 * hash) + MESSAGE_FIELD_NUMBER;
       hash = (53 * hash) + getMessage().hashCode();
+      hash = (37 * hash) + ENCODE_FIELD_NUMBER;
+      hash = (53 * hash) + getEncode();
       hash = (37 * hash) + DATA_FIELD_NUMBER;
       hash = (53 * hash) + getData().hashCode();
       hash = (29 * hash) + unknownFields.hashCode();
@@ -1217,6 +1248,8 @@ public final class RpcProto {
 
         message_ = "";
 
+        encode_ = 0;
+
         data_ = com.google.protobuf.ByteString.EMPTY;
 
         return this;
@@ -1244,6 +1277,7 @@ public final class RpcProto {
         result.requestId_ = requestId_;
         result.status_ = status_;
         result.message_ = message_;
+        result.encode_ = encode_;
         result.data_ = data_;
         onBuilt();
         return result;
@@ -1295,6 +1329,9 @@ public final class RpcProto {
         if (!other.getMessage().isEmpty()) {
           message_ = other.message_;
           onChanged();
+        }
+        if (other.getEncode() != 0) {
+          setEncode(other.getEncode());
         }
         if (other.getData() != com.google.protobuf.ByteString.EMPTY) {
           setData(other.getData());
@@ -1447,15 +1484,41 @@ public final class RpcProto {
         return this;
       }
 
+      private int encode_ ;
+      /**
+       * <code>int32 encode = 4;</code>
+       */
+      public int getEncode() {
+        return encode_;
+      }
+      /**
+       * <code>int32 encode = 4;</code>
+       */
+      public Builder setEncode(int value) {
+        
+        encode_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>int32 encode = 4;</code>
+       */
+      public Builder clearEncode() {
+        
+        encode_ = 0;
+        onChanged();
+        return this;
+      }
+
       private com.google.protobuf.ByteString data_ = com.google.protobuf.ByteString.EMPTY;
       /**
-       * <code>bytes data = 4;</code>
+       * <code>bytes data = 5;</code>
        */
       public com.google.protobuf.ByteString getData() {
         return data_;
       }
       /**
-       * <code>bytes data = 4;</code>
+       * <code>bytes data = 5;</code>
        */
       public Builder setData(com.google.protobuf.ByteString value) {
         if (value == null) {
@@ -1467,7 +1530,7 @@ public final class RpcProto {
         return this;
       }
       /**
-       * <code>bytes data = 4;</code>
+       * <code>bytes data = 5;</code>
        */
       public Builder clearData() {
         
@@ -1545,10 +1608,11 @@ public final class RpcProto {
     java.lang.String[] descriptorData = {
       "\n\tRpc.proto\"S\n\007Request\022\021\n\trequestId\030\001 \001(" +
       "\003\022\023\n\013serviceName\030\002 \001(\t\022\022\n\nmethodName\030\003 \001" +
-      "(\t\022\014\n\004data\030\004 \001(\014\"L\n\010Response\022\021\n\trequestI" +
+      "(\t\022\014\n\004data\030\004 \001(\014\"\\\n\010Response\022\021\n\trequestI" +
       "d\030\001 \001(\003\022\016\n\006status\030\002 \001(\005\022\017\n\007message\030\003 \001(\t" +
-      "\022\014\n\004data\030\004 \001(\014B-\n\037com.github.netty.core." +
-      "rpc.codecB\010RpcProtoH\001b\006proto3"
+      "\022\016\n\006encode\030\004 \001(\005\022\014\n\004data\030\005 \001(\014B-\n\037com.gi" +
+      "thub.netty.core.rpc.codecB\010RpcProtoH\001b\006p" +
+      "roto3"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
         new com.google.protobuf.Descriptors.FileDescriptor.    InternalDescriptorAssigner() {
@@ -1573,7 +1637,7 @@ public final class RpcProto {
     internal_static_Response_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_Response_descriptor,
-        new java.lang.String[] { "RequestId", "Status", "Message", "Data", });
+        new java.lang.String[] { "RequestId", "Status", "Message", "Encode", "Data", });
   }
 
   // @@protoc_insertion_point(outer_class_scope)

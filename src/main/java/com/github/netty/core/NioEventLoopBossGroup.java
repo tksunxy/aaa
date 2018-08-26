@@ -1,5 +1,6 @@
 package com.github.netty.core;
 
+import com.github.netty.core.support.ThreadFactoryX;
 import com.github.netty.core.util.NamespaceUtil;
 import io.netty.channel.nio.NioEventLoopGroup;
 
@@ -8,23 +9,20 @@ import io.netty.channel.nio.NioEventLoopGroup;
  */
 public class NioEventLoopBossGroup extends NioEventLoopGroup {
 
-    private String name = NamespaceUtil.newIdName(getClass());
+    private final String name;
 
     public NioEventLoopBossGroup() {
-        super();
+        this(0);
     }
 
     public NioEventLoopBossGroup(int nEventLoops) {
-        super(nEventLoops);
+        this("",nEventLoops);
     }
 
-//    @Override
-//    protected EventLoop newChild(Executor executor, Object... args) throws Exception {
-//        EventLoop eventLoop = super.newChild(executor, args);
-//        String newName = toString()+"-"+ NamespaceUtil.newIdName(this,"nioEventLoop");
-//        return ProxyUtil.newProxyByJdk(eventLoop,newName,true);
-//    }
-
+    public NioEventLoopBossGroup(String preName,int nEventLoops) {
+        super(nEventLoops,new ThreadFactoryX(preName, NioEventLoopBossGroup.class));
+        this.name = NamespaceUtil.newIdName(preName,getClass());
+    }
 
     @Override
     public String toString() {

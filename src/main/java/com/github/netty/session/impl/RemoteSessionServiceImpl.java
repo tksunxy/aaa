@@ -2,6 +2,7 @@ package com.github.netty.session.impl;
 
 import com.github.netty.core.rpc.RpcClient;
 import com.github.netty.core.rpc.exception.RpcDecodeException;
+import com.github.netty.core.support.Optimize;
 import com.github.netty.session.Session;
 import com.github.netty.session.SessionService;
 import io.netty.buffer.ByteBufInputStream;
@@ -13,6 +14,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * 远程会话服务
@@ -24,10 +26,10 @@ public class RemoteSessionServiceImpl extends RpcClient implements SessionServic
     private static final byte[] EMPTY = new byte[0];
 
     public RemoteSessionServiceImpl(InetSocketAddress remoteSessionServerAddress) {
-        super("Session",remoteSessionServerAddress);
-        enableAutoReconnect(socketChannel -> {
-
-        });
+        super("Session",remoteSessionServerAddress, Optimize.getSessionClientSocketChannelCount());
+        if(Optimize.isSessionClientEnableAutoReconnect()) {
+            enableAutoReconnect(rpcClient -> {});
+        }
     }
 
     @Override
@@ -35,9 +37,24 @@ public class RemoteSessionServiceImpl extends RpcClient implements SessionServic
         byte[] bytes = encode(session);
         long expireSecond = (session.getMaxInactiveInterval() * 1000 + session.getCreationTime() - System.currentTimeMillis()) / 1000;
 
-        if(expireSecond > 0){
-            getRpcDBService().put(session.getId(),bytes, (int) expireSecond);
-        }else {
+        if(Optimize.isEnableExecuteHold()) {
+            Optimize.holdExecute(new Runnable() {
+                @Override
+                public void run() {
+                    if (expireSecond > 0) {
+                        getRpcDBService().put(session.getId(), bytes, (int) expireSecond);
+                    } else {
+                        getRpcDBService().remove(session.getId());
+                    }
+                };
+            });
+            return;
+        }
+
+
+        if (expireSecond > 0) {
+            getRpcDBService().put(session.getId(), bytes, (int) expireSecond);
+        } else {
             getRpcDBService().remove(session.getId());
         }
     }
@@ -54,6 +71,17 @@ public class RemoteSessionServiceImpl extends RpcClient implements SessionServic
 
     @Override
     public Session getSession(String sessionId) {
+        if(Optimize.isEnableExecuteHold()) {
+            return Optimize.holdExecute(new Supplier<Session>() {
+                @Override
+                public Session get() {
+                    byte[] bytes = getRpcDBService().get(sessionId);
+                    Session session = decode(bytes);
+                    return session;
+                }
+            });
+        }
+
         byte[] bytes = getRpcDBService().get(sessionId);
         Session session = decode(bytes);
         return session;

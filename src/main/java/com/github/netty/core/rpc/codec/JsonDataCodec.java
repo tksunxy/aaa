@@ -5,7 +5,9 @@ import com.alibaba.fastjson.parser.ParserConfig;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.alibaba.fastjson.util.TypeUtils;
 import com.github.netty.core.rpc.exception.RpcDecodeException;
+import com.github.netty.core.support.Optimize;
 
+import java.nio.charset.Charset;
 import java.util.List;
 
 /**
@@ -13,23 +15,48 @@ import java.util.List;
  */
 public class JsonDataCodec implements DataCodec {
 
+    private static final byte[] EMPTY = new byte[0];
     private static final SerializerFeature[] SERIALIZER_FEATURES = {
             SerializerFeature.WriteClassName
     };
 
+    private static final Charset UTF8 = Charset.forName("UTF-8");
     private ParserConfig parserConfig;
 
     public JsonDataCodec() {
         this.parserConfig = new ParserConfig();
     }
-    private static final byte[] EMPTY = new byte[0];
 
     @Override
     public byte[] encodeRequestData(Object[] data) {
         if(data == null || data.length == 0){
             return EMPTY;
         }
+
+        if(Optimize.isEnableExecuteHold()){
+            return Optimize.holdExecute(() -> {
+                return JSON.toJSONBytes(data,SERIALIZER_FEATURES);
+            });
+        }
+
         return JSON.toJSONBytes(data,SERIALIZER_FEATURES);
+    }
+
+    @Override
+    public Object[] decodeRequestData(String data) {
+        if(data == null || data.isEmpty()){
+            return null;
+        }
+
+        if(Optimize.isEnableExecuteHold()){
+            return Optimize.holdExecute(() -> {
+                List list = (List) JSON.parse(data,parserConfig);
+                return list.toArray();
+            });
+        }
+
+        List list = (List) JSON.parse(data,parserConfig);
+        return list.toArray();
     }
 
     @Override
@@ -37,7 +64,15 @@ public class JsonDataCodec implements DataCodec {
         if(data == null || data.length == 0){
             return null;
         }
-        List list = (List)JSON.parse(data);
+
+        if(Optimize.isEnableExecuteHold()){
+            return Optimize.holdExecute(() -> {
+                List list = (List) JSON.parse(data,0,data.length,UTF8.newDecoder(),JSON.DEFAULT_PARSER_FEATURE);
+                return list.toArray();
+            });
+        }
+
+        List list = (List) JSON.parse(data,0,data.length,UTF8.newDecoder(),JSON.DEFAULT_PARSER_FEATURE);
         return list.toArray();
     }
 
@@ -46,6 +81,13 @@ public class JsonDataCodec implements DataCodec {
         if(data == null){
             return EMPTY;
         }
+
+        if(Optimize.isEnableExecuteHold()){
+            return Optimize.holdExecute(() -> {
+                return JSON.toJSONBytes(data,SERIALIZER_FEATURES);
+            });
+        }
+
         return JSON.toJSONBytes(data,SERIALIZER_FEATURES);
     }
 
@@ -54,14 +96,25 @@ public class JsonDataCodec implements DataCodec {
         if(data == null || data.length == 0){
             return null;
         }
+        if(Optimize.isEnableExecuteHold()){
+            return Optimize.holdExecute(() -> {
+                return JSON.parse(data);
+            });
+        }
+
         return JSON.parse(data);
     }
 
     @Override
     public <T> T cast(Object data, Class<T> type) {
         try {
+            if(Optimize.isEnableExecuteHold()){
+                return Optimize.holdExecute(() -> {
+                    return TypeUtils.cast(data,type,parserConfig);
+                });
+            }
 
-        return TypeUtils.cast(data,type,parserConfig);
+            return TypeUtils.cast(data,type,parserConfig);
         }catch (Exception e){
             throw new RpcDecodeException(e.getMessage(),e);
         }

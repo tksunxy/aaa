@@ -1,3 +1,5 @@
+import com.github.netty.core.support.LoggerFactoryX;
+import com.github.netty.core.support.LoggerX;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
@@ -39,12 +41,10 @@ public class QpsOnceTest {
         test.client.close();
         test.vertx.close();
 
-        System.err.println(
-                "===============================\r\n"+
-                "时间 = " + totalTime + "毫秒, " +
+        logger.info("时间 = " + totalTime + "毫秒, " +
                 "成功 = " + successCount + ", " +
                 "失败 = " + errorCount + ", " +
-                "qps = " + new BigDecimal((double) successCount/(double) totalTime * 1000).setScale(2,BigDecimal.ROUND_HALF_DOWN) +
+                "qps = " + new BigDecimal((double) successCount/(double) totalTime * 1000).setScale(2,BigDecimal.ROUND_HALF_DOWN).stripTrailingZeros().toPlainString() +
                 "\r\n==============================="
         );
 
@@ -68,5 +68,7 @@ public class QpsOnceTest {
         latch.await(waitTime, TimeUnit.SECONDS);
         totalTime = System.currentTimeMillis() - beginTime;
     }
+
+    private static LoggerX logger = LoggerFactoryX.getLogger(QpsOnceTest.class);
 
 }

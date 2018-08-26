@@ -1,6 +1,7 @@
 package com.github.netty.session;
 
-import com.github.netty.core.rpc.RpcScheduledThreadPoolExecutor;
+import com.github.netty.core.support.ThreadPoolX;
+import com.github.netty.core.util.TodoOptimize;
 import com.github.netty.core.util.TypeUtil;
 
 import java.io.BufferedReader;
@@ -13,8 +14,6 @@ import java.util.function.Consumer;
  */
 public class RemoteCommandServer {
 
-    private RpcScheduledThreadPoolExecutor scheduledThreadPoolExecutor = new RpcScheduledThreadPoolExecutor(1);
-
     public RemoteCommandServer(InetSocketAddress address) {
 
     }
@@ -25,13 +24,14 @@ public class RemoteCommandServer {
         server.run();
     }
 
-
+    @TodoOptimize("待实现, 登录远程ssh,执行命令启动另一个jvm")
     public RemoteCommandServer execSshCommand(String command, Consumer<CommandResult> callback){
         return this;
     }
 
+    @TodoOptimize("待实现, 执行本地脚本命令启动另一个jvm")
     public RemoteCommandServer execLocalCommand(String command, Consumer<CommandResult> callback){
-        scheduledThreadPoolExecutor.execute(() -> {
+        ThreadPoolX.getDefaultInstance().execute(() -> {
             StringBuilder sb = new StringBuilder();
             try {
                 String lineSeparator = System.getProperty("line.separator");

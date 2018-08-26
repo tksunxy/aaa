@@ -1,5 +1,6 @@
 package com.github.netty.core;
 
+import com.github.netty.core.support.Optimize;
 import com.github.netty.core.support.PartialPooledByteBufAllocator;
 import com.github.netty.core.util.ExceptionUtil;
 import com.github.netty.core.util.HostUtil;
@@ -11,8 +12,8 @@ import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.util.internal.PlatformDependent;
-import com.github.netty.core.util.Logger;
-import com.github.netty.core.util.LoggerFactory;
+import com.github.netty.core.support.LoggerX;
+import com.github.netty.core.support.LoggerFactoryX;
 
 import java.net.InetSocketAddress;
 
@@ -23,7 +24,7 @@ import java.net.InetSocketAddress;
  */
 public abstract class AbstractNettyServer implements Runnable{
 
-    protected Logger logger;
+    protected LoggerX logger = LoggerFactoryX.getLogger(getClass());
     private String name;
     private ServerBootstrap bootstrap;
 
@@ -48,13 +49,12 @@ public abstract class AbstractNettyServer implements Runnable{
         super();
         this.enableEpoll = HostUtil.isLinux() && Epoll.isAvailable();
         this.serverAddress = address;
-        this.name = preName + NamespaceUtil.newIdName(getClass());
+        this.name = NamespaceUtil.newIdName(preName,getClass());
         this.bootstrap = newServerBootstrap();
         this.boss = newBossEventLoopGroup();
         this.worker = newWorkerEventLoopGroup();
         this.channelFactory = newServerChannelFactory();
         this.initializerChannelHandler = newInitializerChannelHandler();
-        this.logger = LoggerFactory.getLogger(getClass());
     }
 
 
@@ -66,24 +66,25 @@ public abstract class AbstractNettyServer implements Runnable{
 
     protected EventLoopGroup newWorkerEventLoopGroup() {
         EventLoopGroup worker;
-        int nEventLoopCount = Runtime.getRuntime().availableProcessors() * 2;
+        int nEventLoopCount = Optimize.getServerEventLoopWorkerCount();
         if(enableEpoll){
             worker = new EpollEventLoopGroup(nEventLoopCount);
         }else {
-            worker = new NioEventLoopWorkerGroup(nEventLoopCount);
+            worker = new NioEventLoopWorkerGroup("Server",nEventLoopCount);
         }
         return worker;
     }
 
     protected EventLoopGroup newBossEventLoopGroup() {
         EventLoopGroup boss;
+        int ioRatio = Optimize.getServerEventLoopIoRatio();
         if(enableEpoll){
             EpollEventLoopGroup epollBoss = new EpollEventLoopGroup(1);
-            epollBoss.setIoRatio(100);
+            epollBoss.setIoRatio(ioRatio);
             boss = epollBoss;
         }else {
-            NioEventLoopBossGroup jdkBoss = new NioEventLoopBossGroup(1);
-            jdkBoss.setIoRatio(100);
+            NioEventLoopBossGroup jdkBoss = new NioEventLoopBossGroup("Server",1);
+            jdkBoss.setIoRatio(ioRatio);
             boss = jdkBoss;
         }
         return boss;

@@ -39,6 +39,16 @@ public class StringUtil {
         return hasLength(str) && containsText(str);
     }
 
+    public static String firstUpperCase(String str){
+        if(str == null || str.isEmpty() || Character.isUpperCase(str.charAt(0))){
+            return str;
+        }
+
+        char[] cs= str.toCharArray();
+        cs[0] -= 32;
+        return String.valueOf(cs);
+    }
+
     private static boolean containsText(CharSequence str) {
         int strLen = str.length();
 

@@ -3,8 +3,8 @@ package com.github.netty.session.impl;
 import com.github.netty.core.util.NamespaceUtil;
 import com.github.netty.session.Session;
 import com.github.netty.session.SessionService;
-import com.github.netty.core.util.Logger;
-import com.github.netty.core.util.LoggerFactory;
+import com.github.netty.core.support.LoggerX;
+import com.github.netty.core.support.LoggerFactoryX;
 
 import java.util.List;
 import java.util.Map;
@@ -87,7 +87,7 @@ public class LocalSessionServiceImpl implements SessionService {
      * 超时的Session无效化，定期执行
      */
     private class SessionInvalidThread extends Thread {
-        Logger logger = LoggerFactory.getLogger(getClass());
+        LoggerX logger = LoggerFactoryX.getLogger(getClass());
 
         private final long sessionLifeCheckInter;
 

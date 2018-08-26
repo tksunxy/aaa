@@ -7,8 +7,8 @@ import com.github.netty.core.util.TypeUtil;
 import com.github.netty.servlet.support.ServletEventListenerManager;
 import com.github.netty.servlet.support.UrlMapper;
 import com.github.netty.session.SessionService;
-import com.github.netty.core.util.Logger;
-import com.github.netty.core.util.LoggerFactory;
+import com.github.netty.core.support.LoggerX;
+import com.github.netty.core.support.LoggerFactoryX;
 
 import javax.servlet.*;
 import javax.servlet.descriptor.JspConfigDescriptor;
@@ -32,7 +32,7 @@ import java.util.function.Supplier;
  */
 public class ServletContext implements javax.servlet.ServletContext {
 
-    private Logger logger = LoggerFactory.getLogger(getClass());
+    private LoggerX logger = LoggerFactoryX.getLogger(getClass());
 
     private Map<String,Object> attributeMap;
     private Map<String,String> initParamMap;

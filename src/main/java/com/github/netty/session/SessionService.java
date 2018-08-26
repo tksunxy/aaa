@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * Created by acer01 on 2018/8/19/019.
  */
-@RpcInterface(value = "/SessionService",timeout = 500)
+@RpcInterface(value = "/SessionService",timeout = 10)
 public interface SessionService {
 
     void saveSession(Session session);

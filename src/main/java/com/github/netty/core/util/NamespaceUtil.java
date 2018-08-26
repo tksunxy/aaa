@@ -27,7 +27,13 @@ public class NamespaceUtil {
     }
 
     public static String newIdName(Class obj){
-        return getDefaultNamespace().newIdName(obj,obj.getSimpleName());
+        String name = StringUtil.firstUpperCase(obj.getSimpleName());
+        return getDefaultNamespace().newIdName(obj,name);
+    }
+
+    public static String newIdName(String preName,Class obj){
+        String name = StringUtil.firstUpperCase(obj.getSimpleName());
+        return preName + getDefaultNamespace().newIdName(obj,name);
     }
 
     public static String getIdNameClass(Object obj,String name){

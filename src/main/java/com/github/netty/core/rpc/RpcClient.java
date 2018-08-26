@@ -4,14 +4,16 @@ import com.github.netty.core.AbstractChannelHandler;
 import com.github.netty.core.AbstractNettyClient;
 import com.github.netty.core.rpc.codec.DataCodec;
 import com.github.netty.core.rpc.codec.JsonDataCodec;
-import com.github.netty.core.rpc.codec.RpcResponseStatus;
 import com.github.netty.core.rpc.codec.RpcProto;
+import com.github.netty.core.rpc.codec.RpcResponseStatus;
 import com.github.netty.core.rpc.exception.RpcConnectException;
 import com.github.netty.core.rpc.exception.RpcException;
 import com.github.netty.core.rpc.exception.RpcResponseException;
 import com.github.netty.core.rpc.exception.RpcTimeoutException;
 import com.github.netty.core.rpc.service.RpcCommandService;
 import com.github.netty.core.rpc.service.RpcDBService;
+import com.github.netty.core.support.Optimize;
+import com.github.netty.core.support.ThreadPoolX;
 import com.github.netty.core.util.ReflectUtil;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLiteOrBuilder;
@@ -26,14 +28,17 @@ import io.netty.handler.codec.protobuf.ProtobufDecoder;
 import io.netty.handler.codec.protobuf.ProtobufEncoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
+import io.netty.util.collection.LongObjectHashMap;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.InetSocketAddress;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
 
 /**
@@ -46,7 +51,7 @@ public class RpcClient extends AbstractNettyClient{
     /**
      * 线程调度执行器
      */
-    private static RpcScheduledThreadPoolExecutor SCHEDULE_SERVICE;
+    private static ThreadPoolX SCHEDULE_SERVICE;
     /**
      * 不需要代理的方法
      */
@@ -81,7 +86,7 @@ public class RpcClient extends AbstractNettyClient{
     /**
      * 请求锁
      */
-    private final Map<Long,RpcLock> requestLockMap = new HashMap<>();
+    private final Map<Long,RpcLock> requestLockMap = new LongObjectHashMap<>(64);
     /**
      * 生成请求id
      */
@@ -100,11 +105,11 @@ public class RpcClient extends AbstractNettyClient{
     }
 
     public RpcClient(InetSocketAddress address) {
-        this("",address);
+        this("",address,0);
     }
 
-    public RpcClient(String namePre, InetSocketAddress remoteAddress) {
-        super(namePre, remoteAddress);
+    public RpcClient(String namePre, InetSocketAddress remoteAddress,int socketChannelCount) {
+        super(namePre, remoteAddress, socketChannelCount);
         run();
     }
 
@@ -114,7 +119,7 @@ public class RpcClient extends AbstractNettyClient{
      * @param timeUnit 时间单位
      * @param reconnectSuccessHandler 重连成功后
      */
-    public void enableAutoReconnect(int heartIntervalSecond, TimeUnit timeUnit, Consumer<SocketChannel> reconnectSuccessHandler){
+    public void enableAutoReconnect(int heartIntervalSecond, TimeUnit timeUnit, Consumer<RpcClient> reconnectSuccessHandler){
         if(rpcCommandService == null){
             //自动重连依赖命令服务
             throw new IllegalStateException("if enableAutoReconnect, you must has commandService");
@@ -127,7 +132,7 @@ public class RpcClient extends AbstractNettyClient{
      * 开启自动重连
      * @param reconnectSuccessHandler 重连成功后
      */
-    public void enableAutoReconnect(Consumer<SocketChannel> reconnectSuccessHandler){
+    public void enableAutoReconnect(Consumer<RpcClient> reconnectSuccessHandler){
         enableAutoReconnect(10,TimeUnit.SECONDS,reconnectSuccessHandler);
     }
 
@@ -153,7 +158,7 @@ public class RpcClient extends AbstractNettyClient{
      * 新建请求id
      * @return
      */
-    protected Long newRequestId(){
+    protected long newRequestId(){
         return requestIdIncr.incrementAndGet();
     }
 
@@ -262,26 +267,10 @@ public class RpcClient extends AbstractNettyClient{
     }
 
     /**
-     * 客户端处理器
-     */
-    @ChannelHandler.Sharable
-    private class RpcClientHandler extends AbstractChannelHandler<RpcProto.Response> {
-        @Override
-        protected void onMessageReceived(ChannelHandlerContext ctx, RpcProto.Response rpcResponse) throws Exception {
-            RpcLock lock = requestLockMap.get(rpcResponse.getRequestId());
-            //如果获取不到锁 说明已经超时, 被释放了
-            if(lock == null){
-                return;
-            }
-            lock.unlock(rpcResponse);
-        }
-    }
-
-    /**
      * 心跳任务
      */
     private class RpcHeartbeatTask implements Runnable{
-        private Consumer<SocketChannel> reconnectSuccessHandler;
+        private Consumer<RpcClient> reconnectSuccessHandler;
         /**
          * 重连次数
          */
@@ -291,7 +280,7 @@ public class RpcClient extends AbstractNettyClient{
          */
         private int maxTimeoutRetryNum = 3;
 
-        private RpcHeartbeatTask(Consumer<SocketChannel> reconnectSuccessHandler) {
+        private RpcHeartbeatTask(Consumer<RpcClient> reconnectSuccessHandler) {
             this.reconnectSuccessHandler = reconnectSuccessHandler;
         }
 
@@ -299,17 +288,12 @@ public class RpcClient extends AbstractNettyClient{
             int count = ++reconnectCount;
             boolean success = connect();
 
+            logger.info("第[" + count + "]次断线重连 :" + (success?"成功":"失败") +", 重连原因["+ causeMessage +"]");
             if (success) {
                 reconnectCount = 0;
-                SocketChannel socketChannel = getSocketChannel();
-
-                logger.info("第[" + count + "]次断线重连 : 成功" + socketChannel +", 重连原因["+ causeMessage +"]");
                 if(reconnectSuccessHandler != null){
-                    reconnectSuccessHandler.accept(socketChannel);
+                    reconnectSuccessHandler.accept(RpcClient.this);
                 }
-
-            } else {
-                logger.info("第[" + count + "]次断线重连 : 失败, 重连原因["+ causeMessage +"]");
             }
             return success;
         }
@@ -338,37 +322,64 @@ public class RpcClient extends AbstractNettyClient{
                 }
                 reconnect(e.getMessage());
             }catch (Exception e){
-                e.printStackTrace();
+                logger.error(e.getMessage(),e);
             }
         }
+    }
+
+    //总调用次数
+    private static AtomicLong TOTAL_INVOKE_COUNT = new AtomicLong();
+    //超时api
+    private static Map<String,Integer> TIMEOUT_API = new ConcurrentHashMap<>();
+
+    public static String getTimeoutApis() {
+        return String.join(",", TIMEOUT_API.keySet());
+    }
+
+    public static long getTotalInvokeCount() {
+        return TOTAL_INVOKE_COUNT.get();
+    }
+
+    public static long getTotalTimeoutCount() {
+        return TIMEOUT_API.values().stream().reduce(0,Integer::sum);
     }
 
     /**
      * 远程调用后,等待响应的同步锁
      */
-    private class RpcLock{
+    public static class RpcLock{
         private long beginTime;
-        private RpcProto.Response rpcResponse;
+        private volatile RpcProto.Response rpcResponse;
+        private Thread lockThread;
+        public static AtomicLong TOTAL_SPIN_RESPONSE_COUNT = new AtomicLong();
 
-        private RpcProto.Response lock(int timeout) throws InterruptedException {
+        private RpcProto.Response lock(int timeout,TimeUnit timeUnit) throws InterruptedException {
+            this.lockThread = Thread.currentThread();
             this.beginTime = System.currentTimeMillis();
-            synchronized (RpcLock.this){
-                wait(timeout);
+
+            //自旋, 因为如果是本地rpc调用,速度太快了, 没必要再堵塞
+            int spinCount = Optimize.getRpcLockSpinCount();
+            for (int i=0; rpcResponse == null && i<spinCount; i++){
+                //
             }
 
-            return rpcResponse;
+            //如果自旋后拿到响应 直接返回
+            if(rpcResponse != null){
+                TOTAL_SPIN_RESPONSE_COUNT.incrementAndGet();
+                return rpcResponse;
+            }
+
+            //没有拿到响应, 则堵塞
+            LockSupport.parkNanos(timeUnit.toNanos(timeout));
+            if(rpcResponse != null){
+                return rpcResponse;
+            }
+            return null;
         }
 
         private void unlock(RpcProto.Response rpcResponse){
             this.rpcResponse = rpcResponse;
-            long time = (System.currentTimeMillis() - beginTime );
-
-            if(time >= 5) {
-                System.out.println("rpc调用时间过长 = " + time);
-            }
-            synchronized (RpcLock.this){
-                notify();
-            }
+            LockSupport.unpark(lockThread);
         }
     }
 
@@ -406,27 +417,34 @@ public class RpcClient extends AbstractNettyClient{
             }
 
             //其他方法
-            Long requestId = newRequestId();
+            long requestId = newRequestId();
             byte[] requestDataBytes = dataCodec.encodeRequestData(args);
 
-            RpcProto.Request request = RpcProto.Request.newBuilder()
+            RpcProto.Request rpcRequest = RpcProto.Request.newBuilder()
                     .setRequestId(requestId)
                     .setServiceName(serviceName)
                     .setMethodName(methodName)
                     .setData(ByteString.copyFrom(requestDataBytes))
                     .build();
 
-            getSocketChannel().writeAndFlush(request);
 
             RpcLock lock = new RpcLock();
             requestLockMap.put(requestId,lock);
+            getSocketChannel().writeAndFlush(rpcRequest);
+
+            TOTAL_INVOKE_COUNT.incrementAndGet();
             //上锁, 等待服务端响应释放锁
-            RpcProto.Response rpcResponse = lock.lock(timeout);
+            RpcProto.Response rpcResponse = lock.lock(timeout,TimeUnit.MILLISECONDS);
             //移除锁
             requestLockMap.remove(requestId);
 
             if(rpcResponse == null){
-                throw new RpcTimeoutException("requestTimeout : maxTimeout is ["+timeout+"]");
+                if(Optimize.isEnableExecuteHold()) {
+                    logger.error("超时的请求 : " + rpcRequest);
+                }
+
+                TIMEOUT_API.put(methodName,TIMEOUT_API.getOrDefault(methodName,0) + 1);
+                throw new RpcTimeoutException("RequestTimeout : serviceName = ["+serviceName+"], methodName=["+methodName+"], maxTimeout = ["+timeout+"]");
             }
 
             int status = rpcResponse.getStatus();
@@ -453,14 +471,57 @@ public class RpcClient extends AbstractNettyClient{
     }
 
     /**
+     * 客户端处理器
+     */
+    @ChannelHandler.Sharable
+    private class RpcClientHandler extends AbstractChannelHandler<RpcProto.Response> {
+        @Override
+        protected void onMessageReceived(ChannelHandlerContext ctx, RpcProto.Response rpcResponse) throws Exception {
+            if(Optimize.isEnableExecuteHold()) {
+                Optimize.holdExecute(() -> {
+                    RpcLock lock = requestLockMap.remove(rpcResponse.getRequestId());
+                    //如果获取不到锁 说明已经超时, 被释放了
+                    if (lock == null) {
+                        logger.error("-----------------------!!严重"+rpcResponse);
+                        return;
+                    }
+
+                    long out = System.currentTimeMillis() - lock.beginTime;
+                    if(out > 10) {
+                        logger.error("超时的响应[" +
+                                out +
+                                "] :" + rpcResponse);
+                    }
+                    lock.unlock(rpcResponse);
+                });
+                return;
+            }
+
+            RpcLock lock = requestLockMap.get(rpcResponse.getRequestId());
+            //如果获取不到锁 说明已经超时, 被释放了
+            if (lock == null) {
+                return ;
+            }
+            lock.unlock(rpcResponse);
+        }
+    }
+
+    @Override
+    public String toString() {
+        return super.toString()+"{" +
+                "state=" + state +
+                '}';
+    }
+
+    /**
      * 获取线程调度执行器, 注: 延迟创建
      * @return
      */
-    private static RpcScheduledThreadPoolExecutor getScheduleService() {
+    private static ThreadPoolX getScheduleService() {
         if(SCHEDULE_SERVICE == null){
             synchronized (RpcClient.class){
                 if(SCHEDULE_SERVICE == null){
-                    SCHEDULE_SERVICE = new RpcScheduledThreadPoolExecutor(1);
+                    SCHEDULE_SERVICE = new ThreadPoolX("Rpc",1);
                 }
             }
         }

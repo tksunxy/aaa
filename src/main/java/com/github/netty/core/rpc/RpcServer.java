@@ -97,12 +97,14 @@ public class RpcServer extends AbstractNettyServer{
     }
 
     @ChannelHandler.Sharable
-    protected class RpcServerHandler extends AbstractChannelHandler<RpcProto.Request> {
+    private class RpcServerHandler extends AbstractChannelHandler<RpcProto.Request> {
         private final Map<String,RpcService> serviceInstanceMap = new HashMap<>();
         private Map<String,Channel> channelMap = new ConcurrentHashMap<>();
 
         @Override
         protected void onMessageReceived(ChannelHandlerContext ctx, RpcProto.Request rpcRequest) throws Exception {
+//            long c = System.currentTimeMillis();
+
             String serviceName = rpcRequest.getServiceName();
             String methodName = rpcRequest.getMethodName();
 
@@ -116,8 +118,8 @@ public class RpcServer extends AbstractNettyServer{
                 message = "not found service ["+ serviceName +"]";
             }else {
                 try {
-                    byte[] requestDataBytes = rpcRequest.getData().toByteArray();
-                    Object[] requestData = dataCodec.decodeRequestData(requestDataBytes);
+//                    String requestDataBytes = rpcRequest.getData().toStringUtf8();
+                    Object[] requestData = dataCodec.decodeRequestData(rpcRequest.getData().toStringUtf8());
                     result = rpcService.invoke(methodName, requestData);
 
                     status = RpcResponseStatus.OK;
@@ -130,8 +132,6 @@ public class RpcServer extends AbstractNettyServer{
                     message = e.getCause() == null? e.toString() : e.getCause().getMessage();
                 }
             }
-
-            logger.info(serviceName+"--"+methodName+"--["+status+"]--"+result+"");
 
             //是否进行编码
             int isEncode;
@@ -153,6 +153,13 @@ public class RpcServer extends AbstractNettyServer{
                     .build();
 
             ctx.writeAndFlush(rpcResponse);
+
+
+//            long end = (System.currentTimeMillis() - c);
+//            if(end > 3) {
+//            logger.info(serviceName+"--"+methodName+"--["+status+"]--"+result+"");
+//                logger.info("耗时: [" + end+ "] 纳秒 -"+ rpcResponse);
+//            }
         }
 
         @Override
@@ -199,13 +206,14 @@ public class RpcServer extends AbstractNettyServer{
             }
 
             String serviceName = rpcInterfaceAnn.value();
+            int timeout = rpcInterfaceAnn.timeout();
 
             synchronized (serviceInstanceMap) {
                 Object oldService = serviceInstanceMap.get(serviceName);
                 if (oldService != null) {
                     throw new IllegalStateException("The service exist [" + serviceName + "]");
                 }
-                serviceInstanceMap.put(serviceName, new RpcService(serviceName, service,RpcServer.this));
+                serviceInstanceMap.put(serviceName, new RpcService(serviceName, timeout,service,RpcServer.this));
             }
         }
 

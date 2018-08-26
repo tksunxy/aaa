@@ -1,7 +1,7 @@
 package com.github.netty.core;
 
-import com.github.netty.core.util.Logger;
-import com.github.netty.core.util.LoggerFactory;
+import com.github.netty.core.support.LoggerX;
+import com.github.netty.core.support.LoggerFactoryX;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.timeout.IdleStateEvent;
@@ -12,7 +12,7 @@ import io.netty.handler.timeout.IdleStateEvent;
  */
 public abstract class AbstractChannelHandler<I> extends SimpleChannelInboundHandler<I> {
 
-    protected Logger logger = LoggerFactory.getLogger(getClass());
+    protected LoggerX logger = LoggerFactoryX.getLogger(getClass());
 
     protected AbstractChannelHandler() {
         super();

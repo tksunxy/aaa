@@ -2,6 +2,7 @@ package com.github.netty.springboot;
 
 import com.github.netty.core.AbstractChannelHandler;
 import com.github.netty.core.support.AbstractRecycler;
+import com.github.netty.core.support.Optimize;
 import com.github.netty.core.support.PartialPooledByteBufAllocator;
 import com.github.netty.core.support.Recyclable;
 import com.github.netty.servlet.ServletContext;
@@ -38,7 +39,7 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
     public NettyServletHandler(ServletContext servletContext) {
         super(false);
         this.servletContext = Objects.requireNonNull(servletContext);
-        this.dispatcherExecutor = null;
+        this.dispatcherExecutor = Optimize.getServletHandlerExecutor();
     }
 
     @Override
@@ -92,10 +93,7 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        System.out.println("发生异常!");
-        if(null != cause) {
-            cause.printStackTrace();
-        }
+        logger.error("ServletHandler 异常! : "+cause.toString());
         if(null != ctx) {
             ctx.channel().close();
         }

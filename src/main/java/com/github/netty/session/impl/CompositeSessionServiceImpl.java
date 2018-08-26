@@ -1,5 +1,7 @@
 package com.github.netty.session.impl;
 
+import com.github.netty.core.support.LoggerFactoryX;
+import com.github.netty.core.support.LoggerX;
 import com.github.netty.core.util.NamespaceUtil;
 import com.github.netty.core.util.TodoOptimize;
 import com.github.netty.session.Session;
@@ -14,6 +16,8 @@ import java.util.List;
  */
 @TodoOptimize("缺少自动切换功能")
 public class CompositeSessionServiceImpl implements SessionService {
+
+    private LoggerX logger = LoggerFactoryX.getLogger(getClass());
 
     private String name = NamespaceUtil.newIdName(getClass());
     private SessionService localSessionService;
@@ -31,7 +35,11 @@ public class CompositeSessionServiceImpl implements SessionService {
 
     @Override
     public void saveSession(Session session) {
-        getSessionServiceImpl().saveSession(session);
+        try {
+            getSessionServiceImpl().saveSession(session);
+        }catch (Throwable t){
+            logger.error(t.toString());
+        }
     }
 
     @Override
@@ -46,7 +54,12 @@ public class CompositeSessionServiceImpl implements SessionService {
 
     @Override
     public Session getSession(String sessionId) {
-        return getSessionServiceImpl().getSession(sessionId);
+        try {
+            return getSessionServiceImpl().getSession(sessionId);
+        }catch (Throwable t){
+            logger.error(t.toString());
+            return null;
+        }
     }
 
     @Override

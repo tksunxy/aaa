@@ -18,6 +18,13 @@ public interface DataCodec {
      * @param data
      * @return
      */
+    Object[] decodeRequestData(String data);
+
+    /**
+     * 请求数据解码
+     * @param data
+     * @return
+     */
     Object[] decodeRequestData(byte[] data);
 
     /**

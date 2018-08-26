@@ -1,7 +1,8 @@
 package com.github.netty;
 
+import com.github.netty.core.support.Optimize;
+import com.github.netty.core.support.ThreadPoolX;
 import com.github.netty.springboot.NettyEmbeddedServletContainerFactory;
-import com.github.netty.servlet.util.ProxyUtil;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -15,6 +16,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -57,9 +59,11 @@ public class TestApplication {
      * @throws IOException io异常
      */
     public static void main(String[] args) throws IOException {
-        ProxyUtil.setEnableProxy(false);
+        //统计任务
+        ThreadPoolX.getDefaultInstance().scheduleAtFixedRate(new Optimize.ReportRunning(),5,5, TimeUnit.SECONDS);
+
         ConfigurableApplicationContext context = SpringApplication.run(TestApplication.class, args);
-        ProxyUtil.setEnableProxy(false);
+
     }
 
 

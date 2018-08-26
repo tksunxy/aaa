@@ -14,13 +14,15 @@ import java.util.RandomAccess;
  */
 public class RpcService {
 
-    private String serviceId;
+    private int timeout;
+    private String serviceName;
     private Object service;
     private List<Method> methodList;
     private RpcServer rpcServer;
 
-    public RpcService(String serviceId, Object service,RpcServer rpcServer) {
-        this.serviceId = serviceId;
+    public RpcService(String serviceName,int timeout, Object service, RpcServer rpcServer) {
+        this.serviceName = serviceName;
+        this.timeout = timeout;
         this.service = service;
         this.rpcServer = rpcServer;
 
@@ -69,8 +71,8 @@ public class RpcService {
         }
     }
 
-    public String getServiceId() {
-        return serviceId;
+    public String getServiceName() {
+        return serviceName;
     }
 
     public Method getMethod(String methodName,int argsCount) {

@@ -1,61 +1,53 @@
-package com.github.netty.core.util;
+package com.github.netty.core.support;
 
 /**
  * Created by acer01 on 2018/8/25/025.
  */
-public class Logger {
+public class LoggerX {
 
-    private static boolean isDisableLog = false;
-    static {
-//        isDisableLog = "1".equals(System.getProperty("log.disable"));
-    }
-    
     private org.slf4j.Logger logger;
 
-    public Logger(org.slf4j.Logger logger) {
-        if(isDisableLog){
-            return;
-        }
+    public LoggerX(org.slf4j.Logger logger) {
         this.logger = logger;
     }
-    
+
     public void debug(String var1){
-        if(isDisableLog){
+        if(!Optimize.isEnableLog()){
             return;
         }
         logger.debug(var1);
     }
     
     public void debug(String var1,Throwable throwable){
-        if(isDisableLog){
+        if(!Optimize.isEnableLog()){
             return;
         }
         logger.debug(var1,throwable);
     }
     
     public void info(String var1){
-        if(isDisableLog){
+        if(!Optimize.isEnableLog()){
             return;
         }
         logger.info(var1);
     }
 
     public void error(String var1){
-        if(isDisableLog){
+        if(!Optimize.isEnableLog()){
             return;
         }
         logger.error(var1);
     }
     
     public void error(String var1,Throwable throwable){
-        if(isDisableLog){
+        if(!Optimize.isEnableLog()){
             return;
         }
         logger.error(var1,throwable);
     }
     
     public void warn(String var1){
-        if(isDisableLog){
+        if(!Optimize.isEnableLog()){
             return;
         }
         logger.warn(var1);

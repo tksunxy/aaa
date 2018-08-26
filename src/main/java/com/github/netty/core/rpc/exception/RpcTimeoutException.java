@@ -7,7 +7,7 @@ package com.github.netty.core.rpc.exception;
 public class RpcTimeoutException extends RpcException {
 
     public RpcTimeoutException(String message) {
-        super(message, null, false, false);
+        super(message, null, false, true);
     }
 
 }

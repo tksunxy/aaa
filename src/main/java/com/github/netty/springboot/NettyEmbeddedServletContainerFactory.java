@@ -1,5 +1,6 @@
 package com.github.netty.springboot;
 
+import com.github.netty.core.support.Optimize;
 import com.github.netty.servlet.*;
 import com.github.netty.session.RemoteCommandServer;
 import com.github.netty.session.SessionService;
@@ -131,8 +132,10 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
         RemoteCommandServer remoteCommandServer = new RemoteCommandServer(remoteSessionServerAddress);
         remoteCommandServer.execLocalCommand("cmd", result ->{
             if(result.isSuccess()) {
-                System.out.println(result.getMessage());
-                compositeSessionService.enableRemoteSession(remoteSessionServerAddress);
+                logger.info(result.getMessage());
+                if(Optimize.isEnableRemoteSessionManage()) {
+                    compositeSessionService.enableRemoteSession(remoteSessionServerAddress);
+                }
             }
         });
         return compositeSessionService;

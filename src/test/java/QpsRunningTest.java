@@ -1,3 +1,5 @@
+import com.github.netty.core.support.LoggerFactoryX;
+import com.github.netty.core.support.LoggerX;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
@@ -46,7 +48,6 @@ public class QpsRunningTest {
 
     }
 
-
     private void doQuery(int port, String host, String uri) throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(queryCount);
         for(int i=0 ;i< queryCount; i++) {
@@ -67,9 +68,11 @@ public class QpsRunningTest {
     }
 
     static class PrintThread extends Thread{
-        private AtomicInteger printCount = new AtomicInteger();
         private final QpsRunningTest test;
+        private AtomicInteger printCount = new AtomicInteger();
         private long beginTime = System.currentTimeMillis();
+        private LoggerX logger = LoggerFactoryX.getLogger(getClass());
+
         public PrintThread(QpsRunningTest test) {
             super("QpsPrintThread");
             this.test = test;
@@ -91,13 +94,12 @@ public class QpsRunningTest {
         }
 
         private void printQps(int successCount, int errorCount, long totalTime){
-            System.err.println(
-                    "===============================\r\n"+
-                            "第("+printCount.incrementAndGet()+")次统计, "+
+            logger.info(
+                    "第("+printCount.incrementAndGet()+")次统计, "+
                             "时间 = " + totalTime + "毫秒["+(totalTime/60000)+"分"+((totalTime % 60000 ) / 1000)+"秒], " +
                             "成功 = " + successCount + ", " +
                             "失败 = " + errorCount + ", " +
-                            "qps = " + new BigDecimal((double) successCount/(double) totalTime * 1000).setScale(2,BigDecimal.ROUND_HALF_DOWN)
+                            "qps = " + new BigDecimal((double) successCount/(double) totalTime * 1000).setScale(2,BigDecimal.ROUND_HALF_DOWN).stripTrailingZeros().toPlainString()
 //                            +
 //                            "\r\n==============================="
             );

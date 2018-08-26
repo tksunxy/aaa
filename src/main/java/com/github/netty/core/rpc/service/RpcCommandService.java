@@ -7,7 +7,7 @@ import com.github.netty.core.rpc.RpcInterface;
  * @author acer01
  * 2018/8/20/020
  */
-@RpcInterface(value = "/_inner/command",timeout = 1000)
+@RpcInterface(value = "/_inner/command",timeout = 1000 * 5)
 public interface RpcCommandService {
 
     /**

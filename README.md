@@ -2,12 +2,19 @@
 一个基于netty实现的servlet容器, 可以替代tomcat或jetty. 导包即用,容易与springboot集成 (jdk1.8+)
 
 公司台式[8g内存,4核I5cpu]
+
 1.单体应用,连接复用qps达到10000+
+
 2.单体应用,连接不复用qps达到5000+
+
 3.单体应用,双jvm, session会话存储分离, qps达到1300+
 
 作者邮箱 : 842156727@qq.com
+
 github地址 : https://github.com/wangzihaogithub
+
+---
+
 
 ### 使用方法
 
@@ -37,9 +44,9 @@ github地址 : https://github.com/wangzihaogithub
     
         /**
          * 如果(您当前的config类继承了WebMvcConfigurationSupport){
-         *      则需要注册ServletContextInitializer类, 并主动调用setServletContext(servletContext); 不然springboot会无法启动
+         *      必须要写这个servletContextInitializer方法
          * }否则{
-         *     没继承就没事,不用写这个servletContextInitializer方法
+         *     可以省略这个servletContextInitializer方法
          * }
          * @return
          */

@@ -1,20 +1,25 @@
 # netty-container
 一个基于netty实现的servlet容器, 可以替代tomcat或jetty. 导包即用,容易与springboot集成 (jdk1.8+)
 
-公司台式[8g内存,4核I5cpu]
-
-1.单体应用,连接复用qps达到10000+
-
-2.单体应用,连接不复用qps达到5000+
-
-3.单体应用,双jvm, session会话存储分离, qps达到1300+
-
 作者邮箱 : 842156727@qq.com
 
 github地址 : https://github.com/wangzihaogithub
 
 ---
 
+####优势:
+
+公司台式[8g内存,4核I5cpu]
+
+1.单体应用,连接复用qps=10000+ , tomcat=4000+
+
+2.单体应用,连接不复用qps达到5000+, tomcat=3700+
+
+3.单体应用,双jvm(1.servlet jvm, 2.session jvm), session会话存储分离, qps达到1300+, 
+ 
+ tomcat底层虽然支持,但非常复杂,大家往往都用springboot-redis, 但redis与spring集成后, 无法发挥其原本的性能
+
+----
 
 ### 使用方法
 
@@ -23,7 +28,7 @@ github地址 : https://github.com/wangzihaogithub
     <dependency>
       <groupId>com.github.wangzihaogithub</groupId>
       <artifactId>netty-container</artifactId>
-      <version>1.0.0</version>
+      <version>1.2.0</version>
     </dependency>
 	
 	

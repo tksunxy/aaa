@@ -11,9 +11,9 @@ github地址 : https://github.com/wangzihaogithub
 
 台式机[8g内存,4核I5]
 
-1.单体应用,连接复用qps=10000+ , tomcat=4000+
+1.单体应用,连接复用qps=10000+ , tomcat=8000+
 
-2.单体应用,连接不复用qps达到5000+, tomcat=3700+
+2.单体应用,连接不复用qps达到5100+, tomcat=4600+
 
 3.单体应用,双jvm(1.servlet jvm, 2.session jvm), session会话存储分离, qps达到1300+, 
  

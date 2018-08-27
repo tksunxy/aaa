@@ -9,7 +9,7 @@ github地址 : https://github.com/wangzihaogithub
 
 #### 优势:
 
-公司台式[8g内存,4核I5]
+台式机[8g内存,4核I5]
 
 1.单体应用,连接复用qps=10000+ , tomcat=4000+
 

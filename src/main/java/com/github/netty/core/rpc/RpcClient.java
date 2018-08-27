@@ -288,7 +288,7 @@ public class RpcClient extends AbstractNettyClient{
             int count = ++reconnectCount;
             boolean success = connect();
 
-            logger.info("第[" + count + "]次断线重连 :" + (success?"成功":"失败") +", 重连原因["+ causeMessage +"]");
+            logger.info("第[" + count + "]次断线重连 :" + (success?"成功! 共保持"+getSocketChannelCount()+"个连接":"失败") +", 重连原因["+ causeMessage +"]");
             if (success) {
                 reconnectCount = 0;
                 if(reconnectSuccessHandler != null){

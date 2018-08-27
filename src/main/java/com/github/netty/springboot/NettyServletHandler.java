@@ -5,13 +5,13 @@ import com.github.netty.core.support.AbstractRecycler;
 import com.github.netty.core.support.Optimize;
 import com.github.netty.core.support.PartialPooledByteBufAllocator;
 import com.github.netty.core.support.Recyclable;
+import com.github.netty.core.util.ExceptionUtil;
+import com.github.netty.core.util.HttpHeaderUtil;
 import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletHttpServletResponse;
 import com.github.netty.servlet.ServletRequestDispatcher;
 import com.github.netty.servlet.support.HttpServletObject;
-import com.github.netty.core.util.ExceptionUtil;
-import com.github.netty.core.util.HttpHeaderUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
@@ -24,6 +24,7 @@ import javax.servlet.DispatcherType;
 import javax.servlet.http.HttpServletResponse;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  *
@@ -35,6 +36,9 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
 
     private ExecutorService dispatcherExecutor;
     private ServletContext servletContext;
+
+    public static AtomicLong SERVLET_TIME = new AtomicLong();
+    public static AtomicLong SERVLET_QUERY_COUNT = new AtomicLong();
 
     public NettyServletHandler(ServletContext servletContext) {
         super(false);
@@ -50,8 +54,7 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
                 fullHttpRequest);
 
         Runnable task = ServletTask.newInstance(httpServletObject);
-
-//        Runnable task = newTaskForRaw(ctx,fullHttpRequest);
+//        Runnable task = newTaskForRaw(context,fullHttpRequest);
 
         if(dispatcherExecutor != null) {
             dispatcherExecutor.execute(task);
@@ -126,8 +129,8 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
             ServletHttpServletRequest httpServletRequest = httpServletObject.getHttpServletRequest();
             ServletHttpServletResponse httpServletResponse = httpServletObject.getHttpServletResponse();
 
+            long beginTime = System.currentTimeMillis();
             try {
-//                long beginTime = System.currentTimeMillis();
                 ServletRequestDispatcher dispatcher = httpServletRequest.getRequestDispatcher(httpServletRequest.getRequestURI());
                 if (dispatcher == null) {
                     httpServletResponse.sendError(HttpServletResponse.SC_NOT_FOUND);
@@ -135,10 +138,6 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
                 }
                 dispatcher.dispatch(httpServletRequest, httpServletResponse, DispatcherType.REQUEST);
 
-//                long totalTime = System.currentTimeMillis() - beginTime;
-//                if(totalTime > 10) {
-//                    System.out.println("-" + (totalTime)+" 请求耗时");
-//                }
             }catch (Throwable throwable){
                 ExceptionUtil.printRootCauseStackTrace(throwable);
             }finally {
@@ -154,6 +153,10 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
                 }
 
                 ServletTask.this.recycle();
+
+                long totalTime = System.currentTimeMillis() - beginTime;
+                SERVLET_TIME.addAndGet(totalTime);
+                SERVLET_QUERY_COUNT.incrementAndGet();
             }
         }
     }

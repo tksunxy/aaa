@@ -1,6 +1,7 @@
 package com.github.netty.core.support;
 
 import com.github.netty.core.rpc.RpcClient;
+import com.github.netty.springboot.NettyServletHandler;
 
 import java.math.BigDecimal;
 import java.util.concurrent.ExecutorService;
@@ -133,6 +134,10 @@ public class Optimize {
     public static int getClientEventLoopIoRatio(){
         return 100;
     }
+    //开启远程会话管理
+    public static boolean isEnableRemoteSessionManage() {
+        return false;
+    }
     //session客户端保持的连接数
     public static int getSessionClientSocketChannelCount(){
         return 1;
@@ -149,13 +154,9 @@ public class Optimize {
     public static boolean isEnableLog() {
         return true;
     }
-    //开启远程会话管理
-    public static boolean isEnableRemoteSessionManage() {
-        return false;
-    }
     //servlet执行器的线程池
     public static ExecutorService getServletHandlerExecutor(){
-//        return new ThreadPoolX("Servlet",1);
+//        return new ThreadPoolX("Servlet",6);
         return null;
     }
     //rpc锁自旋次数, 如果N次后还拿不到响应,则堵塞
@@ -188,15 +189,21 @@ public class Optimize {
 
                 long totalTime = System.currentTimeMillis() - beginTime;
 
+                long servletQueryCount = NettyServletHandler.SERVLET_QUERY_COUNT.get();
+                long servletTime = NettyServletHandler.SERVLET_TIME.get();
+                double servletAvgRuntime = (double)servletTime/(double)servletQueryCount;
+
                 logger.info(
-                        "第"+reportCount.incrementAndGet()+"次统计, "+
+                        "\r\n第"+reportCount.incrementAndGet()+"次统计, "+
                         "时间="+(totalTime/60000)+"分"+((totalTime % 60000 ) / 1000)+"秒, " +
                         "调用数=" + successCount + ", " +
                         "超时数=" + timeoutCount + ", " +
                         "自旋成功数=" + spinResponseCount + ", " +
                         "自旋成功率=" + new BigDecimal(rateSpinResponseCount).setScale(2,BigDecimal.ROUND_HALF_DOWN).stripTrailingZeros().toPlainString() + ", " +
                         "调用成功率=" + new BigDecimal(rate).setScale(2,BigDecimal.ROUND_HALF_DOWN).stripTrailingZeros().toPlainString()+", "+
-                        "超时api="+timeoutApis
+                        "超时api="+timeoutApis + ", "+
+                        "servlet次数="+servletQueryCount+", "+
+                        "servlet平均时间="+new BigDecimal(servletAvgRuntime).setScale(4,BigDecimal.ROUND_HALF_DOWN).stripTrailingZeros().toString()+"毫秒"
                 );
             }catch (Exception e){
 

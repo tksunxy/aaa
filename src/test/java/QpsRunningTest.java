@@ -99,6 +99,7 @@ public class QpsRunningTest {
                             "时间 = " + totalTime + "毫秒["+(totalTime/60000)+"分"+((totalTime % 60000 ) / 1000)+"秒], " +
                             "成功 = " + successCount + ", " +
                             "失败 = " + errorCount + ", " +
+                            "平均响应 = " + new BigDecimal((double) totalTime/(double) successCount).setScale(2,BigDecimal.ROUND_HALF_DOWN).stripTrailingZeros().toPlainString() + "ms, " +
                             "qps = " + new BigDecimal((double) successCount/(double) totalTime * 1000).setScale(2,BigDecimal.ROUND_HALF_DOWN).stripTrailingZeros().toPlainString()
 //                            +
 //                            "\r\n==============================="

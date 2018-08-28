@@ -37,7 +37,7 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
     private ExecutorService dispatcherExecutor;
     private ServletContext servletContext;
 
-    public static AtomicLong SERVLET_TIME = new AtomicLong();
+    public static AtomicLong SERVLET_AND_FILTER_TIME = new AtomicLong();
     public static AtomicLong SERVLET_QUERY_COUNT = new AtomicLong();
 
     public NettyServletHandler(ServletContext servletContext) {
@@ -48,13 +48,16 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
 
     @Override
     protected void onMessageReceived(ChannelHandlerContext context, FullHttpRequest fullHttpRequest) throws Exception {
-        HttpServletObject httpServletObject = HttpServletObject.newInstance(
-                servletContext,
-                PartialPooledByteBufAllocator.forceDirectAllocator(context),
-                fullHttpRequest);
-
-        Runnable task = ServletTask.newInstance(httpServletObject);
-//        Runnable task = newTaskForRaw(context,fullHttpRequest);
+        Runnable task;
+        if(Optimize.isEnableRawNetty()) {
+            task = newTaskForRaw(context,fullHttpRequest);
+        }else {
+            HttpServletObject httpServletObject = HttpServletObject.newInstance(
+                    servletContext,
+                    PartialPooledByteBufAllocator.forceDirectAllocator(context),
+                    fullHttpRequest);
+            task = ServletTask.newInstance(httpServletObject);
+        }
 
         if(dispatcherExecutor != null) {
             dispatcherExecutor.execute(task);
@@ -141,6 +144,8 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
             }catch (Throwable throwable){
                 ExceptionUtil.printRootCauseStackTrace(throwable);
             }finally {
+                long totalTime = System.currentTimeMillis() - beginTime;
+                SERVLET_AND_FILTER_TIME.addAndGet(totalTime);
                 /*
                  * 每个响应对象是只有当在servlet的service方法的范围内或在filter的doFilter方法范围内是有效的，除非该
                  * 组件关联的请求对象已经开启异步处理。如果相关的请求已经启动异步处理，那么直到AsyncContext的
@@ -154,8 +159,7 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
 
                 ServletTask.this.recycle();
 
-                long totalTime = System.currentTimeMillis() - beginTime;
-                SERVLET_TIME.addAndGet(totalTime);
+
                 SERVLET_QUERY_COUNT.incrementAndGet();
             }
         }

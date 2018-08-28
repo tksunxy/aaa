@@ -1,5 +1,7 @@
 package com.github.netty.core.support;
 
+import com.github.netty.core.util.TodoOptimize;
+
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -38,13 +40,16 @@ public abstract class AbstractRecycler<T>   {
      */
     protected abstract T newInstance();
 
+    @TodoOptimize("效果不明显, 先关闭功能")
     public T get() {
-        T value = stack.pop();
-        return value != null? value : newInstance();
+        return newInstance();
+//        T value = stack.pop();
+//        return value != null? value : newInstance();
     }
 
+    @TodoOptimize("效果不明显, 先关闭功能")
     public void recycle(T value) {
-        stack.push(value);
+//        stack.push(value);
     }
 
     private class Stack<E> extends ConcurrentLinkedDeque<E> {

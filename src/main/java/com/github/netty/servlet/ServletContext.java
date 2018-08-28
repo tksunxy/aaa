@@ -1,14 +1,14 @@
 package com.github.netty.servlet;
 
 import com.github.netty.core.constants.HttpConstants;
+import com.github.netty.core.support.LoggerFactoryX;
+import com.github.netty.core.support.LoggerX;
 import com.github.netty.core.util.MimeTypeUtil;
 import com.github.netty.core.util.RecyclableUtil;
 import com.github.netty.core.util.TypeUtil;
 import com.github.netty.servlet.support.ServletEventListenerManager;
 import com.github.netty.servlet.support.UrlMapper;
 import com.github.netty.session.SessionService;
-import com.github.netty.core.support.LoggerX;
-import com.github.netty.core.support.LoggerFactoryX;
 
 import javax.servlet.*;
 import javax.servlet.descriptor.JspConfigDescriptor;
@@ -241,6 +241,9 @@ public class ServletContext implements javax.servlet.ServletContext {
     @Override
     public ServletRequestDispatcher getRequestDispatcher(String path) {
         try {
+//            Servlet servlet = ServletDefaultHttpServlet.INSTANCE;
+//            List<Filter> allNeedFilters = RecyclableUtil.newRecyclableList(0);
+
             Servlet servlet = servletUrlMapper.getMappingObjectByUri(path);
             List<Filter> allNeedFilters = matchFilterByPath(path);
 

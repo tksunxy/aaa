@@ -5,6 +5,9 @@ import com.github.netty.servlet.support.ServletEventListenerManager;
 import javax.servlet.*;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author 84215
@@ -19,6 +22,11 @@ public class ServletFilterChain implements FilterChain {
     private final Servlet servlet;
     private ServletContext servletContext;
     private int pos;
+
+    public static Map<Filter,AtomicLong> FILTER_TIME_MAP = new ConcurrentHashMap<>();
+    public static AtomicLong SERVLET_TIME = new AtomicLong();
+    public static AtomicLong FILTER_TIME = new AtomicLong();
+    long begin = System.currentTimeMillis();
 
     ServletFilterChain(ServletContext servletContext, Servlet servlet, List<Filter> filterList){
         this.servletContext = servletContext;
@@ -45,9 +53,17 @@ public class ServletFilterChain implements FilterChain {
             Filter filter = filterList.get(pos);
             pos++;
             filter.doFilter(request, response, this);
+
+            FILTER_TIME_MAP.put(filter,FILTER_TIME);
         }else {
             try {
+                long c = System.currentTimeMillis();
+                FILTER_TIME.addAndGet(c - begin);
+
                 servlet.service(request, response);
+
+                long end = System.currentTimeMillis() - c;
+                SERVLET_TIME.addAndGet(end);
             }finally {
                 if(listenerManager.hasServletRequestListener()) {
                     listenerManager.onServletRequestDestroyed(new ServletRequestEvent(servletContext,request));

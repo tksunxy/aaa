@@ -1,11 +1,16 @@
 package com.github.netty.core.support;
 
 import com.github.netty.core.rpc.RpcClient;
+import com.github.netty.servlet.ServletFilterChain;
 import com.github.netty.springboot.NettyServletHandler;
 
+import javax.servlet.Filter;
 import java.math.BigDecimal;
+import java.util.Map;
+import java.util.StringJoiner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 /**
@@ -154,6 +159,10 @@ public class Optimize {
     public static boolean isEnableLog() {
         return true;
     }
+    //开启原生netty, 不走spring的dispatchServlet
+    public static boolean isEnableRawNetty() {
+        return true;
+    }
     //servlet执行器的线程池
     public static ExecutorService getServletHandlerExecutor(){
 //        return new ThreadPoolX("Servlet",6);
@@ -190,8 +199,21 @@ public class Optimize {
                 long totalTime = System.currentTimeMillis() - beginTime;
 
                 long servletQueryCount = NettyServletHandler.SERVLET_QUERY_COUNT.get();
-                long servletTime = NettyServletHandler.SERVLET_TIME.get();
-                double servletAvgRuntime = (double)servletTime/(double)servletQueryCount;
+                long servletAndFilterTime = NettyServletHandler.SERVLET_AND_FILTER_TIME.get();
+                long servletTime = ServletFilterChain.SERVLET_TIME.get();
+                long filterTime = ServletFilterChain.FILTER_TIME.get();
+
+                double servletAndFilterAvgRuntime = servletAndFilterTime == 0? 0:(double)servletAndFilterTime/(double)servletQueryCount;
+                double servletAvgRuntime = servletTime ==0? 0:(double)servletTime/(double)servletQueryCount;
+                double filterAvgRuntime = filterTime ==0? 0:(double)filterTime/(double)servletQueryCount;
+
+                StringJoiner filterJoin = new StringJoiner(", ");
+                for(Map.Entry<Filter,AtomicLong> e : ServletFilterChain.FILTER_TIME_MAP.entrySet()){
+//                    double filterAvgTime = (double)e.getValue().get() / (double)servletQueryCount;
+                    filterJoin.add(
+                            e.getKey().getClass().getSimpleName()
+                                    );
+                }
 
                 logger.info(
                         "\r\n第"+reportCount.incrementAndGet()+"次统计, "+
@@ -203,10 +225,14 @@ public class Optimize {
                         "调用成功率=" + new BigDecimal(rate).setScale(2,BigDecimal.ROUND_HALF_DOWN).stripTrailingZeros().toPlainString()+", "+
                         "超时api="+timeoutApis + ", "+
                         "servlet次数="+servletQueryCount+", "+
-                        "servlet平均时间="+new BigDecimal(servletAvgRuntime).setScale(4,BigDecimal.ROUND_HALF_DOWN).stripTrailingZeros().toString()+"毫秒"
+                        "servlet + filter平均时间="+new BigDecimal(servletAndFilterAvgRuntime).setScale(4,BigDecimal.ROUND_HALF_DOWN).stripTrailingZeros().toString()+"ms,"+
+                        "servlet平均时间="+new BigDecimal(servletAvgRuntime).setScale(4,BigDecimal.ROUND_HALF_DOWN).stripTrailingZeros().toString()+"ms, "+
+                        "filter平均时间="+new BigDecimal(filterAvgRuntime).setScale(4,BigDecimal.ROUND_HALF_DOWN).stripTrailingZeros().toString()+"ms, "+
+
+                        "\r\n "+filterJoin.toString()
                 );
             }catch (Exception e){
-
+                e.printStackTrace();
             }
         }
     }

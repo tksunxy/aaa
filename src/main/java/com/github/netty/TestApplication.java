@@ -59,13 +59,23 @@ public class TestApplication {
      * @throws IOException io异常
      */
     public static void main(String[] args) throws IOException {
-        //统计任务
-        ThreadPoolX.getDefaultInstance().scheduleAtFixedRate(new Optimize.ReportRunning(),5,5, TimeUnit.SECONDS);
+        preStart();
 
         ConfigurableApplicationContext context = SpringApplication.run(TestApplication.class, args);
-
     }
 
+    /**
+     * 设置参数
+     */
+    private static void preStart(){
+        //        ResourceLeakDetector -> 关闭内存泄漏检测
+        System.setProperty("io.netty.noResourceLeakDetection","true");
+//        AbstractByteBuf -> 关闭bytebuf重复释放检查
+        System.setProperty("io.netty.buffer.bytebuf.checkAccessible","false");
+
+        //统计任务
+        ThreadPoolX.getDefaultInstance().scheduleAtFixedRate(new Optimize.ReportRunning(),5,5, TimeUnit.SECONDS);
+    }
 
 
 }

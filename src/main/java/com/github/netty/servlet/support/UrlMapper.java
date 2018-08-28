@@ -175,15 +175,7 @@ public class UrlMapper<T> {
     }
 
     public T getMappingObjectByUri(String absoluteUri) {
-        MappingData mappingData = getMapping(absoluteUri);
-
-        if(mappingData == null){
-            return null;
-        }
-
-        T result = (T) mappingData.object;
-        mappingData.recycle();
-        return result;
+        return getMapping(absoluteUri);
     }
 
     public List<T> getMappingObjectsByUri(String absoluteUri) {
@@ -216,14 +208,18 @@ public class UrlMapper<T> {
     }
 
     @TodoOptimize("1.暂不考虑JSP的处理 ,2.暂不考虑Welcome资源 ,3.暂不考虑请求静态目录资源")
-    private MappingData getMapping(String absolutePath) {
+    private T getMapping(String absolutePath) {
+        if(urlPatternContext.totalObjectList.size() == 1){
+            return urlPatternContext.totalObjectList.get(0).object;
+        }
         String path = toPath(absolutePath);
         // 路径为空时，重定向到“/”
         if(path == null || "/".equals(path)){
             if (urlPatternContext.defaultObject == null) {
                 return null;
             }
-            return MappingData.newInstance (urlPatternContext.defaultObject.object,urlPatternContext.defaultObject.objectName);
+//            return MappingData.newInstance (urlPatternContext.defaultObject.object,urlPatternContext.defaultObject.objectName);
+            return urlPatternContext.defaultObject.object;
         }
 
         //1. 暂不考虑JSP的处理
@@ -231,7 +227,8 @@ public class UrlMapper<T> {
         // 优先进行精确匹配
         Element element = urlPatternContext.exactObjectMap.get(path);
         if (element != null) {
-            return MappingData.newInstance(element.object,element.objectName);
+//            return MappingData.newInstance(element.object,element.objectName);
+            return element.object;
         }
 
         // 然后进行路径匹配
@@ -245,16 +242,20 @@ public class UrlMapper<T> {
             }
         }
         if (element != null) {
-            return MappingData.newInstance(element.object,element.objectName);
+//            return MappingData.newInstance(element.object,element.objectName);
+            return element.object;
         }
 
 
         // 后缀名匹配
         int dotInx = path.lastIndexOf('.');
-        path = path.substring(dotInx + 1);
-        element = urlPatternContext.extensionObjectMap.get(path);
-        if (element != null) {
-            return MappingData.newInstance(element.object,element.objectName);
+        if(dotInx != -1) {
+            path = path.substring(dotInx + 1);
+            element = urlPatternContext.extensionObjectMap.get(path);
+            if (element != null) {
+//                return MappingData.newInstance(element.object, element.objectName);
+                return element.object;
+            }
         }
 
 
@@ -262,7 +263,8 @@ public class UrlMapper<T> {
 
         // Default Servlet
         if (urlPatternContext.defaultObject != null) {
-            return MappingData.newInstance(urlPatternContext.defaultObject.object,urlPatternContext.defaultObject.objectName);
+//            return MappingData.newInstance(urlPatternContext.defaultObject.object,urlPatternContext.defaultObject.objectName);
+            return urlPatternContext.defaultObject.object;
         }
 
         //3. 暂不考虑请求静态目录资源

@@ -75,7 +75,7 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
     private Runnable newTaskForRaw(ChannelHandlerContext context, FullHttpRequest fullHttpRequest){
         return () -> {
             boolean isKeepAlive = HttpHeaderUtil.isKeepAlive(fullHttpRequest);
-            ByteBuf content = Unpooled.EMPTY_BUFFER;
+            ByteBuf content = Unpooled.wrappedBuffer("ok".getBytes());
             FullHttpResponse fullHttpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, content);
 
             HttpHeaderUtil.setKeepAlive(fullHttpResponse, isKeepAlive);

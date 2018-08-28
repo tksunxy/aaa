@@ -11,7 +11,6 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.http.HttpContentCompressor;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.ssl.SslContext;
@@ -122,7 +121,7 @@ public class NettyEmbeddedServletContainer implements EmbeddedServletContainer {
                     pipeline.addLast("Aggregator", new HttpObjectAggregator(512 * 1024));
 
                     //内容压缩
-                    pipeline.addLast("ContentCompressor", new HttpContentCompressor());
+//                    pipeline.addLast("ContentCompressor", new HttpContentCompressor());
 //                pipeline.addLast("ContentDecompressor", new HttpContentDecompressor());
 
                     //分段写入, 防止响应数据过大

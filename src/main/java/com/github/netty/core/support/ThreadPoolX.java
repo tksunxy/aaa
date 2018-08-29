@@ -32,7 +32,7 @@ public class ThreadPoolX extends ScheduledThreadPoolExecutor {
     }
 
     public ThreadPoolX(String preName, int corePoolSize, int priority) {
-        super(corePoolSize, new ThreadFactoryX(preName,ThreadPoolX.class,priority), new RpcRejectedExecutionHandler());
+        super(corePoolSize, new ThreadFactoryX(preName,ThreadPoolX.class,priority), new RejectedExecutionHandlerX());
     }
 
     @Override
@@ -50,19 +50,10 @@ public class ThreadPoolX extends ScheduledThreadPoolExecutor {
         //
     }
 
-    private static class RpcRejectedExecutionHandler implements RejectedExecutionHandler {
-        /**
-         * Creates an {@code AbortPolicy}.
-         */
-        private RpcRejectedExecutionHandler() { }
+    private static class RejectedExecutionHandlerX implements RejectedExecutionHandler {
 
-        /**
-         * Always throws RejectedExecutionException.
-         *
-         * @param r the runnable task requested to be executed
-         * @param e the executor attempting to execute this task
-         * @throws RejectedExecutionException always
-         */
+        private RejectedExecutionHandlerX() { }
+
         @Override
         public void rejectedExecution(Runnable r, ThreadPoolExecutor e) {
             throw new RejectedExecutionException("Task " + r.toString() +

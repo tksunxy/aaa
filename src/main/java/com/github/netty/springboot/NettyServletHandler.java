@@ -1,10 +1,7 @@
 package com.github.netty.springboot;
 
 import com.github.netty.core.AbstractChannelHandler;
-import com.github.netty.core.support.AbstractRecycler;
-import com.github.netty.core.support.Optimize;
-import com.github.netty.core.support.PartialPooledByteBufAllocator;
-import com.github.netty.core.support.Recyclable;
+import com.github.netty.core.support.*;
 import com.github.netty.core.util.ExceptionUtil;
 import com.github.netty.core.util.HttpHeaderUtil;
 import com.github.netty.servlet.ServletContext;
@@ -23,7 +20,7 @@ import io.netty.handler.codec.http.*;
 import javax.servlet.DispatcherType;
 import javax.servlet.http.HttpServletResponse;
 import java.util.Objects;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -34,7 +31,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @ChannelHandler.Sharable
 public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest> {
 
-    private ExecutorService dispatcherExecutor;
+    private Executor dispatcherExecutor;
     private ServletContext servletContext;
 
     public static AtomicLong SERVLET_AND_FILTER_TIME = new AtomicLong();

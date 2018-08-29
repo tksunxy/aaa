@@ -4,6 +4,7 @@ import javax.servlet.*;
 import javax.servlet.http.*;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  *
@@ -22,8 +23,21 @@ public class ServletEventListenerManager {
 
     private List<HttpSessionListener> httpSessionListenerList;
     private List<ServletContextListener> servletContextListenerList;
+    private Function<Servlet,Servlet> servletAddedListener;
 
     //=============event=================
+
+    public Servlet onServletAdded(Servlet servlet){
+        if(servletAddedListener == null){
+            return servlet;
+        }
+        try {
+            return servletAddedListener.apply(servlet);
+        }catch (Throwable throwable){
+            throwable.printStackTrace();
+            return servlet;
+        }
+    }
 
     public void onServletContextAttributeAdded(ServletContextAttributeEvent event){
         if(servletContextAttributeListenerList == null){
@@ -257,9 +271,16 @@ public class ServletEventListenerManager {
     public boolean hasServletContextListener(){
         return servletContextListenerList != null;
     }
+    public boolean hasServletAddedListener(){
+        return servletAddedListener != null;
+    }
 
 
     //==============add===========
+
+    public void setServletAddedListener(Function<Servlet, Servlet> servletAddedListener) {
+        this.servletAddedListener = servletAddedListener;
+    }
 
     public void addServletContextAttributeListener(ServletContextAttributeListener listener){
         getServletContextAttributeListenerList().add(listener);

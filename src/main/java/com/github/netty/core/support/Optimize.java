@@ -8,7 +8,7 @@ import javax.servlet.Filter;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.StringJoiner;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
@@ -164,7 +164,7 @@ public class Optimize {
         return true;
     }
     //servlet执行器的线程池
-    public static ExecutorService getServletHandlerExecutor(){
+    public static Executor getServletHandlerExecutor(){
 //        return new ThreadPoolX("Servlet",6);
         return null;
     }

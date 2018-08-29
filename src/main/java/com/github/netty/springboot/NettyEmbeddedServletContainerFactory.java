@@ -11,6 +11,7 @@ import org.springframework.boot.web.servlet.ServletContextInitializer;
 import org.springframework.context.ResourceLoaderAware;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.util.ClassUtils;
+import org.springframework.web.servlet.DispatcherServlet;
 
 import javax.net.ssl.SSLException;
 import javax.servlet.ServletException;
@@ -115,6 +116,12 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
         logger.info("NewInstance "+SessionService.class.getSimpleName()+" using ["+servletContext.getSessionService()+"]");
 
         servletContext.setAsyncExecutorSupplier(newAsyncExecutorSupplier());
+        servletContext.getServletEventListenerManager().setServletAddedListener(servlet -> {
+            if(servlet instanceof DispatcherServlet){
+//                return new SpringDispatcherServlet();
+            }
+            return servlet;
+        });
         return servletContext;
     }
 

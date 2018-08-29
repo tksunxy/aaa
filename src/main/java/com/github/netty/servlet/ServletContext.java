@@ -414,7 +414,9 @@ public class ServletContext implements javax.servlet.ServletContext {
 
     @Override
     public ServletRegistration addServlet(String servletName, Servlet servlet) {
-        ServletRegistration servletRegistration = new ServletRegistration(servletName,servlet,this);
+        Servlet newServlet = servletEventListenerManager.onServletAdded(servlet);
+
+        ServletRegistration servletRegistration = new ServletRegistration(servletName,newServlet,this);
         servletRegistrationMap.put(servletName,servletRegistration);
         return servletRegistration;
     }

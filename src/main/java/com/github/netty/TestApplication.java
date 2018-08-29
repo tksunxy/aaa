@@ -3,7 +3,7 @@ package com.github.netty;
 import com.github.netty.core.support.Optimize;
 import com.github.netty.core.support.ThreadPoolX;
 import com.github.netty.springboot.NettyEmbeddedServletContainerFactory;
-import org.springframework.boot.SpringApplication;
+import com.github.netty.springboot.springx.SpringApplicationX;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -18,9 +18,13 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-
 /**
  * jvisualvm  jconsole
+ *
+ * 1. (2018年8月29日 23:35:06)
+ *      很无奈, 现在只能调优spring了, 因为servlet不走DispatchServlet的流程, 连接复用qps能到15000+, 走spring只能到5500+ ,
+ *      新建的com.github.netty.springboot.springx 这个包就是为了优化spring而用的
+ *
  *
  * @author 84215
  */
@@ -61,7 +65,7 @@ public class TestApplication {
     public static void main(String[] args) throws IOException {
         preStart();
 
-        ConfigurableApplicationContext context = SpringApplication.run(TestApplication.class, args);
+        ConfigurableApplicationContext context = SpringApplicationX.run(TestApplication.class, args);
     }
 
     /**

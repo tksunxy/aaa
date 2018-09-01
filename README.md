@@ -9,7 +9,7 @@ github地址 : https://github.com/wangzihaogithub
 
 #### 优势:
 
-台式机[8g内存,4核I5]
+测试信息 : 笔记本[4g内存,4代I5(4核cpu) ], JVM参数 : -Xms300m -Xmn300m -Xmx500m -XX:+PrintGCDetails
 
 1.单体应用,连接复用qps=10000+ , tomcat=8000+
 

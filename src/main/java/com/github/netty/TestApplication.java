@@ -5,11 +5,16 @@ import com.github.netty.core.support.ThreadPoolX;
 import com.github.netty.springboot.NettyEmbeddedServletContainerFactory;
 import com.github.netty.springboot.springx.SpringApplicationX;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.web.servlet.ServletContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport;
+import org.springframework.web.servlet.handler.HandlerInterceptorAdapter;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -17,6 +22,7 @@ import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * jvisualvm  jconsole
@@ -30,7 +36,7 @@ import java.util.concurrent.TimeUnit;
  */
 @RestController
 @SpringBootApplication
-public class TestApplication {
+public class TestApplication extends WebMvcConfigurationSupport{
 
     @Bean
     NettyEmbeddedServletContainerFactory nettyEmbeddedServletContainerFactory(){
@@ -38,7 +44,7 @@ public class TestApplication {
     }
 
     @RequestMapping("/hello")
-    public Object hello(@RequestParam Map o, HttpSession session, HttpServletRequest request, HttpServletResponse response){
+    public Object hello(@RequestParam Map query, HttpSession session, HttpServletRequest request, HttpServletResponse response){
 //        try {
 //            Thread.sleep(10);
 //        } catch (InterruptedException e) {
@@ -55,6 +61,34 @@ public class TestApplication {
 //            list.add(map);
 //        }
         return "测试返回数据1";
+    }
+
+    public static final AtomicLong HANDLER_NUM = new AtomicLong();
+    public static final AtomicLong HANDLER_TIME = new AtomicLong();
+
+    @Override
+    protected void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(new HandlerInterceptorAdapter(){
+
+            @Override
+            public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+                request.setAttribute("HANDLER_TIME",System.nanoTime());
+                return true;
+            }
+
+            @Override
+            public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
+                long nao = System.nanoTime() - (long)request.getAttribute("HANDLER_TIME");
+                HANDLER_TIME.addAndGet(nao);
+                HANDLER_NUM.incrementAndGet();
+            }
+        });
+        super.addInterceptors(registry);
+    }
+
+    @Bean
+    public ServletContextInitializer servletContextInitializer(){
+        return this::setServletContext;
     }
 
     /**

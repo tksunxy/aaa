@@ -1,9 +1,8 @@
 import com.github.netty.core.support.LoggerFactoryX;
 import com.github.netty.core.support.LoggerX;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.Vertx;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientOptions;
+import io.vertx.ext.web.client.WebClient;
+import io.vertx.ext.web.client.WebClientOptions;
 
 import java.math.BigDecimal;
 import java.util.concurrent.CountDownLatch;
@@ -29,7 +28,7 @@ public class QpsRunningTest {
 
     //==============Vertx客户端===============
     Vertx vertx = Vertx.vertx();
-    HttpClient client = vertx.createHttpClient(new HttpClientOptions()
+    WebClient client = WebClient.create(vertx,new WebClientOptions()
             .setTcpKeepAlive(false)
             //是否保持连接
             .setKeepAlive(true));
@@ -51,15 +50,15 @@ public class QpsRunningTest {
     private void doQuery(int port, String host, String uri) throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(queryCount);
         for(int i=0 ;i< queryCount; i++) {
-            client.post(port, host, uri).handler(httpClientResponse -> {
-                if (httpClientResponse.statusCode() == HttpResponseStatus.OK.code()) {
+            client.get(port, host, uri).sendJsonObject(Constant.BODY, asyncResult -> {
+                if(asyncResult.succeeded()){
                     successCount.incrementAndGet();
-                } else {
+                }else {
                     errorCount.incrementAndGet();
-                    System.out.println("error = " + httpClientResponse.statusCode());
+                    System.out.println("error = " + asyncResult.cause());
                 }
                 latch.countDown();
-            }).end();
+            });
         }
 
         latch.await(waitTime, TimeUnit.SECONDS);
@@ -84,8 +83,8 @@ public class QpsRunningTest {
                 try {
                     sleep(reportPrintTime * 1000);
 //                    synchronized (test) {
-                        long totalTime = System.currentTimeMillis() - beginTime - test.totalSleepTime.get();
-                        printQps(test.successCount.get(), test.errorCount.get(), totalTime);
+                    long totalTime = System.currentTimeMillis() - beginTime - test.totalSleepTime.get();
+                    printQps(test.successCount.get(), test.errorCount.get(), totalTime);
 //                    }
                 }catch (Throwable t){
                     t.printStackTrace();

@@ -1,9 +1,8 @@
 import com.github.netty.core.support.LoggerFactoryX;
 import com.github.netty.core.support.LoggerX;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.Vertx;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientOptions;
+import io.vertx.ext.web.client.WebClient;
+import io.vertx.ext.web.client.WebClientOptions;
 
 import java.math.BigDecimal;
 import java.util.concurrent.CountDownLatch;
@@ -25,10 +24,10 @@ public class QpsOnceTest {
 
     //==============Vertx客户端===============
     Vertx vertx = Vertx.vertx();
-    HttpClient client = vertx.createHttpClient(new HttpClientOptions()
+    WebClient client = WebClient.create(vertx,new WebClientOptions()
             .setTcpKeepAlive(false)
             //是否保持连接
-            .setKeepAlive(false));
+            .setKeepAlive(true));
 
     public static void main(String[] args) throws InterruptedException {
         QpsOnceTest test = new QpsOnceTest();
@@ -54,15 +53,15 @@ public class QpsOnceTest {
         long beginTime = System.currentTimeMillis();
 
         for(int i=0; i< queryCount; i++) {
-            client.post(port, host, uri).handler(httpClientResponse -> {
-                if (httpClientResponse.statusCode() == HttpResponseStatus.OK.code()) {
+            client.post(port, host, uri).sendJsonObject(Constant.BODY,asyncResult -> {
+                if(asyncResult.succeeded()){
                     successCount.incrementAndGet();
-                } else {
+                }else {
                     errorCount.incrementAndGet();
-                    System.out.println("error = " + httpClientResponse.statusCode());
+                    System.out.println("error = " + asyncResult.cause());
                 }
                 latch.countDown();
-            }).end();
+            });
         }
 
         latch.await(waitTime, TimeUnit.SECONDS);

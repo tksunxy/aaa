@@ -76,6 +76,9 @@ public class ServletUtil {
     }
 
     public static void decodeByUrl(Map<String,String[]> parameterMap, String uri, Charset charset){
+        if(uri.indexOf('?') == -1){
+            return;
+        }
         QueryStringDecoder decoder = new QueryStringDecoder(uri,charset);
 
         Map<String, List<String>> parameterListMap = decoder.parameters();

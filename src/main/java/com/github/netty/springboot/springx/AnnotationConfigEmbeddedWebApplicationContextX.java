@@ -89,7 +89,7 @@ public class AnnotationConfigEmbeddedWebApplicationContextX extends AnnotationCo
 
     @Override
     protected Collection<ServletContextInitializer> getServletContextInitializerBeans() {
-        return super.getServletContextInitializerBeans();
+        return new ServletContextInitializerBeansX(getBeanFactory());
     }
 
     @Override

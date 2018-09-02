@@ -2,11 +2,14 @@ package com.github.netty.session.impl;
 
 import com.github.netty.core.rpc.RpcClient;
 import com.github.netty.core.rpc.exception.RpcDecodeException;
+import com.github.netty.core.rpc.service.RpcDBService;
 import com.github.netty.core.support.Optimize;
+import com.github.netty.core.util.NamespaceUtil;
 import com.github.netty.session.Session;
 import com.github.netty.session.SessionService;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.Unpooled;
+import io.netty.util.concurrent.FastThreadLocal;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -21,15 +24,25 @@ import java.util.function.Supplier;
  * @author acer01
  * 2018/8/19/019
  */
-public class RemoteSessionServiceImpl extends RpcClient implements SessionService {
+public class RemoteSessionServiceImpl implements SessionService {
 
+    private String name = NamespaceUtil.newIdName(getClass());
+    private InetSocketAddress remoteSessionServerAddress;
     private static final byte[] EMPTY = new byte[0];
 
-    public RemoteSessionServiceImpl(InetSocketAddress remoteSessionServerAddress) {
-        super("Session",remoteSessionServerAddress, Optimize.getSessionClientSocketChannelCount());
-        if(Optimize.isSessionClientEnableAutoReconnect()) {
-            enableAutoReconnect(rpcClient -> {});
+    private FastThreadLocal<RpcClient> rpcClientThreadLocal = new FastThreadLocal<RpcClient>(){
+        @Override
+        protected RpcClient initialValue() throws Exception {
+            RpcClient rpcClient = new RpcClient("Session",remoteSessionServerAddress, Optimize.getSessionClientSocketChannelCount());
+            if(Optimize.isSessionClientEnableAutoReconnect()) {
+                rpcClient.enableAutoReconnect(null);
+            }
+            return rpcClient;
         }
+    };
+
+    public RemoteSessionServiceImpl(InetSocketAddress remoteSessionServerAddress) {
+        this.remoteSessionServerAddress = remoteSessionServerAddress;
     }
 
     @Override
@@ -132,6 +145,14 @@ public class RemoteSessionServiceImpl extends RpcClient implements SessionServic
         }
     }
 
+    public RpcClient getRpcClient() {
+        return rpcClientThreadLocal.get();
+    }
+
+    public RpcDBService getRpcDBService() {
+        return getRpcClient().getRpcDBService();
+    }
+
     /**
      * 编码
      * @param object
@@ -172,7 +193,7 @@ public class RemoteSessionServiceImpl extends RpcClient implements SessionServic
 
     @Override
     public String toString() {
-        return getName();
+        return name;
     }
 
 }

@@ -2,8 +2,8 @@ package com.github.netty.servlet;
 
 import com.github.netty.core.support.Recyclable;
 import com.github.netty.core.support.Wrapper;
+import com.github.netty.servlet.session.Session;
 import com.github.netty.servlet.support.ServletEventListenerManager;
-import com.github.netty.session.Session;
 
 import javax.servlet.http.*;
 import java.util.*;
@@ -32,7 +32,10 @@ public class ServletHttpSession implements HttpSession,Wrapper<Session>,Recyclab
     private Session source;
 
     ServletHttpSession() {
+    }
 
+    ServletHttpSession(ServletContext servletContext) {
+        this.servletContext = servletContext;
     }
 
     public void setServletContext(ServletContext servletContext) {
@@ -279,5 +282,6 @@ public class ServletHttpSession implements HttpSession,Wrapper<Session>,Recyclab
         this.accessCount = null;
         this.source = null;
     }
+
 
 }

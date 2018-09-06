@@ -1,7 +1,7 @@
-package com.github.netty.session;
+package com.github.netty.servlet.session;
 
 import com.github.netty.core.rpc.RpcServer;
-import com.github.netty.session.impl.LocalSessionServiceImpl;
+import com.github.netty.servlet.session.impl.LocalSessionServiceImpl;
 
 import java.net.InetSocketAddress;
 

@@ -1,4 +1,4 @@
-package com.github.netty.session;
+package com.github.netty.servlet.session;
 
 import java.io.Serializable;
 import java.util.Map;

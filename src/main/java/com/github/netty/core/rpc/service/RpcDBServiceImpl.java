@@ -1,5 +1,8 @@
 package com.github.netty.core.rpc.service;
 
+import com.github.netty.core.support.LoggerFactoryX;
+import com.github.netty.core.support.LoggerX;
+
 import java.util.*;
 
 /**
@@ -7,6 +10,8 @@ import java.util.*;
  * @author 84215
  */
 public class RpcDBServiceImpl implements RpcDBService {
+
+    private LoggerX logger = LoggerFactoryX.getLogger(getClass());
 
     private ExpiryMap<String,byte[]> memExpiryMap = new ExpiryMap<>(-1);
 
@@ -22,6 +27,7 @@ public class RpcDBServiceImpl implements RpcDBService {
 
     @Override
     public void put(String key, byte[] data, int expireSecond) {
+        logger.info("保存数据 : key="+key);
         memExpiryMap.put(key,data,expireSecond);
     }
 

@@ -1,11 +1,11 @@
-package com.github.netty.session.impl;
+package com.github.netty.servlet.session.impl;
 
 import com.github.netty.core.support.LoggerFactoryX;
 import com.github.netty.core.support.LoggerX;
 import com.github.netty.core.util.NamespaceUtil;
 import com.github.netty.core.util.TodoOptimize;
-import com.github.netty.session.Session;
-import com.github.netty.session.SessionService;
+import com.github.netty.servlet.session.Session;
+import com.github.netty.servlet.session.SessionService;
 
 import java.net.InetSocketAddress;
 import java.util.List;

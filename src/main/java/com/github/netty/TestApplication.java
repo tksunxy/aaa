@@ -3,7 +3,7 @@ package com.github.netty;
 import com.github.netty.core.support.Optimize;
 import com.github.netty.core.support.ThreadPoolX;
 import com.github.netty.springboot.NettyEmbeddedServletContainerFactory;
-import com.github.netty.springboot.springx.SpringApplicationX;
+import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -99,7 +99,7 @@ public class TestApplication extends WebMvcConfigurationSupport{
     public static void main(String[] args) throws IOException {
         preStart();
 
-        ConfigurableApplicationContext context = SpringApplicationX.run(TestApplication.class, args);
+        ConfigurableApplicationContext context = SpringApplication.run(TestApplication.class, args);
     }
 
     /**
@@ -111,8 +111,10 @@ public class TestApplication extends WebMvcConfigurationSupport{
 //        AbstractByteBuf -> 关闭bytebuf重复释放检查
         System.setProperty("io.netty.buffer.bytebuf.checkAccessible","false");
 
-        //统计任务
-        ThreadPoolX.getDefaultInstance().scheduleAtFixedRate(new Optimize.ReportRunning(),5,5, TimeUnit.SECONDS);
+        if(Optimize.isEnableReportPrint()) {
+            //统计任务
+            ThreadPoolX.getDefaultInstance().scheduleAtFixedRate(new Optimize.ReportRunning(), 5, 5, TimeUnit.SECONDS);
+        }
     }
 
 

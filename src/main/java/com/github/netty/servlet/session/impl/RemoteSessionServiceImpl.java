@@ -1,12 +1,12 @@
-package com.github.netty.session.impl;
+package com.github.netty.servlet.session.impl;
 
 import com.github.netty.core.rpc.RpcClient;
 import com.github.netty.core.rpc.exception.RpcDecodeException;
 import com.github.netty.core.rpc.service.RpcDBService;
 import com.github.netty.core.support.Optimize;
 import com.github.netty.core.util.NamespaceUtil;
-import com.github.netty.session.Session;
-import com.github.netty.session.SessionService;
+import com.github.netty.servlet.session.Session;
+import com.github.netty.servlet.session.SessionService;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.Unpooled;
 import io.netty.util.concurrent.FastThreadLocal;
@@ -163,7 +163,7 @@ public class RemoteSessionServiceImpl implements SessionService {
             return EMPTY;
         }
 
-        ByteArrayOutputStream bout = new ByteArrayOutputStream(64);
+        ByteArrayOutputStream bout = new ByteArrayOutputStream(256);
 //        ByteBufOutputStream bout = new ByteBufOutputStream(out);
         ObjectOutputStream oout = null;
         try {

@@ -140,7 +140,7 @@ public class Optimize {
     public static int getClientEventLoopIoRatio(){
         return 100;
     }
-    //开启远程会话管理
+    //开启外部会话管理
     public static boolean isEnableRemoteSessionManage() {
         return true;
     }
@@ -158,6 +158,10 @@ public class Optimize {
     }
     //开启日志
     public static boolean isEnableLog() {
+        return true;
+    }
+    //开启打印统计
+    public static boolean isEnableReportPrint() {
         return true;
     }
     //开启原生netty, 不走spring的dispatchServlet

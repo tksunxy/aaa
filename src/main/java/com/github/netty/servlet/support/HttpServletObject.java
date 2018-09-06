@@ -6,8 +6,10 @@ import com.github.netty.core.support.Recyclable;
 import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletHttpServletResponse;
+import com.github.netty.servlet.ServletHttpSession;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.util.AttributeKey;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -25,6 +27,7 @@ public class HttpServletObject implements Recyclable{
             return new HttpServletObject();
         }
     };
+    public static final AttributeKey<ServletHttpSession> SESSION_HOOK = AttributeKey.valueOf(ServletHttpSession.class,"ServletHttpSession");
 
     private ServletHttpServletRequest httpServletRequest;
     private ServletHttpServletResponse httpServletResponse;
@@ -36,12 +39,23 @@ public class HttpServletObject implements Recyclable{
 
     public static HttpServletObject newInstance(ServletContext servletContext, ChannelHandlerContext context, FullHttpRequest fullHttpRequest) {
         HttpServletObject instance = RECYCLER.get();
-
         instance.servletContext = servletContext;
         instance.channelHandlerContext = context;
         instance.httpServletRequest = newHttpServletRequest(instance,fullHttpRequest);
         instance.httpServletResponse = newHttpServletResponse(instance);
         return instance;
+    }
+
+    public ServletHttpSession getHttpSessionChannel(){
+        return channelHandlerContext.channel().attr(SESSION_HOOK).get();
+    }
+
+    public void setHttpSessionChannel(ServletHttpSession httpSession){
+        channelHandlerContext.channel().attr(SESSION_HOOK).set(httpSession);
+    }
+
+    public ServletHttpSession removeHttpSessionChannel(){
+        return channelHandlerContext.channel().attr(SESSION_HOOK).getAndSet(null);
     }
 
     /**

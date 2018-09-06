@@ -2,9 +2,9 @@ package com.github.netty.springboot;
 
 import com.github.netty.core.support.Optimize;
 import com.github.netty.servlet.*;
-import com.github.netty.session.RemoteCommandServer;
-import com.github.netty.session.SessionService;
-import com.github.netty.session.impl.CompositeSessionServiceImpl;
+import com.github.netty.servlet.util.CommandUtil;
+import com.github.netty.servlet.session.SessionService;
+import com.github.netty.servlet.session.impl.CompositeSessionServiceImpl;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import org.springframework.boot.context.embedded.*;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
@@ -133,13 +133,11 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
         //组合会话
         CompositeSessionServiceImpl compositeSessionService = new CompositeSessionServiceImpl();
 
-        //远程会话地址
+        //会话地址
         InetSocketAddress remoteSessionServerAddress = new InetSocketAddress(getPort() + 1);
-        //远程命令启动服务
-        RemoteCommandServer remoteCommandServer = new RemoteCommandServer(remoteSessionServerAddress);
-        remoteCommandServer.execLocalCommand("cmd", result ->{
+        //用命令启动服务
+        CommandUtil.execLocalCommand("java -jar xx.jar ", result ->{
             if(result.isSuccess()) {
-                logger.info(result.getMessage());
                 if(Optimize.isEnableRemoteSessionManage()) {
                     compositeSessionService.enableRemoteSession(remoteSessionServerAddress);
                 }

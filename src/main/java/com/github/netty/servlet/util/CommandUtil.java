@@ -1,36 +1,26 @@
-package com.github.netty.session;
+package com.github.netty.servlet.util;
 
 import com.github.netty.core.support.ThreadPoolX;
 import com.github.netty.core.util.TodoOptimize;
-import com.github.netty.core.util.TypeUtil;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.net.InetSocketAddress;
 import java.util.function.Consumer;
 
 /**
- * Created by acer01 on 2018/8/20/020.
+ * 远程命令执行
+ * @author acer01
+ *  2018/8/20/020
  */
-public class RemoteCommandServer {
-
-    public RemoteCommandServer(InetSocketAddress address) {
-
-    }
-
-    public static void main(String[] args) {
-        int port = TypeUtil.castToInt(System.getProperty("rpc.port"), 8082);
-        SessionRpcServer server = new SessionRpcServer(port);
-        server.run();
-    }
+public class CommandUtil {
 
     @TodoOptimize("待实现, 登录远程ssh,执行命令启动另一个jvm")
-    public RemoteCommandServer execSshCommand(String command, Consumer<CommandResult> callback){
-        return this;
+    public static void execSshCommand(String command, Consumer<CommandResult> callback){
+
     }
 
     @TodoOptimize("待实现, 执行本地脚本命令启动另一个jvm")
-    public RemoteCommandServer execLocalCommand(String command, Consumer<CommandResult> callback){
+    public static void execLocalCommand(String command, Consumer<CommandResult> callback){
         ThreadPoolX.getDefaultInstance().execute(() -> {
             StringBuilder sb = new StringBuilder();
             try {
@@ -43,21 +33,18 @@ public class RemoteCommandServer {
                     sb.append(line).append(lineSeparator);
                 }
                 process.exitValue();
+
+                CommandResult result = new CommandResult(true,sb.toString());
+                callback.accept(result);
             } catch (Exception e) {
-                //
+                CommandResult result = new CommandResult(false,sb.toString());
+                callback.accept(result);
             }
-
-            CommandResult result = new CommandResult(true,sb.toString());
-            callback.accept(result);
         });
-        return this;
     }
 
-    public void stop(){
 
-    }
-
-    public class CommandResult {
+    public static class CommandResult {
         private boolean success;
         private String message;
 

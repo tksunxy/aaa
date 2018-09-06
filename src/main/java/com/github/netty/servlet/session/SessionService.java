@@ -1,4 +1,4 @@
-package com.github.netty.session;
+package com.github.netty.servlet.session;
 
 import com.github.netty.core.rpc.RpcInterface;
 

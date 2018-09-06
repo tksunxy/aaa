@@ -12,8 +12,8 @@ import com.github.netty.servlet.support.HttpServletObject;
 import com.github.netty.servlet.support.ServletEventListenerManager;
 import com.github.netty.servlet.util.ProxyUtil;
 import com.github.netty.servlet.util.ServletUtil;
-import com.github.netty.session.Session;
-import com.github.netty.session.SessionService;
+import com.github.netty.servlet.session.Session;
+import com.github.netty.servlet.session.SessionService;
 import io.netty.handler.codec.http.HttpHeaders;
 
 import javax.servlet.*;
@@ -73,12 +73,14 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     private boolean decodeParameterByUrlFlag = false;
     private boolean decodeParameterByBodyFlag = false;
 
-    private ServletHttpSession httpSession = new ServletHttpSession();
+//    private ServletHttpSession httpSession = new ServletHttpSession();
     private ServletInputStream inputStream = new ServletInputStream();
     private Map<String,Object> attributeMap = new ConcurrentHashMap<>(16);
     private Map<String,String[]> parameterMap;
     private Cookie[] cookies;
     private Locale locale;
+
+    private final Object SYNC_SESSION_LOCK = new Object();
 
     protected ServletHttpServletRequest() {}
 
@@ -91,7 +93,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         instance.nettyRequest = nettyRequest;
         instance.nettyHeaders = nettyRequest.headers();
         instance.inputStream.wrap(nettyRequest.content());
-        instance.httpSession.setServletContext(httpServletObject.getServletContext());
+//        instance.httpSession.setServletContext(httpServletObject.getServletContext());
         return instance;
     }
 
@@ -390,36 +392,40 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public ServletHttpSession getSession(boolean create) {
-        if(httpSession.isValid()){
-            return httpSession;
-        }
+        synchronized (SYNC_SESSION_LOCK) {
+            //只要
+            ServletHttpSession httpSession = httpServletObject.getHttpSessionChannel();
+            if (httpSession != null && httpSession.isValid()) {
+                return httpSession;
+            }
 
-        String sessionId = getRequestedSessionId();
-        ServletContext servletContext = getServletContext();
-        SessionService sessionService = servletContext.getSessionService();
-        Session session = sessionService.getSession(sessionId);
+            if (!create) {
+                return null;
+            }
 
-        if(session != null){
+            String sessionId = getRequestedSessionId();
+            ServletContext servletContext = getServletContext();
+            SessionService sessionService = servletContext.getSessionService();
+            Session session = sessionService.getSession(sessionId);
+            boolean newSessionFlag = session == null;
+
+            if (newSessionFlag) {
+                long currTime = System.currentTimeMillis();
+                session = new Session(sessionId);
+                session.setCreationTime(currTime);
+                session.setLastAccessedTime(currTime);
+                session.setMaxInactiveInterval(servletContext.getSessionCookieConfig().getSessionTimeout());
+            }
+
+            if (httpSession == null) {
+                httpSession = new ServletHttpSession(servletContext);
+            }
             httpSession.wrap(session);
             httpSession.access();
-            httpSession.setNewSessionFlag(false);
+            httpSession.setNewSessionFlag(newSessionFlag);
+            httpServletObject.setHttpSessionChannel(httpSession);
             return httpSession;
         }
-
-        if(!create) {
-            return null;
-        }
-
-        long currTime = System.currentTimeMillis();
-        session = new Session(sessionId);
-        session.setCreationTime(currTime);
-        session.setLastAccessedTime(currTime);
-        session.setMaxInactiveInterval(servletContext.getSessionCookieConfig().getSessionTimeout());
-
-        httpSession.wrap(session);
-        httpSession.access();
-        httpSession.setNewSessionFlag(true);
-        return httpSession;
     }
 
     @Override
@@ -829,14 +835,6 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
             }
         }
 
-        SessionService sessionService = getServletContext().getSessionService();
-        if(httpSession.isValid()) {
-            sessionService.saveSession(httpSession.unwrap());
-        }else if(httpSession.getId() != null){
-            sessionService.removeSession(httpSession.getId());
-        }
-
-        this.httpSession.recycle();
         this.nettyRequest.recycle();
 
         this.decodeParameterByUrlFlag = false;

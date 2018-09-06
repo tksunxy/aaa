@@ -1,13 +1,13 @@
 package com.github.netty.springboot;
 
 import com.github.netty.core.AbstractChannelHandler;
-import com.github.netty.core.support.*;
+import com.github.netty.core.support.AbstractRecycler;
+import com.github.netty.core.support.Optimize;
+import com.github.netty.core.support.PartialPooledByteBufAllocator;
+import com.github.netty.core.support.Recyclable;
 import com.github.netty.core.util.ExceptionUtil;
 import com.github.netty.core.util.HttpHeaderUtil;
-import com.github.netty.servlet.ServletContext;
-import com.github.netty.servlet.ServletHttpServletRequest;
-import com.github.netty.servlet.ServletHttpServletResponse;
-import com.github.netty.servlet.ServletRequestDispatcher;
+import com.github.netty.servlet.*;
 import com.github.netty.servlet.support.HttpServletObject;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -16,6 +16,7 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.*;
+import io.netty.util.Attribute;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.http.HttpServletResponse;
@@ -63,6 +64,18 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
         }
     }
 
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        syncSession(ctx);
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        logger.error("ServletHandler 异常! : "+cause.toString());
+        syncSession(ctx);
+        ctx.channel().close();
+    }
+
     /**
      * 原生不加业务的代码, 用于测试原生的响应速度
      * @param context
@@ -94,14 +107,27 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
     }
 
 
-    @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        logger.error("ServletHandler 异常! : "+cause.toString());
-        if(null != ctx) {
-            ctx.channel().close();
+    /**
+     * 同步会话
+     * @param ctx
+     */
+    private void syncSession(ChannelHandlerContext ctx){
+        Attribute<ServletHttpSession> attribute = ctx.channel().attr(HttpServletObject.SESSION_HOOK);
+        ServletHttpSession httpSession = attribute.get();
+        if(httpSession != null) {
+            if (httpSession.isValid()) {
+                servletContext.getSessionService().saveSession(httpSession.unwrap());
+                logger.info("同步会话 : id="+httpSession.getId());
+            } else if (httpSession.getId() != null) {
+                servletContext.getSessionService().removeSession(httpSession.getId());
+                logger.info("移除会话 : id="+httpSession.getId());
+            }
         }
     }
 
+    /**
+     * servlet任务
+     */
     static class ServletTask implements Runnable,Recyclable{
         HttpServletObject httpServletObject;
 

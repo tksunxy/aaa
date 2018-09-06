@@ -2,6 +2,7 @@ package com.github.netty;
 
 import com.github.netty.core.support.Optimize;
 import com.github.netty.core.support.ThreadPoolX;
+import com.github.netty.core.util.HostUtil;
 import com.github.netty.springboot.NettyEmbeddedServletContainerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -106,6 +107,7 @@ public class TestApplication extends WebMvcConfigurationSupport{
      * 设置参数
      */
     private static void preStart(){
+        System.out.println("启动 : OS = " + HostUtil.getOsName() +", PID = "+ HostUtil.getPid());
         //        ResourceLeakDetector -> 关闭内存泄漏检测
         System.setProperty("io.netty.noResourceLeakDetection","true");
 //        AbstractByteBuf -> 关闭bytebuf重复释放检查

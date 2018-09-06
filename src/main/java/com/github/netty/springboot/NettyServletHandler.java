@@ -66,13 +66,13 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        syncSession(ctx);
+        saveAndClearSession(ctx);
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         logger.error("ServletHandler 异常! : "+cause.toString());
-        syncSession(ctx);
+        saveAndClearSession(ctx);
         ctx.channel().close();
     }
 
@@ -108,21 +108,24 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
 
 
     /**
-     * 同步会话
+     * 保存并且清空会话
      * @param ctx
      */
-    private void syncSession(ChannelHandlerContext ctx){
-        Attribute<ServletHttpSession> attribute = ctx.channel().attr(HttpServletObject.SESSION_HOOK);
-        ServletHttpSession httpSession = attribute.get();
-        if(httpSession != null) {
-            if (httpSession.isValid()) {
-                servletContext.getSessionService().saveSession(httpSession.unwrap());
-                logger.info("同步会话 : id="+httpSession.getId());
-            } else if (httpSession.getId() != null) {
-                servletContext.getSessionService().removeSession(httpSession.getId());
-                logger.info("移除会话 : id="+httpSession.getId());
-            }
+    private void saveAndClearSession(ChannelHandlerContext ctx){
+        Attribute<ServletHttpSession> attribute = ctx.channel().attr(HttpServletObject.CHANNEL_ATTR_KEY_SESSION);
+        ServletHttpSession httpSession = attribute.getAndSet(null);
+        if(httpSession == null) {
+            return;
         }
+
+        if (httpSession.isValid()) {
+            servletContext.getSessionService().saveSession(httpSession.unwrap());
+            logger.info("同步会话 : id="+httpSession.getId());
+        } else if (httpSession.getId() != null) {
+            servletContext.getSessionService().removeSession(httpSession.getId());
+            logger.info("移除会话 : id="+httpSession.getId());
+        }
+        httpSession.clear();
     }
 
     /**

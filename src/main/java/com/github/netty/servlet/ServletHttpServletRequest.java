@@ -393,7 +393,6 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     @Override
     public ServletHttpSession getSession(boolean create) {
         synchronized (SYNC_SESSION_LOCK) {
-            //只要
             ServletHttpSession httpSession = httpServletObject.getHttpSessionChannel();
             if (httpSession != null && httpSession.isValid()) {
                 return httpSession;

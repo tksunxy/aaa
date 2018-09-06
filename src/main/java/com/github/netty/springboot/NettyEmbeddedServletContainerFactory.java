@@ -1,8 +1,9 @@
 package com.github.netty.springboot;
 
+import com.github.netty.RemoteSessionApplication;
 import com.github.netty.core.support.Optimize;
+import com.github.netty.core.util.HostUtil;
 import com.github.netty.servlet.*;
-import com.github.netty.servlet.util.CommandUtil;
 import com.github.netty.servlet.session.SessionService;
 import com.github.netty.servlet.session.impl.CompositeSessionServiceImpl;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
@@ -133,16 +134,26 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
         //组合会话
         CompositeSessionServiceImpl compositeSessionService = new CompositeSessionServiceImpl();
 
-        //会话地址
+        //尝试启动另一个存储session会话的java进程 , 默认当前端口号 + 1
         InetSocketAddress remoteSessionServerAddress = new InetSocketAddress(getPort() + 1);
-        //用命令启动服务
-        CommandUtil.execLocalCommand("java -jar xx.jar ", result ->{
-            if(result.isSuccess()) {
-                if(Optimize.isEnableRemoteSessionManage()) {
-                    compositeSessionService.enableRemoteSession(remoteSessionServerAddress);
-                }
-            }
+        //如果端口已经存在, 直接连接,不需要启动
+        if(HostUtil.isExistPort(remoteSessionServerAddress.getPort())) {
+            compositeSessionService.enableRemoteSession(remoteSessionServerAddress);
+            return compositeSessionService;
+        }
+
+        //启动另一个java进程
+        RemoteSessionApplication remoteSessionApplication = new RemoteSessionApplication(
+                remoteSessionServerAddress,
+                resourceLoader,
+                result ->{
+                    if(result.isSuccess()) {
+                        if(Optimize.isEnableRemoteSessionManage()) {
+                            compositeSessionService.enableRemoteSession(remoteSessionServerAddress);
+                        }
+                    }
         });
+        remoteSessionApplication.start();
         return compositeSessionService;
     }
 

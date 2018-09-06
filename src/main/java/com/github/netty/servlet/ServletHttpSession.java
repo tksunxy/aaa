@@ -1,6 +1,5 @@
 package com.github.netty.servlet;
 
-import com.github.netty.core.support.Recyclable;
 import com.github.netty.core.support.Wrapper;
 import com.github.netty.servlet.session.Session;
 import com.github.netty.servlet.support.ServletEventListenerManager;
@@ -13,7 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Created by acer01 on 2018/7/15/015.
  */
-public class ServletHttpSession implements HttpSession,Wrapper<Session>,Recyclable{
+public class ServletHttpSession implements HttpSession,Wrapper<Session>{
 
     private ServletContext servletContext;
     private String id;
@@ -272,8 +271,7 @@ public class ServletHttpSession implements HttpSession,Wrapper<Session>,Recyclab
         return source;
     }
 
-    @Override
-    public void recycle() {
+    public void clear() {
         this.id = null;
         this.attributeMap = null;
         this.creationTime = 0;

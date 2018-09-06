@@ -1,6 +1,8 @@
 package com.github.netty.core.util;
 
+import java.lang.management.ManagementFactory;
 import java.net.NetworkInterface;
+import java.net.Socket;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Enumeration;
@@ -14,15 +16,21 @@ import java.util.StringJoiner;
  * @author 84215
  */
 public class HostUtil {
+    private static String userName;
     private static String osName;
     private static String osArch;
     private static boolean embedded;
     private static boolean is64bit = false;
+    private static int pid;
 
     static {
         embedded = AccessController.doPrivileged((PrivilegedAction<Boolean>) () -> {
             osName = System.getProperty("os.name").toLowerCase();
             osArch = System.getProperty("os.arch").toLowerCase();
+
+            String name = ManagementFactory.getRuntimeMXBean().getName();
+            pid = Integer.parseInt(name.split("@")[0]);
+            userName = name.split("@")[1];
 
             is64bit =  osArch.equals("x64")
                     || osArch.equals("x86_64")
@@ -30,6 +38,29 @@ public class HostUtil {
 
             return Boolean.getBoolean("com.sun.javafx.isEmbedded");
         });
+    }
+
+    /**
+     * 端口是否已存在
+     * @param port
+     * @return true = 存在, false=不存在
+     */
+    public static boolean isExistPort(int port) {
+        try {
+            Socket socket = new Socket("localhost",port);
+            socket.close();
+            return false;
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    public static int getPid(){
+        return pid;
+    }
+
+    public static String getUserName(){
+        return userName;
     }
 
     public static String getOsName() {

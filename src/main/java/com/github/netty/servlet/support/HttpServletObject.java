@@ -27,7 +27,7 @@ public class HttpServletObject implements Recyclable{
             return new HttpServletObject();
         }
     };
-    public static final AttributeKey<ServletHttpSession> SESSION_HOOK = AttributeKey.valueOf(ServletHttpSession.class,"ServletHttpSession");
+    public static final AttributeKey<ServletHttpSession> CHANNEL_ATTR_KEY_SESSION = AttributeKey.valueOf(ServletHttpSession.class,"ServletHttpSession");
 
     private ServletHttpServletRequest httpServletRequest;
     private ServletHttpServletResponse httpServletResponse;
@@ -44,18 +44,6 @@ public class HttpServletObject implements Recyclable{
         instance.httpServletRequest = newHttpServletRequest(instance,fullHttpRequest);
         instance.httpServletResponse = newHttpServletResponse(instance);
         return instance;
-    }
-
-    public ServletHttpSession getHttpSessionChannel(){
-        return channelHandlerContext.channel().attr(SESSION_HOOK).get();
-    }
-
-    public void setHttpSessionChannel(ServletHttpSession httpSession){
-        channelHandlerContext.channel().attr(SESSION_HOOK).set(httpSession);
-    }
-
-    public ServletHttpSession removeHttpSessionChannel(){
-        return channelHandlerContext.channel().attr(SESSION_HOOK).getAndSet(null);
     }
 
     /**
@@ -77,6 +65,22 @@ public class HttpServletObject implements Recyclable{
     private static ServletHttpServletResponse newHttpServletResponse(HttpServletObject httpServletObject){
         ServletHttpServletResponse servletResponse = ServletHttpServletResponse.newInstance(httpServletObject);
         return servletResponse;
+    }
+
+    /**
+     * 从管道中绑定的属性中获取 httpSession
+     * @return
+     */
+    public ServletHttpSession getHttpSessionChannel(){
+        return channelHandlerContext.channel().attr(CHANNEL_ATTR_KEY_SESSION).get();
+    }
+
+    /**
+     * 把 httpSession绑定到管道属性中
+     * @param httpSession
+     */
+    public void setHttpSessionChannel(ServletHttpSession httpSession){
+        channelHandlerContext.channel().attr(CHANNEL_ATTR_KEY_SESSION).set(httpSession);
     }
 
     public ServletHttpServletRequest getHttpServletRequest() {
@@ -121,6 +125,9 @@ public class HttpServletObject implements Recyclable{
         return null;
     }
 
+    /**
+     * 回收servlet对象
+     */
     @Override
     public void recycle() {
         httpServletResponse.recycle();

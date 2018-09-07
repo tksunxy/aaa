@@ -1,10 +1,12 @@
-package com.github.netty.servlet.session;
+package com.github.netty.session;
 
 import java.io.Serializable;
 import java.util.Map;
 
 /**
- * Created by acer01 on 2018/8/18/018.
+ * 会话实体类
+ * @author acer01
+ *  2018/8/18/018
  */
 public class Session implements Serializable{
 
@@ -13,9 +15,14 @@ public class Session implements Serializable{
     private Map<String,Object> attributeMap;
     private long creationTime;
     private long lastAccessedTime;
-    //单位 秒
+    /**
+     * 单位 秒
+     */
     private int maxInactiveInterval;
     private int accessCount;
+
+    public Session() {
+    }
 
     public Session(String id) {
         this.id = id;

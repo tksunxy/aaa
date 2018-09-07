@@ -8,7 +8,7 @@ import com.github.netty.core.util.RecyclableUtil;
 import com.github.netty.core.util.TypeUtil;
 import com.github.netty.servlet.support.ServletEventListenerManager;
 import com.github.netty.servlet.support.UrlMapper;
-import com.github.netty.servlet.session.SessionService;
+import com.github.netty.session.service.SessionService;
 
 import javax.servlet.*;
 import javax.servlet.descriptor.JspConfigDescriptor;

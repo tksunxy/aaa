@@ -1,4 +1,4 @@
-package com.github.netty.core.rpc.codec;
+package com.github.netty.rpc.codec;
 
 /**
  *  rpc响应状态

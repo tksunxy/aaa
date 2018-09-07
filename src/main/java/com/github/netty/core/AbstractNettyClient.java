@@ -1,7 +1,7 @@
 package com.github.netty.core;
 
 import com.github.netty.core.support.LoggerX;
-import com.github.netty.core.support.Optimize;
+import com.github.netty.OptimizeConfig;
 import com.github.netty.core.support.LoggerFactoryX;
 import com.github.netty.core.support.PartialPooledByteBufAllocator;
 import com.github.netty.core.util.*;
@@ -72,8 +72,8 @@ public abstract class AbstractNettyClient implements Runnable{
 
     protected EventLoopGroup newWorkerEventLoopGroup() {
         EventLoopGroup worker;
-        int nEventLoopCount = Optimize.getClientEventLoopWorkerCount();
-        int ioRatio = Optimize.getClientEventLoopIoRatio();
+        int nEventLoopCount = OptimizeConfig.getClientEventLoopWorkerCount();
+        int ioRatio = OptimizeConfig.getClientEventLoopIoRatio();
         if(enableEpoll){
             EpollEventLoopGroup epollWorker = new EpollEventLoopGroup(nEventLoopCount);
             epollWorker.setIoRatio(ioRatio);
@@ -175,8 +175,8 @@ public abstract class AbstractNettyClient implements Runnable{
         if(socketChannels == null){
             return null;
         }
-        if(Optimize.isEnableExecuteHold()) {
-            return Optimize.holdExecute(new Supplier<SocketChannel>() {
+        if(OptimizeConfig.isEnableExecuteHold()) {
+            return OptimizeConfig.holdExecute(new Supplier<SocketChannel>() {
                 @Override
                 public SocketChannel get() {
                     return socketChannels.next();
@@ -222,7 +222,7 @@ public abstract class AbstractNettyClient implements Runnable{
     }
 
     protected void startAfter(){
-        logger.info(name + " start... :[connectCount = "+getSocketChannelCount()+", remoteAddress = "+remoteAddress.getHostName()+":"+remoteAddress.getPort()+"]...");
+        logger.info(name + " start [connectCount = "+getSocketChannelCount()+", remoteAddress = "+remoteAddress.getHostName()+":"+remoteAddress.getPort()+"]...");
     }
 
     public int getSocketChannelCount(){

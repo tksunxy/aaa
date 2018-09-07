@@ -1,4 +1,4 @@
-package com.github.netty.core.rpc.exception;
+package com.github.netty.rpc.exception;
 
 /**
  * rpc调用响应异常

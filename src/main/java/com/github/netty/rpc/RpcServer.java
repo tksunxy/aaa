@@ -1,13 +1,13 @@
-package com.github.netty.core.rpc;
+package com.github.netty.rpc;
 
 import com.github.netty.core.AbstractChannelHandler;
 import com.github.netty.core.AbstractNettyServer;
-import com.github.netty.core.rpc.codec.DataCodec;
-import com.github.netty.core.rpc.codec.JsonDataCodec;
-import com.github.netty.core.rpc.codec.RpcProto;
-import com.github.netty.core.rpc.codec.RpcResponseStatus;
-import com.github.netty.core.rpc.service.RpcCommandServiceImpl;
-import com.github.netty.core.rpc.service.RpcDBServiceImpl;
+import com.github.netty.rpc.codec.DataCodec;
+import com.github.netty.rpc.codec.JsonDataCodec;
+import com.github.netty.rpc.codec.RpcProto;
+import com.github.netty.rpc.codec.RpcResponseStatus;
+import com.github.netty.rpc.service.RpcCommandServiceImpl;
+import com.github.netty.rpc.service.RpcDBServiceImpl;
 import com.github.netty.core.util.ExceptionUtil;
 import com.github.netty.core.util.ReflectUtil;
 import com.google.protobuf.ByteString;
@@ -118,7 +118,6 @@ public class RpcServer extends AbstractNettyServer{
                 message = "not found service ["+ serviceName +"]";
             }else {
                 try {
-//                    String requestDataBytes = rpcRequest.getData().toStringUtf8();
                     Object[] requestData = dataCodec.decodeRequestData(rpcRequest.getData().toStringUtf8());
                     result = rpcService.invoke(methodName, requestData);
 
@@ -164,34 +163,44 @@ public class RpcServer extends AbstractNettyServer{
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-            super.exceptionCaught(ctx, cause);
             ExceptionUtil.printRootCauseStackTrace(cause);
+            removeChannel(ctx.channel());
         }
 
         @Override
         public void channelActive(ChannelHandlerContext ctx) throws Exception {
-            super.channelActive(ctx);
+            putChannel(ctx.channel());
+        }
 
-            Channel channel = ctx.channel();
+        @Override
+        public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+            removeChannel(ctx.channel());
+        }
+
+        /**
+         * 放入链接
+         * @param channel
+         */
+        private void putChannel(Channel channel){
             InetSocketAddress remoteAddress = getInetSocketAddress(channel.remoteAddress());
             if(remoteAddress == null){
                 return;
             }
             channelMap.put(remoteAddress.getHostString() + ":" + remoteAddress.getPort(),channel);
-            logger.info("新入链接 = "+ctx.channel().toString());
+            logger.info("新入链接 = "+channel.toString());
         }
 
-        @Override
-        public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-            super.channelInactive(ctx);
-
-            Channel channel = ctx.channel();
+        /**
+         * 移除链接
+         * @param channel
+         */
+        private void removeChannel(Channel channel){
             InetSocketAddress remoteAddress = getInetSocketAddress(channel.remoteAddress());
             if(remoteAddress == null){
                 return;
             }
             channelMap.remove(remoteAddress.getHostString() + ":" + remoteAddress.getPort(),channel);
-            logger.info("断开链接" + ctx.channel().toString());
+            logger.info("断开链接" + channel.toString());
         }
 
         /**

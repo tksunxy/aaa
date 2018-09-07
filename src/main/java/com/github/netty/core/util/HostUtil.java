@@ -1,6 +1,8 @@
 package com.github.netty.core.util;
 
 import java.lang.management.ManagementFactory;
+import java.net.BindException;
+import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
 import java.security.AccessController;
@@ -47,11 +49,16 @@ public class HostUtil {
      */
     public static boolean isExistPort(int port) {
         try {
-            Socket socket = new Socket("localhost",port);
+            Socket socket = new Socket();
+            InetSocketAddress address = new InetSocketAddress("127.0.0.1",port);
+            socket.bind(address);
             socket.close();
             return false;
         } catch (Exception e) {
-            return true;
+            if(e instanceof BindException){
+                return true;
+            }
+            return false;
         }
     }
 

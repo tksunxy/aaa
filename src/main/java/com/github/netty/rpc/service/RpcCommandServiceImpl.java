@@ -1,4 +1,4 @@
-package com.github.netty.core.rpc.service;
+package com.github.netty.rpc.service;
 
 /**
  *

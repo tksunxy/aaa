@@ -1,4 +1,4 @@
-package com.github.netty.core.rpc;
+package com.github.netty.rpc;
 
 import java.lang.annotation.*;
 

@@ -1,7 +1,8 @@
-package com.github.netty.core.support;
+package com.github.netty;
 
-import com.github.netty.TestApplication;
-import com.github.netty.core.rpc.RpcClient;
+import com.github.netty.core.support.LoggerFactoryX;
+import com.github.netty.core.support.LoggerX;
+import com.github.netty.rpc.RpcClient;
 import com.github.netty.servlet.ServletFilterChain;
 import com.github.netty.springboot.NettyServletHandler;
 
@@ -16,7 +17,8 @@ import java.util.function.Supplier;
 
 /**
  * 在这里可以进行优化操作
- * Created by acer01 on 2018/8/25/025.
+ * @author acer01
+ * 2018/8/25/025
  *
  *  1.优化记录 (2018年8月25日 22:16:13),
  *      发现问题 : rpc调用不论设置超时时间多长, 总是会超时.
@@ -123,7 +125,7 @@ import java.util.function.Supplier;
  *
  *
  */
-public class Optimize {
+public class OptimizeConfig {
 
     //客户端工作线程数
     public static int getClientEventLoopWorkerCount(){
@@ -179,7 +181,7 @@ public class Optimize {
     }
 
 
-    static LoggerX logger = LoggerFactoryX.getLogger(Optimize.class);
+    static LoggerX logger = LoggerFactoryX.getLogger(OptimizeConfig.class);
 
     /**
      * 统计客户端调用信息

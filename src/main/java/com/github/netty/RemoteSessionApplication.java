@@ -5,7 +5,7 @@ import com.github.netty.core.support.LoggerX;
 import com.github.netty.core.util.HostUtil;
 import com.github.netty.core.util.NamespaceUtil;
 import com.github.netty.core.util.TypeUtil;
-import com.github.netty.servlet.session.SessionRpcServer;
+import com.github.netty.session.SessionRpcServer;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 
@@ -42,6 +42,7 @@ public class RemoteSessionApplication extends Thread{
     private Consumer<StartMessage> afterCallback;
 
     public RemoteSessionApplication(InetSocketAddress sessionServerAddress,ResourceLoader resourceLoader,Consumer<StartMessage> afterCallback) {
+        super(NamespaceUtil.newIdName(RemoteSessionApplication.class));
         this.resourceLoader = resourceLoader;
         this.sessionServerAddress = sessionServerAddress;
         this.properties = System.getProperties();

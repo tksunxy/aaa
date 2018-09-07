@@ -1,11 +1,11 @@
 package com.github.netty.springboot;
 
 import com.github.netty.RemoteSessionApplication;
-import com.github.netty.core.support.Optimize;
+import com.github.netty.OptimizeConfig;
 import com.github.netty.core.util.HostUtil;
 import com.github.netty.servlet.*;
-import com.github.netty.servlet.session.SessionService;
-import com.github.netty.servlet.session.impl.CompositeSessionServiceImpl;
+import com.github.netty.session.service.SessionService;
+import com.github.netty.session.service.CompositeSessionServiceImpl;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import org.springframework.boot.context.embedded.*;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
@@ -148,7 +148,7 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
                 resourceLoader,
                 result ->{
                     if(result.isSuccess()) {
-                        if(Optimize.isEnableRemoteSessionManage()) {
+                        if(OptimizeConfig.isEnableRemoteSessionManage()) {
                             compositeSessionService.enableRemoteSession(remoteSessionServerAddress);
                         }
                     }

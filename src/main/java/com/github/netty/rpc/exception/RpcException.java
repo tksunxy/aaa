@@ -1,4 +1,4 @@
-package com.github.netty.core.rpc.exception;
+package com.github.netty.rpc.exception;
 
 /**
  * Created by acer01 on 2018/8/20/020.

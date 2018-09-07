@@ -1,4 +1,4 @@
-package com.github.netty.core.rpc.codec;
+package com.github.netty.rpc.codec;
 
 /**
  *  数据编码解码器

@@ -1,6 +1,6 @@
-package com.github.netty.core.rpc.service;
+package com.github.netty.rpc.service;
 
-import com.github.netty.core.rpc.RpcInterface;
+import com.github.netty.rpc.RpcInterface;
 
 /**
  * rpc命令服务

@@ -1,4 +1,4 @@
-package com.github.netty.core.rpc.exception;
+package com.github.netty.rpc.exception;
 
 /**
  * 解码异常

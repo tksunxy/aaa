@@ -1,6 +1,6 @@
 package com.github.netty.core;
 
-import com.github.netty.core.support.Optimize;
+import com.github.netty.OptimizeConfig;
 import com.github.netty.core.support.PartialPooledByteBufAllocator;
 import com.github.netty.core.util.ExceptionUtil;
 import com.github.netty.core.util.HostUtil;
@@ -66,7 +66,7 @@ public abstract class AbstractNettyServer implements Runnable{
 
     protected EventLoopGroup newWorkerEventLoopGroup() {
         EventLoopGroup worker;
-        int nEventLoopCount = Optimize.getServerEventLoopWorkerCount();
+        int nEventLoopCount = OptimizeConfig.getServerEventLoopWorkerCount();
         if(enableEpoll){
             worker = new EpollEventLoopGroup(nEventLoopCount);
         }else {
@@ -77,7 +77,7 @@ public abstract class AbstractNettyServer implements Runnable{
 
     protected EventLoopGroup newBossEventLoopGroup() {
         EventLoopGroup boss;
-        int ioRatio = Optimize.getServerEventLoopIoRatio();
+        int ioRatio = OptimizeConfig.getServerEventLoopIoRatio();
         if(enableEpoll){
             EpollEventLoopGroup epollBoss = new EpollEventLoopGroup(1);
             epollBoss.setIoRatio(ioRatio);
@@ -188,7 +188,7 @@ public abstract class AbstractNettyServer implements Runnable{
         if(cause != null){
             PlatformDependent.throwException(cause);
         }
-        logger.info(name + " start [port = "+getPort()+"]...");
+        logger.info(name + " start [port = "+getPort()+", os = " + HostUtil.getOsName() +", pid = "+ HostUtil.getPid()+"]...");
     }
 
     @Override

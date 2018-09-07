@@ -1,8 +1,6 @@
 package com.github.netty;
 
-import com.github.netty.core.support.Optimize;
 import com.github.netty.core.support.ThreadPoolX;
-import com.github.netty.core.util.HostUtil;
 import com.github.netty.springboot.NettyEmbeddedServletContainerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -61,6 +59,7 @@ public class TestApplication extends WebMvcConfigurationSupport{
 //            map.put("fd1",sb);
 //            list.add(map);
 //        }
+
         return "测试返回数据1";
     }
 
@@ -107,15 +106,14 @@ public class TestApplication extends WebMvcConfigurationSupport{
      * 设置参数
      */
     private static void preStart(){
-        System.out.println("启动 : OS = " + HostUtil.getOsName() +", PID = "+ HostUtil.getPid());
         //        ResourceLeakDetector -> 关闭内存泄漏检测
         System.setProperty("io.netty.noResourceLeakDetection","true");
 //        AbstractByteBuf -> 关闭bytebuf重复释放检查
         System.setProperty("io.netty.buffer.bytebuf.checkAccessible","false");
 
-        if(Optimize.isEnableReportPrint()) {
+        if(OptimizeConfig.isEnableReportPrint()) {
             //统计任务
-            ThreadPoolX.getDefaultInstance().scheduleAtFixedRate(new Optimize.ReportRunning(), 5, 5, TimeUnit.SECONDS);
+            ThreadPoolX.getDefaultInstance().scheduleAtFixedRate(new OptimizeConfig.ReportRunning(), 5, 5, TimeUnit.SECONDS);
         }
     }
 

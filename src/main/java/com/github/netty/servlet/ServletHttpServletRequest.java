@@ -12,8 +12,8 @@ import com.github.netty.servlet.support.HttpServletObject;
 import com.github.netty.servlet.support.ServletEventListenerManager;
 import com.github.netty.servlet.util.ProxyUtil;
 import com.github.netty.servlet.util.ServletUtil;
-import com.github.netty.servlet.session.Session;
-import com.github.netty.servlet.session.SessionService;
+import com.github.netty.session.Session;
+import com.github.netty.session.service.SessionService;
 import io.netty.handler.codec.http.HttpHeaders;
 
 import javax.servlet.*;

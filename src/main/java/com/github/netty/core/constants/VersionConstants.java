@@ -3,7 +3,8 @@ package com.github.netty.core.constants;
 /**
  * 版本适配, 用于兼容netty4 升级netty5
  *
- * Created by acer01 on 2018/8/5/005.
+ * @author acer01
+ * 2018/8/5/005
  */
 public class VersionConstants {
 

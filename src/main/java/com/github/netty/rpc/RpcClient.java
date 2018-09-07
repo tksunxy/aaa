@@ -1,18 +1,18 @@
-package com.github.netty.core.rpc;
+package com.github.netty.rpc;
 
 import com.github.netty.core.AbstractChannelHandler;
 import com.github.netty.core.AbstractNettyClient;
-import com.github.netty.core.rpc.codec.DataCodec;
-import com.github.netty.core.rpc.codec.JsonDataCodec;
-import com.github.netty.core.rpc.codec.RpcProto;
-import com.github.netty.core.rpc.codec.RpcResponseStatus;
-import com.github.netty.core.rpc.exception.RpcConnectException;
-import com.github.netty.core.rpc.exception.RpcException;
-import com.github.netty.core.rpc.exception.RpcResponseException;
-import com.github.netty.core.rpc.exception.RpcTimeoutException;
-import com.github.netty.core.rpc.service.RpcCommandService;
-import com.github.netty.core.rpc.service.RpcDBService;
-import com.github.netty.core.support.Optimize;
+import com.github.netty.rpc.codec.DataCodec;
+import com.github.netty.rpc.codec.JsonDataCodec;
+import com.github.netty.rpc.codec.RpcProto;
+import com.github.netty.rpc.codec.RpcResponseStatus;
+import com.github.netty.rpc.exception.RpcConnectException;
+import com.github.netty.rpc.exception.RpcException;
+import com.github.netty.rpc.exception.RpcResponseException;
+import com.github.netty.rpc.exception.RpcTimeoutException;
+import com.github.netty.rpc.service.RpcCommandService;
+import com.github.netty.rpc.service.RpcDBService;
+import com.github.netty.OptimizeConfig;
 import com.github.netty.core.support.ThreadPoolX;
 import com.github.netty.core.util.ReflectUtil;
 import com.google.protobuf.ByteString;
@@ -358,7 +358,7 @@ public class RpcClient extends AbstractNettyClient{
             this.beginTime = System.currentTimeMillis();
 
             //自旋, 因为如果是本地rpc调用,速度太快了, 没必要再堵塞
-            int spinCount = Optimize.getRpcLockSpinCount();
+            int spinCount = OptimizeConfig.getRpcLockSpinCount();
             for (int i=0; rpcResponse == null && i<spinCount; i++){
                 //
             }
@@ -439,7 +439,7 @@ public class RpcClient extends AbstractNettyClient{
             requestLockMap.remove(requestId);
 
             if(rpcResponse == null){
-                if(Optimize.isEnableExecuteHold()) {
+                if(OptimizeConfig.isEnableExecuteHold()) {
                     logger.error("超时的请求 : " + rpcRequest);
                 }
 
@@ -477,8 +477,8 @@ public class RpcClient extends AbstractNettyClient{
     private class RpcClientHandler extends AbstractChannelHandler<RpcProto.Response> {
         @Override
         protected void onMessageReceived(ChannelHandlerContext ctx, RpcProto.Response rpcResponse) throws Exception {
-            if(Optimize.isEnableExecuteHold()) {
-                Optimize.holdExecute(() -> {
+            if(OptimizeConfig.isEnableExecuteHold()) {
+                OptimizeConfig.holdExecute(() -> {
                     RpcLock lock = requestLockMap.remove(rpcResponse.getRequestId());
                     //如果获取不到锁 说明已经超时, 被释放了
                     if (lock == null) {

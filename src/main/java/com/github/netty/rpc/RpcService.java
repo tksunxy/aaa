@@ -1,6 +1,6 @@
-package com.github.netty.core.rpc;
+package com.github.netty.rpc;
 
-import com.github.netty.core.rpc.codec.DataCodec;
+import com.github.netty.rpc.codec.DataCodec;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;

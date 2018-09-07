@@ -594,7 +594,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     public String getServerName() {
         InetSocketAddress inetSocketAddress = httpServletObject.getLocalAddress();
         if(inetSocketAddress != null) {
-            return inetSocketAddress.getHostName();
+            return inetSocketAddress.getAddress().getHostAddress();
         }
         return httpServletObject.getLocalAddress().getHostName();
     }

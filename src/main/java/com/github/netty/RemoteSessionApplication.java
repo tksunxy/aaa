@@ -3,6 +3,7 @@ package com.github.netty;
 import com.github.netty.core.support.LoggerFactoryX;
 import com.github.netty.core.support.LoggerX;
 import com.github.netty.core.util.HostUtil;
+import com.github.netty.core.util.IOUtil;
 import com.github.netty.core.util.NamespaceUtil;
 import com.github.netty.core.util.TypeUtil;
 import com.github.netty.session.SessionRpcServer;
@@ -30,8 +31,6 @@ public class RemoteSessionApplication extends Thread{
     private static final String ENCODING_JNU = System.getProperty("sun.jnu.encoding","GBK");
     private static final String ENCODING_FILE = System.getProperty("file.encoding","UTF-8");
 
-    private static final String SCRIPT_STYLE_WINDOWS = "%1s";
-    private static final String SCRIPT_STYLE_LINUX = "%1s &";
 
     private ResourceLoader resourceLoader;
     private InetSocketAddress sessionServerAddress;
@@ -57,25 +56,57 @@ public class RemoteSessionApplication extends Thread{
 
     @Override
     public void run() {
-        Resource resource = resourceLoader.getResource("start-session.bat");
-        try {
-            URL scriptUrl = resource.getURL();
-            String scriptPath = scriptUrl.getPath();
-            String scriptStyle = HostUtil.isWindows()? SCRIPT_STYLE_WINDOWS : SCRIPT_STYLE_LINUX;
-            String command =  String.format(scriptStyle,scriptPath);
+        boolean success = false;
+        String messageStr = "";
 
-            process = Runtime.getRuntime().exec(command);
+        try {
+            if(HostUtil.isWindows()) {
+                process = processByWindowsSystem();
+            }else if(HostUtil.isLinux()){
+                process = processByLinuxSystem();
+            }
+
+            if(process == null){
+                return;
+            }
+
             inputReadThread = new InputReadThread("In",process.getInputStream());
             errorReadThread = new InputReadThread("Err",process.getErrorStream());
-
             inputReadThread.start();
             errorReadThread.start();
 
-            StartMessage message = new StartMessage(true,"");
-            afterCallback.accept(message);
+            success = true;
         } catch (Exception e) {
-            StartMessage message = new StartMessage(false,"");
+            messageStr = e.getMessage();
+        }finally {
+            StartMessage message = new StartMessage(success,messageStr);
             afterCallback.accept(message);
+        }
+    }
+
+    private Process processByLinuxSystem(){
+        try {
+            Resource resource = resourceLoader.getResource("start-session.sh");
+            String startCommand = IOUtil.readInput(resource.getInputStream(),ENCODING_FILE);
+
+            URL scriptUrl = resource.getURL();
+            String command = String.format("%1s &",scriptUrl.getPath());
+            return Runtime.getRuntime().exec(command);
+        }catch (Exception e){
+            return null;
+        }
+    }
+
+    private Process processByWindowsSystem(){
+        try {
+            Resource resource = resourceLoader.getResource("start-session.bat");
+            String startCommand = IOUtil.readInput(resource.getInputStream(),ENCODING_FILE);
+
+            URL scriptUrl = resource.getURL();
+            String command = String.format("%1s",scriptUrl.getPath());
+            return Runtime.getRuntime().exec(command);
+        }catch (Exception e){
+            return null;
         }
     }
 

@@ -2,7 +2,7 @@ package com.github.netty.servlet;
 
 import com.github.netty.core.support.CompositeByteBufX;
 import com.github.netty.core.support.Wrapper;
-import com.github.netty.core.util.ByteBufferUtil;
+import com.github.netty.core.util.IOUtil;
 import com.github.netty.core.util.ExceptionUtil;
 import com.github.netty.servlet.support.ChannelInvoker;
 import com.github.netty.servlet.support.HttpServletObject;
@@ -74,7 +74,7 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream imple
     public void write(int b) throws IOException {
         int byteLen = 4;
         byte[] bytes = new byte[byteLen];
-        ByteBufferUtil.setInt(bytes,0,b);
+        IOUtil.setInt(bytes,0,b);
         write(bytes,0,byteLen);
     }
 

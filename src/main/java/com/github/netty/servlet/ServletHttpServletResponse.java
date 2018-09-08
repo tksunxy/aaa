@@ -82,9 +82,9 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
         return nettyResponse;
     }
 
-    private void checkNotCommitted() {
+    private void checkNotCommitted() throws IOException {
         if(commit) {
-            throw new IllegalStateException("Cannot perform this operation after response has been committed");
+            throw new IOException("Cannot perform this operation after response has been committed");
         }
     }
 

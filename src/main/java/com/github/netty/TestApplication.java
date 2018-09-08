@@ -43,7 +43,7 @@ public class TestApplication extends WebMvcConfigurationSupport{
     }
 
     @RequestMapping("/hello")
-    public Object hello(@RequestParam Map query, HttpSession session, HttpServletRequest request, HttpServletResponse response){
+    public Object hello(@RequestParam Map query, HttpSession session, HttpServletRequest request, HttpServletResponse response) throws IOException {
 //        try {
 //            Thread.sleep(10);
 //        } catch (InterruptedException e) {
@@ -60,6 +60,7 @@ public class TestApplication extends WebMvcConfigurationSupport{
 //            list.add(map);
 //        }
 
+//        response.sendRedirect("http://www.baidu.com");
         return "测试返回数据1";
     }
 

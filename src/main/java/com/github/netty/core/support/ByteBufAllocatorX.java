@@ -18,7 +18,7 @@ import java.util.Objects;
  *
  * @author a href="mailto:nmaurer@redhat.com" Norman Maurer
  */
-public final class PartialPooledByteBufAllocator implements ByteBufAllocator {
+public final class ByteBufAllocatorX implements ByteBufAllocator {
     // Make sure we use the same number of areas as EventLoop's to reduce condition.
     // We can remove this once the following netty issue is fixed:
     // See https://github.com/netty/netty/issues/2264
@@ -28,9 +28,9 @@ public final class PartialPooledByteBufAllocator implements ByteBufAllocator {
     //非池化的堆内内存分配器
     private static final ByteBufAllocator UNPOOLED_UNDIRECT = new UnpooledByteBufAllocator(false);
 
-    public static final PartialPooledByteBufAllocator INSTANCE = new PartialPooledByteBufAllocator();
+    public static final ByteBufAllocatorX INSTANCE = new ByteBufAllocatorX();
 
-    private PartialPooledByteBufAllocator() { }
+    private ByteBufAllocatorX() { }
 
     @Override
     public ByteBuf buffer() {
@@ -398,103 +398,103 @@ public final class PartialPooledByteBufAllocator implements ByteBufAllocator {
 
         @Override
         public ByteBuf buffer() {
-            return PartialPooledByteBufAllocator.INSTANCE.directBuffer();
+            return ByteBufAllocatorX.INSTANCE.directBuffer();
         }
 
         @Override
         public ByteBuf buffer(int initialCapacity) {
-            return PartialPooledByteBufAllocator.INSTANCE.directBuffer(initialCapacity);
+            return ByteBufAllocatorX.INSTANCE.directBuffer(initialCapacity);
         }
 
         @Override
         public ByteBuf buffer(int initialCapacity, int maxCapacity) {
-            return PartialPooledByteBufAllocator.INSTANCE.directBuffer(initialCapacity, maxCapacity);
+            return ByteBufAllocatorX.INSTANCE.directBuffer(initialCapacity, maxCapacity);
         }
 
         @Override
         public ByteBuf ioBuffer() {
-            return PartialPooledByteBufAllocator.INSTANCE.directBuffer();
+            return ByteBufAllocatorX.INSTANCE.directBuffer();
         }
 
         @Override
         public ByteBuf ioBuffer(int initialCapacity) {
-            return PartialPooledByteBufAllocator.INSTANCE.directBuffer(initialCapacity);
+            return ByteBufAllocatorX.INSTANCE.directBuffer(initialCapacity);
         }
 
         @Override
         public ByteBuf ioBuffer(int initialCapacity, int maxCapacity) {
-            return PartialPooledByteBufAllocator.INSTANCE.directBuffer(initialCapacity, maxCapacity);
+            return ByteBufAllocatorX.INSTANCE.directBuffer(initialCapacity, maxCapacity);
         }
 
         @Override
         public ByteBuf heapBuffer() {
-            return PartialPooledByteBufAllocator.INSTANCE.heapBuffer();
+            return ByteBufAllocatorX.INSTANCE.heapBuffer();
         }
 
         @Override
         public ByteBuf heapBuffer(int initialCapacity) {
-            return PartialPooledByteBufAllocator.INSTANCE.heapBuffer(initialCapacity);
+            return ByteBufAllocatorX.INSTANCE.heapBuffer(initialCapacity);
         }
 
         @Override
         public ByteBuf heapBuffer(int initialCapacity, int maxCapacity) {
-            return PartialPooledByteBufAllocator.INSTANCE.heapBuffer(initialCapacity, maxCapacity);
+            return ByteBufAllocatorX.INSTANCE.heapBuffer(initialCapacity, maxCapacity);
         }
 
         @Override
         public ByteBuf directBuffer() {
-            return PartialPooledByteBufAllocator.INSTANCE.directBuffer();
+            return ByteBufAllocatorX.INSTANCE.directBuffer();
         }
 
         @Override
         public ByteBuf directBuffer(int initialCapacity) {
-            return PartialPooledByteBufAllocator.INSTANCE.directBuffer(initialCapacity);
+            return ByteBufAllocatorX.INSTANCE.directBuffer(initialCapacity);
         }
 
         @Override
         public ByteBuf directBuffer(int initialCapacity, int maxCapacity) {
-            return PartialPooledByteBufAllocator.INSTANCE.directBuffer(initialCapacity, maxCapacity);
+            return ByteBufAllocatorX.INSTANCE.directBuffer(initialCapacity, maxCapacity);
         }
 
         @Override
         public CompositeByteBuf compositeBuffer() {
-            return PartialPooledByteBufAllocator.INSTANCE.compositeBuffer();
+            return ByteBufAllocatorX.INSTANCE.compositeBuffer();
         }
 
         @Override
         public CompositeByteBuf compositeBuffer(int maxNumComponents) {
-            return PartialPooledByteBufAllocator.INSTANCE.compositeBuffer(maxNumComponents);
+            return ByteBufAllocatorX.INSTANCE.compositeBuffer(maxNumComponents);
         }
 
         @Override
         public CompositeByteBuf compositeHeapBuffer() {
-            return PartialPooledByteBufAllocator.INSTANCE.compositeHeapBuffer();
+            return ByteBufAllocatorX.INSTANCE.compositeHeapBuffer();
         }
 
         @Override
         public CompositeByteBuf compositeHeapBuffer(int maxNumComponents) {
-            return PartialPooledByteBufAllocator.INSTANCE.compositeHeapBuffer(maxNumComponents);
+            return ByteBufAllocatorX.INSTANCE.compositeHeapBuffer(maxNumComponents);
         }
 
         @Override
         public CompositeByteBuf compositeDirectBuffer() {
-            return PartialPooledByteBufAllocator.INSTANCE.compositeDirectBuffer();
+            return ByteBufAllocatorX.INSTANCE.compositeDirectBuffer();
         }
 
         @Override
         public CompositeByteBuf compositeDirectBuffer(int maxNumComponents) {
-            return PartialPooledByteBufAllocator.INSTANCE.compositeDirectBuffer(maxNumComponents);
+            return ByteBufAllocatorX.INSTANCE.compositeDirectBuffer(maxNumComponents);
         }
 
         @Override
         public boolean isDirectBufferPooled() {
-            return PartialPooledByteBufAllocator.INSTANCE.isDirectBufferPooled();
+            return ByteBufAllocatorX.INSTANCE.isDirectBufferPooled();
         }
 
 
         @Override
         public int calculateNewCapacity(int minNewCapacity, int maxCapacity) {
-            return PartialPooledByteBufAllocator.INSTANCE.calculateNewCapacity(minNewCapacity, maxCapacity);
+            return ByteBufAllocatorX.INSTANCE.calculateNewCapacity(minNewCapacity, maxCapacity);
         }
     }
 }

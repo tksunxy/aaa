@@ -1,9 +1,27 @@
 package com.github.netty.core.util;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+
 /**
  * Created by acer01 on 2018/8/11/011.
  */
-public class ByteBufferUtil {
+public class IOUtil {
+
+    public static String readInput(InputStream inputStream,String encode){
+        try {
+            StringBuilder sb = new StringBuilder();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, encode));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line);
+            }
+            return sb.toString();
+        }catch (Exception e){
+            return null;
+        }
+    }
 
     public static byte getByte(byte[] memory, int index) {
         return memory[index];

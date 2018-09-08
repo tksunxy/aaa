@@ -3,7 +3,7 @@ package com.github.netty.springboot;
 import com.github.netty.core.AbstractChannelHandler;
 import com.github.netty.core.support.AbstractRecycler;
 import com.github.netty.OptimizeConfig;
-import com.github.netty.core.support.PartialPooledByteBufAllocator;
+import com.github.netty.core.support.ByteBufAllocatorX;
 import com.github.netty.core.support.Recyclable;
 import com.github.netty.core.util.ExceptionUtil;
 import com.github.netty.core.util.HttpHeaderUtil;
@@ -52,7 +52,7 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
         }else {
             HttpServletObject httpServletObject = HttpServletObject.newInstance(
                     servletContext,
-                    PartialPooledByteBufAllocator.forceDirectAllocator(context),
+                    ByteBufAllocatorX.forceDirectAllocator(context),
                     fullHttpRequest);
             task = ServletTask.newInstance(httpServletObject);
         }

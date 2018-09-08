@@ -1,7 +1,7 @@
 package com.github.netty.core;
 
 import com.github.netty.OptimizeConfig;
-import com.github.netty.core.support.PartialPooledByteBufAllocator;
+import com.github.netty.core.support.ByteBufAllocatorX;
 import com.github.netty.core.util.ExceptionUtil;
 import com.github.netty.core.util.HostUtil;
 import com.github.netty.core.util.NamespaceUtil;
@@ -117,7 +117,7 @@ public abstract class AbstractNettyServer implements Runnable{
                     //开启TCP/IP协议实现的心跳机制
                     .childOption(ChannelOption.SO_KEEPALIVE, true)
                     //netty的默认内存分配器
-                    .childOption(ChannelOption.ALLOCATOR, PartialPooledByteBufAllocator.INSTANCE);
+                    .childOption(ChannelOption.ALLOCATOR, ByteBufAllocatorX.INSTANCE);
 //                    .childOption(ChannelOption.ALLOCATOR, ByteBufAllocator.DEFAULT);
 
             ChannelFuture channelFuture = bootstrap.bind(serverAddress);

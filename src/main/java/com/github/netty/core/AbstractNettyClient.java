@@ -3,7 +3,7 @@ package com.github.netty.core;
 import com.github.netty.core.support.LoggerX;
 import com.github.netty.OptimizeConfig;
 import com.github.netty.core.support.LoggerFactoryX;
-import com.github.netty.core.support.PartialPooledByteBufAllocator;
+import com.github.netty.core.support.ByteBufAllocatorX;
 import com.github.netty.core.util.*;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ChannelFactory;
@@ -112,7 +112,7 @@ public abstract class AbstractNettyClient implements Runnable{
                     //开启TCP/IP协议实现的心跳机制
                     .option(ChannelOption.SO_KEEPALIVE, true)
                     //netty的默认内存分配器
-                    .option(ChannelOption.ALLOCATOR, PartialPooledByteBufAllocator.INSTANCE);
+                    .option(ChannelOption.ALLOCATOR, ByteBufAllocatorX.INSTANCE);
 //                    .option(ChannelOption.ALLOCATOR, ByteBufAllocator.DEFAULT);
 
             connect();

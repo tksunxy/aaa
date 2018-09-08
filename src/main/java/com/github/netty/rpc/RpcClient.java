@@ -302,7 +302,7 @@ public class RpcClient extends AbstractNettyClient{
         public void run() {
             try {
                 byte[] msg = rpcCommandService.ping();
-                logger.info("心跳包 : " + new String(msg));
+                logger.info(RpcClient.this.getName() + " 心跳包 : " + new String(msg));
 
             }catch (RpcConnectException e) {
                 reconnect(e.getMessage());

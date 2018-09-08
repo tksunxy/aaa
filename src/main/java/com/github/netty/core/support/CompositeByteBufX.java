@@ -9,7 +9,7 @@ import io.netty.buffer.ByteBufAllocator;
 public class CompositeByteBufX extends io.netty.buffer.CompositeByteBuf {
 
     public CompositeByteBufX(boolean direct, int maxNumComponents) {
-        super(PartialPooledByteBufAllocator.INSTANCE, direct, maxNumComponents);
+        super(ByteBufAllocatorX.INSTANCE, direct, maxNumComponents);
     }
 
     public CompositeByteBufX(ByteBufAllocator alloc, boolean direct, int maxNumComponents) {

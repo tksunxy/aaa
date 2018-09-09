@@ -395,6 +395,9 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         synchronized (SYNC_SESSION_LOCK) {
             ServletHttpSession httpSession = httpServletObject.getHttpSessionChannel();
             if (httpSession != null && httpSession.isValid()) {
+                if(httpSession.isNew()) {
+                    httpSession.setNewSessionFlag(false);
+                }
                 return httpSession;
             }
 

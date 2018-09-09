@@ -1,8 +1,8 @@
 package com.github.netty.servlet;
 
 import com.github.netty.core.support.Wrapper;
-import com.github.netty.session.Session;
 import com.github.netty.servlet.support.ServletEventListenerManager;
+import com.github.netty.session.Session;
 
 import javax.servlet.http.*;
 import java.util.*;

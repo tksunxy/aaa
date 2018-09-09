@@ -63,7 +63,7 @@ public class HostUtil {
     }
 
     public static boolean isLocalhost(String host){
-        return "0:0:0:0:0:0:0:1".equals(host) || "locahost".equals(host);
+        return "0:0:0:0:0:0:0:1".equals(host) || "locahost".equals(host) || "127.0.0.1".equals(host);
     }
 
     public static int getPid(){

@@ -1,6 +1,7 @@
 package com.github.netty.session.service;
 
-import com.github.netty.OptimizeConfig;
+import com.github.netty.ContainerConfig;
+import com.github.netty.core.constants.CoreConstants;
 import com.github.netty.core.util.NamespaceUtil;
 import com.github.netty.rpc.RpcClient;
 import com.github.netty.rpc.exception.RpcDecodeException;
@@ -26,23 +27,28 @@ import java.util.function.Supplier;
 public class RemoteSessionServiceImpl implements SessionService {
 
     private String name = NamespaceUtil.newIdName(getClass());
-    private InetSocketAddress remoteSessionServerAddress;
     private static final byte[] EMPTY = new byte[0];
+    private ContainerConfig config;
+    private InetSocketAddress address;
 
     private FastThreadLocal<RpcClient> rpcClientThreadLocal = new FastThreadLocal<RpcClient>(){
         @Override
         protected RpcClient initialValue() throws Exception {
-            RpcClient rpcClient = new RpcClient("Session",remoteSessionServerAddress, OptimizeConfig.getSessionClientSocketChannelCount());
-            if(OptimizeConfig.isSessionClientEnableAutoReconnect()) {
-                rpcClient.enableAutoReconnect(null);
+            RpcClient rpcClient = new RpcClient("Session",address);
+            rpcClient.setIoRatio(config.getClientIoRatio());
+            rpcClient.setWorkerCount(config.getClientWorkerCount());
+            rpcClient.setSocketChannelCount(config.getSessionClientChannelCount());
+            rpcClient.run();
+            if(config.isEnablesSessionClientAutoReconnect()) {
+                rpcClient.enableAutoReconnect();
             }
             return rpcClient;
         }
     };
 
-    public RemoteSessionServiceImpl(InetSocketAddress remoteSessionServerAddress) {
-        this.remoteSessionServerAddress = remoteSessionServerAddress;
-        getRpcClient();
+    public RemoteSessionServiceImpl(InetSocketAddress address,ContainerConfig config) {
+        this.address = address;
+        this.config = config;
     }
 
     @Override
@@ -50,8 +56,8 @@ public class RemoteSessionServiceImpl implements SessionService {
         byte[] bytes = encode(session);
         long expireSecond = (session.getMaxInactiveInterval() * 1000 + session.getCreationTime() - System.currentTimeMillis()) / 1000;
 
-        if(OptimizeConfig.isEnableExecuteHold()) {
-            OptimizeConfig.holdExecute(new Runnable() {
+        if(CoreConstants.isEnableExecuteHold()) {
+            CoreConstants.holdExecute(new Runnable() {
                 @Override
                 public void run() {
                     if (expireSecond > 0) {
@@ -84,8 +90,8 @@ public class RemoteSessionServiceImpl implements SessionService {
 
     @Override
     public Session getSession(String sessionId) {
-        if(OptimizeConfig.isEnableExecuteHold()) {
-            return OptimizeConfig.holdExecute(new Supplier<Session>() {
+        if(CoreConstants.isEnableExecuteHold()) {
+            return CoreConstants.holdExecute(new Supplier<Session>() {
                 @Override
                 public Session get() {
                     byte[] bytes = getRpcDBService().get(sessionId);

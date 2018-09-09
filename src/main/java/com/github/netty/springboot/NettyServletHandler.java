@@ -1,8 +1,8 @@
 package com.github.netty.springboot;
 
 import com.github.netty.core.AbstractChannelHandler;
+import com.github.netty.core.constants.CoreConstants;
 import com.github.netty.core.support.AbstractRecycler;
-import com.github.netty.OptimizeConfig;
 import com.github.netty.core.support.ByteBufAllocatorX;
 import com.github.netty.core.support.Recyclable;
 import com.github.netty.core.util.ExceptionUtil;
@@ -38,16 +38,16 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
     public static AtomicLong SERVLET_AND_FILTER_TIME = new AtomicLong();
     public static AtomicLong SERVLET_QUERY_COUNT = new AtomicLong();
 
-    public NettyServletHandler(ServletContext servletContext) {
+    public NettyServletHandler(ServletContext servletContext,Executor executor) {
         super(false);
         this.servletContext = Objects.requireNonNull(servletContext);
-        this.dispatcherExecutor = OptimizeConfig.getServletHandlerExecutor();
+        this.dispatcherExecutor = executor;
     }
 
     @Override
     protected void onMessageReceived(ChannelHandlerContext context, FullHttpRequest fullHttpRequest) throws Exception {
         Runnable task;
-        if(OptimizeConfig.isEnableRawNetty()) {
+        if(CoreConstants.isEnableRawNetty()) {
             task = newTaskForRaw(context,fullHttpRequest);
         }else {
             HttpServletObject httpServletObject = HttpServletObject.newInstance(

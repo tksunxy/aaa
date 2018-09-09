@@ -1,7 +1,8 @@
 package com.github.netty.core;
 
-import com.github.netty.OptimizeConfig;
 import com.github.netty.core.support.ByteBufAllocatorX;
+import com.github.netty.core.support.LoggerFactoryX;
+import com.github.netty.core.support.LoggerX;
 import com.github.netty.core.util.ExceptionUtil;
 import com.github.netty.core.util.HostUtil;
 import com.github.netty.core.util.NamespaceUtil;
@@ -12,8 +13,6 @@ import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.util.internal.PlatformDependent;
-import com.github.netty.core.support.LoggerX;
-import com.github.netty.core.support.LoggerFactoryX;
 
 import java.net.InetSocketAddress;
 
@@ -36,6 +35,9 @@ public abstract class AbstractNettyServer implements Runnable{
     private Channel serverChannel;
     private InetSocketAddress serverAddress;
     private boolean enableEpoll;
+    private int workerCount = 0;
+    private int ioRatio = 100;
+    private boolean running = false;
 
     public AbstractNettyServer(int port) {
         this(new InetSocketAddress(port));
@@ -50,13 +52,15 @@ public abstract class AbstractNettyServer implements Runnable{
         this.enableEpoll = HostUtil.isLinux() && Epoll.isAvailable();
         this.serverAddress = address;
         this.name = NamespaceUtil.newIdName(preName,getClass());
-        this.bootstrap = newServerBootstrap();
-        this.boss = newBossEventLoopGroup();
-        this.worker = newWorkerEventLoopGroup();
-        this.channelFactory = newServerChannelFactory();
-        this.initializerChannelHandler = newInitializerChannelHandler();
     }
 
+    public void setIoRatio(int ioRatio) {
+        this.ioRatio = ioRatio;
+    }
+
+    public void setWorkerCount(int workerCount) {
+        this.workerCount = workerCount;
+    }
 
     protected abstract ChannelInitializer<?extends Channel> newInitializerChannelHandler();
 
@@ -66,18 +70,16 @@ public abstract class AbstractNettyServer implements Runnable{
 
     protected EventLoopGroup newWorkerEventLoopGroup() {
         EventLoopGroup worker;
-        int nEventLoopCount = OptimizeConfig.getServerEventLoopWorkerCount();
         if(enableEpoll){
-            worker = new EpollEventLoopGroup(nEventLoopCount);
+            worker = new EpollEventLoopGroup(workerCount);
         }else {
-            worker = new NioEventLoopWorkerGroup("Server",nEventLoopCount);
+            worker = new NioEventLoopWorkerGroup("Server", workerCount);
         }
         return worker;
     }
 
     protected EventLoopGroup newBossEventLoopGroup() {
         EventLoopGroup boss;
-        int ioRatio = OptimizeConfig.getServerEventLoopIoRatio();
         if(enableEpoll){
             EpollEventLoopGroup epollBoss = new EpollEventLoopGroup(1);
             epollBoss.setIoRatio(ioRatio);
@@ -103,6 +105,16 @@ public abstract class AbstractNettyServer implements Runnable{
     @Override
     public final void run() {
         try {
+            if(running){
+                return;
+            }
+
+            this.bootstrap = newServerBootstrap();
+            this.boss = newBossEventLoopGroup();
+            this.worker = newWorkerEventLoopGroup();
+            this.channelFactory = newServerChannelFactory();
+            this.initializerChannelHandler = newInitializerChannelHandler();
+
             bootstrap
                     .group(boss, worker)
                     .channelFactory(channelFactory)
@@ -126,6 +138,7 @@ public abstract class AbstractNettyServer implements Runnable{
             //唤醒后获取异常
             Throwable cause = channelFuture.cause();
 
+            this.running = true;
             startAfter(cause);
 
             //没异常就 堵塞住close的回调

@@ -1,10 +1,12 @@
 package com.github.netty.core;
 
-import com.github.netty.core.support.LoggerX;
-import com.github.netty.OptimizeConfig;
-import com.github.netty.core.support.LoggerFactoryX;
+import com.github.netty.core.constants.CoreConstants;
 import com.github.netty.core.support.ByteBufAllocatorX;
-import com.github.netty.core.util.*;
+import com.github.netty.core.support.LoggerFactoryX;
+import com.github.netty.core.support.LoggerX;
+import com.github.netty.core.util.ExceptionUtil;
+import com.github.netty.core.util.HostUtil;
+import com.github.netty.core.util.NamespaceUtil;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ChannelFactory;
 import io.netty.buffer.Unpooled;
@@ -36,15 +38,18 @@ public abstract class AbstractNettyClient implements Runnable{
     private InetSocketAddress remoteAddress;
     private boolean enableEpoll;
     private SocketChannels socketChannels;
-    private int socketChannelCount;
+    private int socketChannelCount = 6;
     private final Object connectLock = new Object();
+    private int workerCount = 0;
+    private int ioRatio = 100;
+    private boolean running = false;
 
     public AbstractNettyClient(String remoteHost,int remotePort) {
         this(new InetSocketAddress(remoteHost,remotePort));
     }
 
     public AbstractNettyClient(InetSocketAddress remoteAddress) {
-        this("",remoteAddress,0);
+        this("",remoteAddress);
     }
 
     /**
@@ -52,17 +57,23 @@ public abstract class AbstractNettyClient implements Runnable{
      * @param namePre 名称前缀
      * @param remoteAddress 远程地址
      */
-    public AbstractNettyClient(String namePre,InetSocketAddress remoteAddress,int socketChannelCount) {
-        this.socketChannelCount = socketChannelCount <=0? 20: socketChannelCount;
+    public AbstractNettyClient(String namePre,InetSocketAddress remoteAddress) {
         this.enableEpoll = HostUtil.isLinux() && Epoll.isAvailable();
         this.remoteAddress = remoteAddress;
         this.name = NamespaceUtil.newIdName(namePre,getClass());
-        this.bootstrap = newClientBootstrap();
-        this.worker = newWorkerEventLoopGroup();
-        this.channelFactory = newClientChannelFactory();
-        this.initializerChannelHandler = newInitializerChannelHandler();
     }
 
+    public void setSocketChannelCount(int socketChannelCount) {
+        this.socketChannelCount = socketChannelCount <=0? 6: socketChannelCount;
+    }
+
+    public void setIoRatio(int ioRatio) {
+        this.ioRatio = ioRatio;
+    }
+
+    public void setWorkerCount(int workerCount) {
+        this.workerCount = workerCount;
+    }
 
     protected abstract ChannelInitializer<?extends Channel> newInitializerChannelHandler();
 
@@ -72,14 +83,12 @@ public abstract class AbstractNettyClient implements Runnable{
 
     protected EventLoopGroup newWorkerEventLoopGroup() {
         EventLoopGroup worker;
-        int nEventLoopCount = OptimizeConfig.getClientEventLoopWorkerCount();
-        int ioRatio = OptimizeConfig.getClientEventLoopIoRatio();
         if(enableEpoll){
-            EpollEventLoopGroup epollWorker = new EpollEventLoopGroup(nEventLoopCount);
+            EpollEventLoopGroup epollWorker = new EpollEventLoopGroup(workerCount);
             epollWorker.setIoRatio(ioRatio);
             worker = epollWorker;
         }else {
-            NioEventLoopWorkerGroup nioWorker = new NioEventLoopWorkerGroup("Client",nEventLoopCount);
+            NioEventLoopWorkerGroup nioWorker = new NioEventLoopWorkerGroup("Client",workerCount);
             nioWorker.setIoRatio(ioRatio);
             worker = nioWorker;
         }
@@ -99,6 +108,15 @@ public abstract class AbstractNettyClient implements Runnable{
     @Override
     public final void run() {
         try {
+            if(running){
+                return;
+            }
+
+            this.bootstrap = newClientBootstrap();
+            this.worker = newWorkerEventLoopGroup();
+            this.channelFactory = newClientChannelFactory();
+            this.initializerChannelHandler = newInitializerChannelHandler();
+
             bootstrap
                     .group(worker)
                     .channelFactory(channelFactory)
@@ -116,6 +134,7 @@ public abstract class AbstractNettyClient implements Runnable{
 //                    .option(ChannelOption.ALLOCATOR, ByteBufAllocator.DEFAULT);
 
             connect();
+            this.running = true;
             startAfter();
         } catch (Throwable throwable) {
             logger.error(throwable.getMessage());
@@ -175,8 +194,8 @@ public abstract class AbstractNettyClient implements Runnable{
         if(socketChannels == null){
             return null;
         }
-        if(OptimizeConfig.isEnableExecuteHold()) {
-            return OptimizeConfig.holdExecute(new Supplier<SocketChannel>() {
+        if(CoreConstants.isEnableExecuteHold()) {
+            return CoreConstants.holdExecute(new Supplier<SocketChannel>() {
                 @Override
                 public SocketChannel get() {
                     return socketChannels.next();

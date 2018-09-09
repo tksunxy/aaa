@@ -1,19 +1,8 @@
 package com.github.netty;
 
-import com.github.netty.core.support.LoggerFactoryX;
-import com.github.netty.core.support.LoggerX;
-import com.github.netty.rpc.RpcClient;
-import com.github.netty.servlet.ServletFilterChain;
-import com.github.netty.springboot.NettyServletHandler;
-
-import javax.servlet.Filter;
-import java.math.BigDecimal;
-import java.util.Map;
-import java.util.StringJoiner;
+import java.io.Serializable;
+import java.net.InetSocketAddress;
 import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Supplier;
 
 /**
  * 在这里可以进行优化操作
@@ -125,160 +114,122 @@ import java.util.function.Supplier;
  *
  *
  */
-public class OptimizeConfig {
-
-    //客户端工作线程数
-    public static int getClientEventLoopWorkerCount(){
-        return 1;
-    }
-    //服务端的工作线程数  注: (0 = cpu核数 * 2 )
-    public static int getServerEventLoopWorkerCount(){
-        return 0;
-    }
-    //io线程执行调度与执行io事件的百分比. 注:(100=每次只执行一次调度工作, 其他都执行io事件), 并发高的时候可以设置最大
-    public static int getServerEventLoopIoRatio(){
-        return 100;
-    }
-    public static int getClientEventLoopIoRatio(){
-        return 100;
-    }
-    //开启外部会话管理
-    public static boolean isEnableRemoteSessionManage() {
-        return true;
-    }
-    //session客户端保持的连接数
-    public static int getSessionClientSocketChannelCount(){
-        return 1;
-    }
-    //session客户端自动重连
-    public static boolean isSessionClientEnableAutoReconnect(){
-        return true;
-    }
-    //开启埋点的超时打印
-    public static boolean isEnableExecuteHold(){
-        return false;
-    }
-    //开启日志
-    public static boolean isEnableLog() {
-        return true;
-    }
-    //开启打印统计
-    public static boolean isEnableReportPrint() {
-        return true;
-    }
-    //开启原生netty, 不走spring的dispatchServlet
-    public static boolean isEnableRawNetty() {
-        return false;
-    }
-    //servlet执行器的线程池
-    public static Executor getServletHandlerExecutor(){
-//        return new ThreadPoolX("Servlet",6);
-        return null;
-    }
-    //rpc锁自旋次数, 如果N次后还拿不到响应,则堵塞
-    public static int getRpcLockSpinCount(){
-        return 300;
-    }
-
-
-    static LoggerX logger = LoggerFactoryX.getLogger(OptimizeConfig.class);
+public class ContainerConfig implements Serializable{
 
     /**
-     * 统计客户端调用信息
+     * 服务端-工作线程数  注: (0 = cpu核数 * 2 )
      */
-    public static class ReportRunning implements Runnable{
-        LoggerX logger = LoggerFactoryX.getLogger(getClass());
+    private int serverWorkerCount = 0;
 
-        private AtomicInteger reportCount = new AtomicInteger();
-        private long beginTime = System.currentTimeMillis();
+    /**
+     * 服务端 - servlet线程执行器
+     */
+    private Executor serverHandlerExecutor = null;
 
-        @Override
-        public void run() {
-            try {
-                String timeoutApis = RpcClient.getTimeoutApis();
-                long spinResponseCount = RpcClient.RpcLock.TOTAL_SPIN_RESPONSE_COUNT.get();
-                long totalCount = RpcClient.getTotalInvokeCount();
-                long timeoutCount = RpcClient.getTotalTimeoutCount();
-                long successCount = totalCount - timeoutCount;
-                double rate = totalCount ==0? 0:(double) successCount/(double) totalCount * 100;
-                double rateSpinResponseCount = totalCount==0?0:(double) spinResponseCount/(double) totalCount * 100;
+    /**
+     * 服务端-io线程执行调度与执行io事件的百分比. 注:(100=每次只执行一次调度工作, 其他都执行io事件), 并发高的时候可以设置最大
+     */
+    private int serverIoRatio = 100;
 
-                long totalTime = System.currentTimeMillis() - beginTime;
+    /**
+     * 客户端-工作线程数   注: (0 = cpu核数 * 2 )
+     */
+    private int clientWorkerCount = 1;
 
-                long servletQueryCount = NettyServletHandler.SERVLET_QUERY_COUNT.get();
-                long servletAndFilterTime = NettyServletHandler.SERVLET_AND_FILTER_TIME.get();
-                long servletTime = ServletFilterChain.SERVLET_TIME.get();
-                long filterTime = ServletFilterChain.FILTER_TIME.get();
+    /**
+     * 客户端-io线程执行调度与执行io事件的百分比. 注:(100=每次只执行一次调度工作, 其他都执行io事件), 并发高的时候可以设置最大
+     */
+    private int clientIoRatio = 100;
 
-                long handlerTime = TestApplication.HANDLER_TIME.get();
-                long handlerCount = TestApplication.HANDLER_NUM.get();
-                double handlerTimeAvg = handlerCount ==0? 0:((double) handlerTime / (double) handlerCount) / 1000_000D;
+    /**
+     * session客户端 - 保持的连接数
+     */
+    private int sessionClientChannelCount = 1;
+    /**
+     * session客户端 - 自动重连
+     */
+    private boolean enablesSessionClientAutoReconnect = true;
+    /**
+     * session远程服务 - ip地址, 注: 如果不设置就不会开启
+     */
+    private InetSocketAddress sessionRemoteServerAddress;
 
-                double servletAndFilterAvgRuntime = servletQueryCount == 0? 0:(double)servletAndFilterTime/(double)servletQueryCount;
-                double servletAvgRuntime = servletQueryCount ==0? 0:(double)servletTime/(double)servletQueryCount;
-                double filterAvgRuntime = servletQueryCount ==0? 0:(double)filterTime/(double)servletQueryCount;
 
-                StringJoiner filterJoin = new StringJoiner(", ");
-                for(Map.Entry<Filter,AtomicLong> e : ServletFilterChain.FILTER_TIME_MAP.entrySet()){
-//                    double filterAvgTime = (double)e.getValue().get() / (double)servletQueryCount;
-                    filterJoin.add(
-                            e.getKey().getClass().getSimpleName()
-                                    );
-                }
-
-                logger.info(
-                        "\r\n第"+reportCount.incrementAndGet()+"次统计 "+
-                        "时间="+(totalTime/60000)+"分"+((totalTime % 60000 ) / 1000)+"秒, " +
-                        "rpc调用次数=" + successCount + ", " +
-                        "超时次数=" + timeoutCount + ", " +
-                        "自旋成功数=" + spinResponseCount + ", " +
-                        "自旋成功率=" + new BigDecimal(rateSpinResponseCount).setScale(2,BigDecimal.ROUND_HALF_DOWN).stripTrailingZeros().toPlainString() + "%, " +
-                        "调用成功率=" + new BigDecimal(rate).setScale(2,BigDecimal.ROUND_HALF_DOWN).stripTrailingZeros().toPlainString()+"%, "+
-                        "超时api="+timeoutApis + ", "+
-                        "servlet执行次数="+servletQueryCount+", "+
-                        "servlet+filter平均时间="+new BigDecimal(servletAndFilterAvgRuntime).setScale(4,BigDecimal.ROUND_HALF_DOWN).stripTrailingZeros().toString()+"ms,"+
-                        "servlet平均时间="+new BigDecimal(servletAvgRuntime).setScale(4,BigDecimal.ROUND_HALF_DOWN).stripTrailingZeros().toString()+"ms, "+
-                        "handler平均时间="+new BigDecimal(handlerTimeAvg).setScale(4,BigDecimal.ROUND_HALF_DOWN).stripTrailingZeros().toString()+"ms, "+
-                        "filter平均时间="+new BigDecimal(filterAvgRuntime).setScale(4,BigDecimal.ROUND_HALF_DOWN).stripTrailingZeros().toString()+"ms, "
-
-//                       + "\r\n "+filterJoin.toString()
-                );
-            }catch (Exception e){
-                e.printStackTrace();
-            }
-        }
+    public int getClientWorkerCount() {
+        return clientWorkerCount;
     }
 
-    public static void holdExecute(Runnable runnable){
-        long c= System.currentTimeMillis();
-        try {
-             runnable.run();
-        }
-        catch (Throwable throwable){
-            logger.error(throwable.toString() +" - "+ new Throwable().getStackTrace()[1]);
-//            throw throwable;
-        }finally {
-            long end = System.currentTimeMillis() - c;
-            if(end > 5){
-                logger.info(" 耗时["+end+"]"+new Throwable().getStackTrace()[1]);
-            }
-        }
+    public void setClientWorkerCount(int clientWorkerCount) {
+        this.clientWorkerCount = clientWorkerCount;
     }
 
-    public static <T>T holdExecute(Supplier<T> runnable){
-        long c= System.currentTimeMillis();
-        try {
-            return runnable.get();
-        }catch (Throwable throwable){
-            logger.error(throwable.toString() +" - "+ new Throwable().getStackTrace()[1]);
-//            throw throwable;
-            return null;
-        } finally {
-            long end = System.currentTimeMillis() - c;
-            if(end > 5){
-                logger.info(" 耗时["+end+"]"+new Throwable().getStackTrace()[1]);
-            }
-        }
+    public int getServerWorkerCount() {
+        return serverWorkerCount;
     }
 
+    public void setServerWorkerCount(int serverWorkerCount) {
+        this.serverWorkerCount = serverWorkerCount;
+    }
+
+    public int getServerIoRatio() {
+        return serverIoRatio;
+    }
+
+    public void setServerIoRatio(int serverIoRatio) {
+        this.serverIoRatio = serverIoRatio;
+    }
+
+    public int getClientIoRatio() {
+        return clientIoRatio;
+    }
+
+    public void setClientIoRatio(int clientIoRatio) {
+        this.clientIoRatio = clientIoRatio;
+    }
+
+    public int getSessionClientChannelCount() {
+        return sessionClientChannelCount;
+    }
+
+    public void setSessionClientChannelCount(int sessionClientChannelCount) {
+        this.sessionClientChannelCount = sessionClientChannelCount;
+    }
+
+    public boolean isEnablesSessionClientAutoReconnect() {
+        return enablesSessionClientAutoReconnect;
+    }
+
+    public void setEnablesSessionClientAutoReconnect(boolean enablesSessionClientAutoReconnect) {
+        this.enablesSessionClientAutoReconnect = enablesSessionClientAutoReconnect;
+    }
+
+    public Executor getServerHandlerExecutor() {
+        return serverHandlerExecutor;
+    }
+
+    public void setServerHandlerExecutor(Executor serverHandlerExecutor) {
+        this.serverHandlerExecutor = serverHandlerExecutor;
+    }
+
+    public InetSocketAddress getSessionRemoteServerAddress() {
+        return sessionRemoteServerAddress;
+    }
+
+    public void setSessionRemoteServerAddress(InetSocketAddress sessionRemoteServerAddress) {
+        this.sessionRemoteServerAddress = sessionRemoteServerAddress;
+    }
+
+    @Override
+    public String toString() {
+        return "ContainerConfig{" +
+                "serverWorkerCount=" + serverWorkerCount +
+                ", serverHandlerExecutor=" + serverHandlerExecutor +
+                ", serverIoRatio=" + serverIoRatio +
+                ", clientWorkerCount=" + clientWorkerCount +
+                ", clientIoRatio=" + clientIoRatio +
+                ", sessionClientChannelCount=" + sessionClientChannelCount +
+                ", enablesSessionClientAutoReconnect=" + enablesSessionClientAutoReconnect +
+                ", sessionRemoteServerAddress=" + sessionRemoteServerAddress +
+                '}';
+    }
 }

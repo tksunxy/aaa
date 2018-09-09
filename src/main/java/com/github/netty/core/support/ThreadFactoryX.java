@@ -26,7 +26,7 @@ public class ThreadFactoryX extends DefaultThreadFactory implements java.util.co
 
     @Override
     protected Thread newThread(Runnable r, String name) {
-        Thread thread = super.newThread(r, name);
+        Thread thread = new NettyThreadX(threadGroup, r, name);
         if(preName != null && preName.length() > 0) {
             thread.setName(preName + "-" + thread.getName());
         }

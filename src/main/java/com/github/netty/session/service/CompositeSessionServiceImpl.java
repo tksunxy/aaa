@@ -1,5 +1,6 @@
 package com.github.netty.session.service;
 
+import com.github.netty.ContainerConfig;
 import com.github.netty.core.support.LoggerFactoryX;
 import com.github.netty.core.support.LoggerX;
 import com.github.netty.core.util.NamespaceUtil;
@@ -17,8 +18,8 @@ import java.util.List;
 public class CompositeSessionServiceImpl implements SessionService {
 
     private LoggerX logger = LoggerFactoryX.getLogger(getClass());
-
     private String name = NamespaceUtil.newIdName(getClass());
+
     private SessionService localSessionService;
     private SessionService remoteSessionService;
 
@@ -26,10 +27,8 @@ public class CompositeSessionServiceImpl implements SessionService {
         this.localSessionService = new LocalSessionServiceImpl();
     }
 
-    public void enableRemoteSession(InetSocketAddress remoteSessionServerAddress){
-        if(remoteSessionServerAddress != null) {
-            this.remoteSessionService = new RemoteSessionServiceImpl(remoteSessionServerAddress);
-        }
+    public void enableRemoteSession(InetSocketAddress address,ContainerConfig config){
+        this.remoteSessionService = new RemoteSessionServiceImpl(address,config);
     }
 
     @Override

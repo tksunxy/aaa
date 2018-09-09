@@ -1,11 +1,9 @@
 package com.github.netty.springboot;
 
-import com.github.netty.RemoteSessionApplication;
-import com.github.netty.OptimizeConfig;
-import com.github.netty.core.util.HostUtil;
+import com.github.netty.ContainerConfig;
 import com.github.netty.servlet.*;
-import com.github.netty.session.service.SessionService;
 import com.github.netty.session.service.CompositeSessionServiceImpl;
+import com.github.netty.session.service.SessionService;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import org.springframework.boot.context.embedded.*;
 import org.springframework.boot.web.servlet.ServletContextInitializer;
@@ -35,6 +33,15 @@ import java.util.function.Supplier;
 public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServletContainerFactory implements EmbeddedServletContainerFactory , ResourceLoaderAware {
 
     protected ResourceLoader resourceLoader;
+    private ContainerConfig config;
+
+    public NettyEmbeddedServletContainerFactory() {
+        this(new ContainerConfig());
+    }
+
+    public NettyEmbeddedServletContainerFactory(ContainerConfig config) {
+        this.config = config;
+    }
 
     @Override
     public EmbeddedServletContainer getEmbeddedServletContainer(ServletContextInitializer... initializers) {
@@ -134,26 +141,34 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
         //组合会话
         CompositeSessionServiceImpl compositeSessionService = new CompositeSessionServiceImpl();
 
-        //尝试启动另一个存储session会话的java进程 , 默认当前端口号 + 1
-        InetSocketAddress remoteSessionServerAddress = new InetSocketAddress(getPort() + 1);
-        //如果端口已经存在, 直接连接,不需要启动
-        if(HostUtil.isExistPort(remoteSessionServerAddress.getPort())) {
-            compositeSessionService.enableRemoteSession(remoteSessionServerAddress);
-            return compositeSessionService;
+        InetSocketAddress remoteSessionServerAddress = config.getSessionRemoteServerAddress();
+        if(remoteSessionServerAddress != null) {
+            compositeSessionService.enableRemoteSession(remoteSessionServerAddress,config);
         }
 
+
+//        InetSocketAddress remoteSessionServerAddress = config.getRemoteSessionServerAddress();
+        //如果端口已经存在, 直接连接,不需要启动
+//        if(HostUtil.isLocalhost(remoteSessionServerAddress.getHostName()) && HostUtil.isExistPort(remoteSessionServerAddress.getPort())) {
+//            if(config.isEnableRemoteSessionManage()) {
+//                compositeSessionService.enableRemoteSession(config);
+//            }
+//            return compositeSessionService;
+//        }
+
+        //尝试启动另一个存储session会话的java进程
         //启动另一个java进程
-        RemoteSessionApplication remoteSessionApplication = new RemoteSessionApplication(
-                remoteSessionServerAddress,
-                resourceLoader,
-                result ->{
-                    if(result.isSuccess()) {
-                        if(OptimizeConfig.isEnableRemoteSessionManage()) {
-                            compositeSessionService.enableRemoteSession(remoteSessionServerAddress);
-                        }
-                    }
-        });
-        remoteSessionApplication.start();
+//        RemoteSessionApplication remoteSessionApplication = new RemoteSessionApplication(
+//                remoteSessionServerAddress,
+//                resourceLoader,
+//                result ->{
+//                    if(result.isSuccess()) {
+//                        if(config.isEnableRemoteSessionManage()) {
+//                            compositeSessionService.enableRemoteSession();
+//                        }
+//                    }
+//        });
+//        remoteSessionApplication.start();
         return compositeSessionService;
     }
 
@@ -182,7 +197,7 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
      */
     protected NettyEmbeddedServletContainer newNettyEmbeddedServletContainer(ServletContext servletContext) throws SSLException {
         Ssl ssl = getSsl();
-        NettyEmbeddedServletContainer container = new NettyEmbeddedServletContainer(servletContext,ssl);
+        NettyEmbeddedServletContainer container = new NettyEmbeddedServletContainer(servletContext,ssl,config);
         return container;
     }
 

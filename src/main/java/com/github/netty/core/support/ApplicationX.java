@@ -2,7 +2,6 @@ package com.github.netty.core.support;
 
 import sun.misc.Unsafe;
 
-import javax.annotation.Resource;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -15,23 +14,20 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 
+import static java.lang.annotation.ElementType.*;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
+
 /**
  * Created by acer01 on 2016/11/11/011.
  *
- * 1. 所有类上的注解都是单例
- * 2. 支持的注解可以在创建时候添加进来
- * 3. 添加新注解可以 重写getInterceptor()方法做注解适配的拦截器
- * 4. 代理用的是cglib
- * 5. 支持官方 @Resource进行自动注入 -> @Resource(type = UserImpl.class)
- * 6. 这个类不是单例, 可以按包划分实例.
- * 7. 所有ApplicationContext.对象 共用一个容器对象
+ * 轻量级容器, 支持资源注入
  *
  * 2016年11月12日 21:04:39
  */
 public class ApplicationX {
 
     private List<Class<? extends Annotation>> scannerAnnotationList = Arrays.asList(
-            Resource.class,Component.class);
+            Resource.class);
 
     private ClassLoader loader = getClass().getClassLoader();
     private Scanner scanner = new Scanner();
@@ -39,7 +35,7 @@ public class ApplicationX {
     private Map<Class,Object> context = new ClassInstanceMap();
 
     public ApplicationX() {
-        this.context.put(getClass(),this);
+        addInstance(this);
 //        this.loader = WebAppClassLoader.getSystemClassLoader();
 //        this.loader = ClassLoader.getSystemClassLoader();
 //
@@ -52,22 +48,39 @@ public class ApplicationX {
 
     public static void main(String[] args) {
         ApplicationX app = new ApplicationX()
-                .addScanPackage("com.github.netty")
-                .refresh();
+                .scanner("com.github.netty")
+                .inject();
     }
 
-    public ApplicationX refresh(){
-        try {
-            for(String rootPackage : scanner.getRootPackageList()){
-                scanner.doScan(rootPackage, context);
-            }
+    public Object addInstance(Object instance){
+        return this.context.put(instance.getClass(),instance);
+    }
 
+    public ApplicationX inject(){
+        try {
             for (Map.Entry<Class, Object> entry : getApplicationContext().entrySet()) {
                 injector.inject(entry.getKey(),entry.getValue());
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
+        return this;
+    }
+
+    public ApplicationX scanner(){
+        try {
+            for(String rootPackage : scanner.getRootPackageList()){
+                scanner.doScan(rootPackage, context);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return this;
+    }
+
+    public ApplicationX scanner(String... rootPackage){
+        addScanPackage(rootPackage);
+        scanner();
         return this;
     }
 
@@ -491,8 +504,8 @@ public class ApplicationX {
         private String getAnnotationValue(Annotation[] annotations){
             for(Annotation a : annotations) {
                 Class ann = a.getClass();
-                if (Component.class.isAssignableFrom(ann)) {
-                    return ((Component)a).value();
+                if (Resource.class.isAssignableFrom(ann)) {
+                    return ((Resource)a).value();
                 }
             }
             return "";
@@ -500,11 +513,12 @@ public class ApplicationX {
     }
 
 
-    @Target({ElementType.TYPE})
-    @Retention(RetentionPolicy.RUNTIME)
-    @Documented
-    public @interface Component {
+    @Target({TYPE, FIELD})
+    @Retention(RUNTIME)
+    public @interface Resource {
         String value() default "";
+        Class<?> type() default java.lang.Object.class;
+        int sort() default 100;
     }
 
 }

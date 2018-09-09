@@ -4,8 +4,8 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.parser.ParserConfig;
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.alibaba.fastjson.util.TypeUtils;
+import com.github.netty.core.constants.CoreConstants;
 import com.github.netty.rpc.exception.RpcDecodeException;
-import com.github.netty.OptimizeConfig;
 
 import java.nio.charset.Charset;
 import java.util.List;
@@ -33,8 +33,8 @@ public class JsonDataCodec implements DataCodec {
             return EMPTY;
         }
 
-        if(OptimizeConfig.isEnableExecuteHold()){
-            return OptimizeConfig.holdExecute(() -> {
+        if(CoreConstants.isEnableExecuteHold()){
+            return CoreConstants.holdExecute(() -> {
                 return JSON.toJSONBytes(data,SERIALIZER_FEATURES);
             });
         }
@@ -48,8 +48,8 @@ public class JsonDataCodec implements DataCodec {
             return null;
         }
 
-        if(OptimizeConfig.isEnableExecuteHold()){
-            return OptimizeConfig.holdExecute(() -> {
+        if(CoreConstants.isEnableExecuteHold()){
+            return CoreConstants.holdExecute(() -> {
                 List list = (List) JSON.parse(data,parserConfig);
                 return list.toArray();
             });
@@ -65,8 +65,8 @@ public class JsonDataCodec implements DataCodec {
             return null;
         }
 
-        if(OptimizeConfig.isEnableExecuteHold()){
-            return OptimizeConfig.holdExecute(() -> {
+        if(CoreConstants.isEnableExecuteHold()){
+            return CoreConstants.holdExecute(() -> {
                 List list = (List) JSON.parse(data,0,data.length,UTF8.newDecoder(),JSON.DEFAULT_PARSER_FEATURE);
                 return list.toArray();
             });
@@ -82,8 +82,8 @@ public class JsonDataCodec implements DataCodec {
             return EMPTY;
         }
 
-        if(OptimizeConfig.isEnableExecuteHold()){
-            return OptimizeConfig.holdExecute(() -> {
+        if(CoreConstants.isEnableExecuteHold()){
+            return CoreConstants.holdExecute(() -> {
                 return JSON.toJSONBytes(data,SERIALIZER_FEATURES);
             });
         }
@@ -96,8 +96,8 @@ public class JsonDataCodec implements DataCodec {
         if(data == null || data.length == 0){
             return null;
         }
-        if(OptimizeConfig.isEnableExecuteHold()){
-            return OptimizeConfig.holdExecute(() -> {
+        if(CoreConstants.isEnableExecuteHold()){
+            return CoreConstants.holdExecute(() -> {
                 return JSON.parse(data);
             });
         }
@@ -108,8 +108,8 @@ public class JsonDataCodec implements DataCodec {
     @Override
     public <T> T cast(Object data, Class<T> type) {
         try {
-            if(OptimizeConfig.isEnableExecuteHold()){
-                return OptimizeConfig.holdExecute(() -> {
+            if(CoreConstants.isEnableExecuteHold()){
+                return CoreConstants.holdExecute(() -> {
                     return TypeUtils.cast(data,type,parserConfig);
                 });
             }

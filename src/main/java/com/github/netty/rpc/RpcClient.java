@@ -2,6 +2,9 @@ package com.github.netty.rpc;
 
 import com.github.netty.core.AbstractChannelHandler;
 import com.github.netty.core.AbstractNettyClient;
+import com.github.netty.core.constants.CoreConstants;
+import com.github.netty.core.support.ThreadPoolX;
+import com.github.netty.core.util.ReflectUtil;
 import com.github.netty.rpc.codec.DataCodec;
 import com.github.netty.rpc.codec.JsonDataCodec;
 import com.github.netty.rpc.codec.RpcProto;
@@ -12,9 +15,6 @@ import com.github.netty.rpc.exception.RpcResponseException;
 import com.github.netty.rpc.exception.RpcTimeoutException;
 import com.github.netty.rpc.service.RpcCommandService;
 import com.github.netty.rpc.service.RpcDBService;
-import com.github.netty.OptimizeConfig;
-import com.github.netty.core.support.ThreadPoolX;
-import com.github.netty.core.util.ReflectUtil;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLiteOrBuilder;
 import io.netty.buffer.ByteBuf;
@@ -105,12 +105,11 @@ public class RpcClient extends AbstractNettyClient{
     }
 
     public RpcClient(InetSocketAddress address) {
-        this("",address,0);
+        this("",address);
     }
 
-    public RpcClient(String namePre, InetSocketAddress remoteAddress,int socketChannelCount) {
-        super(namePre, remoteAddress, socketChannelCount);
-        run();
+    public RpcClient(String namePre, InetSocketAddress remoteAddress) {
+        super(namePre, remoteAddress);
     }
 
     /**
@@ -122,7 +121,7 @@ public class RpcClient extends AbstractNettyClient{
     public void enableAutoReconnect(int heartIntervalSecond, TimeUnit timeUnit, Consumer<RpcClient> reconnectSuccessHandler){
         if(rpcCommandService == null){
             //自动重连依赖命令服务
-            throw new IllegalStateException("if enableAutoReconnect, you must has commandService");
+            throw new IllegalStateException("if enableAutoReconnect, you must start client and has a commandService");
         }
         RpcHeartbeatTask heartbeatTask = new RpcHeartbeatTask(reconnectSuccessHandler);
         getScheduleService().scheduleWithFixedDelay(heartbeatTask,heartIntervalSecond,heartIntervalSecond,timeUnit);
@@ -134,6 +133,13 @@ public class RpcClient extends AbstractNettyClient{
      */
     public void enableAutoReconnect(Consumer<RpcClient> reconnectSuccessHandler){
         enableAutoReconnect(10,TimeUnit.SECONDS,reconnectSuccessHandler);
+    }
+
+    /**
+     * 开启自动重连
+     */
+    public void enableAutoReconnect(){
+        enableAutoReconnect(null);
     }
 
     /**
@@ -358,7 +364,7 @@ public class RpcClient extends AbstractNettyClient{
             this.beginTime = System.currentTimeMillis();
 
             //自旋, 因为如果是本地rpc调用,速度太快了, 没必要再堵塞
-            int spinCount = OptimizeConfig.getRpcLockSpinCount();
+            int spinCount = CoreConstants.getRpcLockSpinCount();
             for (int i=0; rpcResponse == null && i<spinCount; i++){
                 //
             }
@@ -439,7 +445,7 @@ public class RpcClient extends AbstractNettyClient{
             requestLockMap.remove(requestId);
 
             if(rpcResponse == null){
-                if(OptimizeConfig.isEnableExecuteHold()) {
+                if(CoreConstants.isEnableExecuteHold()) {
                     logger.error("超时的请求 : " + rpcRequest);
                 }
 
@@ -477,8 +483,8 @@ public class RpcClient extends AbstractNettyClient{
     private class RpcClientHandler extends AbstractChannelHandler<RpcProto.Response> {
         @Override
         protected void onMessageReceived(ChannelHandlerContext ctx, RpcProto.Response rpcResponse) throws Exception {
-            if(OptimizeConfig.isEnableExecuteHold()) {
-                OptimizeConfig.holdExecute(() -> {
+            if(CoreConstants.isEnableExecuteHold()) {
+                CoreConstants.holdExecute(() -> {
                     RpcLock lock = requestLockMap.remove(rpcResponse.getRequestId());
                     //如果获取不到锁 说明已经超时, 被释放了
                     if (lock == null) {

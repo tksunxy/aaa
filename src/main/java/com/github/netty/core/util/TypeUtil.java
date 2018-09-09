@@ -573,7 +573,11 @@ public class TypeUtil {
                 strVal = strVal.replaceAll(",", "");
             }
 
-            return Integer.parseInt(strVal);
+            try {
+                return Integer.parseInt(strVal);
+            }catch (Exception e){
+                return null;
+            }
         }
 
         if (value instanceof Boolean) {

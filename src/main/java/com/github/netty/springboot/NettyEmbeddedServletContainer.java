@@ -1,6 +1,8 @@
 package com.github.netty.springboot;
 
+import com.github.netty.ContainerConfig;
 import com.github.netty.core.AbstractNettyServer;
+import com.github.netty.core.support.NettyThreadX;
 import com.github.netty.core.util.TodoOptimize;
 import com.github.netty.servlet.ServletContext;
 import com.github.netty.servlet.ServletFilterRegistration;
@@ -45,10 +47,12 @@ public class NettyEmbeddedServletContainer implements EmbeddedServletContainer {
      */
     private InetSocketAddress servletServerAddress;
 
-    public NettyEmbeddedServletContainer(ServletContext servletContext,Ssl ssl) throws SSLException {
+    private ContainerConfig config;
+
+    public NettyEmbeddedServletContainer(ServletContext servletContext,Ssl ssl,ContainerConfig config) throws SSLException {
         this.servletContext = servletContext;
         this.servletServerAddress = servletContext.getServletServerAddress();
-
+        this.config = config;
         this.servletServer = new ServletServer(servletServerAddress,ssl);
     }
 
@@ -77,16 +81,18 @@ public class NettyEmbeddedServletContainer implements EmbeddedServletContainer {
         return servletServerAddress.getPort();
     }
 
-    class ServletServer extends AbstractNettyServer{
+    public class ServletServer extends AbstractNettyServer{
         private final Thread servletServerThread;
         private boolean enableSsl;
         private SslContext sslContext;
 
         @TodoOptimize("ssl没测试能不能用")
-        public ServletServer(InetSocketAddress address, Ssl ssl) throws SSLException {
-            super(address);
+        private ServletServer(InetSocketAddress address, Ssl ssl) throws SSLException {
+            super("Netty",address);
 
-            this.servletServerThread = new Thread(this,getName());
+            setIoRatio(config.getServerIoRatio());
+            setWorkerCount(config.getServerWorkerCount());
+            this.servletServerThread = new NettyThreadX(this,getName());
             initSsl(ssl);
         }
 
@@ -100,7 +106,7 @@ public class NettyEmbeddedServletContainer implements EmbeddedServletContainer {
         @Override
         protected ChannelInitializer<? extends Channel> newInitializerChannelHandler() {
             return new ChannelInitializer<SocketChannel>() {
-                private ChannelHandler servletHandler = new NettyServletHandler(servletContext);
+                private ChannelHandler servletHandler = new NettyServletHandler(servletContext,config.getServerHandlerExecutor());
 
                 @Override
                 protected void initChannel(SocketChannel ch) throws Exception {

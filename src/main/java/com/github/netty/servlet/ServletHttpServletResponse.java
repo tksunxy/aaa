@@ -6,11 +6,11 @@ import com.github.netty.core.constants.HttpHeaderConstants;
 import com.github.netty.core.support.AbstractRecycler;
 import com.github.netty.core.support.CompositeByteBufX;
 import com.github.netty.core.support.Recyclable;
+import com.github.netty.core.util.HttpHeaderUtil;
+import com.github.netty.core.util.TodoOptimize;
 import com.github.netty.servlet.support.HttpServletObject;
 import com.github.netty.servlet.support.MediaType;
-import com.github.netty.core.util.HttpHeaderUtil;
 import com.github.netty.servlet.util.ProxyUtil;
-import com.github.netty.core.util.TodoOptimize;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.handler.codec.http.DefaultHttpResponse;
@@ -21,6 +21,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import javax.servlet.http.Cookie;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.charset.Charset;
 import java.util.*;
 
 /**
@@ -299,13 +300,23 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
 
     @Override
     public PrintWriter getWriter() throws IOException {
-        writer = new PrintWriter(outputStream);
+        if(writer != null){
+            return writer;
+        }
+
+        Charset charset;
+        if(characterEncoding != null){
+            charset = Charset.forName(characterEncoding);
+        }else {
+            charset = httpServletObject.getServletContext().getDefaultCharset();
+        }
+        writer = new ServletPrintWriter(outputStream,charset);
         return writer;
     }
 
     @Override
     public void setCharacterEncoding(String charset) {
-        if (null != writer) {
+        if(writer != null){
             return;
         }
         characterEncoding = charset;
@@ -404,6 +415,13 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
         @Override
         public void operationComplete(ChannelFuture future) throws Exception {
             closeTarget.nettyResponse.recycle();
+
+            HttpServletObject httpServletObject = closeTarget.httpServletObject;
+            ServletHttpSession httpSession = httpServletObject.getHttpSessionChannel();
+            if(httpSession != null && httpSession.isNew()){
+                httpSession.setNewSessionFlag(false);
+                httpServletObject.getServletContext().getSessionService().saveSession(httpSession.unwrap());
+            }
 
             closeTarget.outputStream.setHttpServletObject(null);
             closeTarget.httpServletObject = null;

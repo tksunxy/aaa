@@ -144,9 +144,8 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
      * 流得到POST数据。如果满足这些条件，那么从request对象的输入流中直接读取POST数据将不再有效。
      */
     private void decodeParameter(){
-        ServletContext servletContext = getServletContext();
         Map<String,String[]> parameterMap = new HashMap<>(16);
-        Charset charset = servletContext.getDefaultCharset();
+        Charset charset = Charset.forName(getCharacterEncoding());
         ServletUtil.decodeByUrl(parameterMap, nettyRequest.uri(),charset);
         this.decodeParameterByUrlFlag = true;
 
@@ -395,9 +394,6 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         synchronized (SYNC_SESSION_LOCK) {
             ServletHttpSession httpSession = httpServletObject.getHttpSessionChannel();
             if (httpSession != null && httpSession.isValid()) {
-                if(httpSession.isNew()) {
-                    httpSession.setNewSessionFlag(false);
-                }
                 return httpSession;
             }
 
@@ -416,7 +412,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
                 session = new Session(sessionId);
                 session.setCreationTime(currTime);
                 session.setLastAccessedTime(currTime);
-                session.setMaxInactiveInterval(servletContext.getSessionCookieConfig().getSessionTimeout());
+                session.setMaxInactiveInterval(servletContext.getSessionTimeout());
             }
 
             if (httpSession == null) {

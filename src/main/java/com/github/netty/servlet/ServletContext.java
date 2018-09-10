@@ -3,9 +3,9 @@ package com.github.netty.servlet;
 import com.github.netty.core.constants.HttpConstants;
 import com.github.netty.core.support.LoggerFactoryX;
 import com.github.netty.core.support.LoggerX;
-import com.github.netty.core.util.MimeTypeUtil;
 import com.github.netty.core.util.RecyclableUtil;
 import com.github.netty.core.util.TypeUtil;
+import com.github.netty.core.support.MimeMappingsX;
 import com.github.netty.servlet.support.ServletEventListenerManager;
 import com.github.netty.servlet.support.UrlMapper;
 import com.github.netty.session.service.SessionService;
@@ -56,14 +56,18 @@ public class ServletContext implements javax.servlet.ServletContext {
     private String contextPath;
 
     private SessionService sessionService;
+    private MimeMappingsX mimeMappings;
+
+    private int sessionTimeout;
 
     public ServletContext(InetSocketAddress socketAddress,
                           ClassLoader classLoader,
                           String contextPath, String serverInfo,
-                          ServletSessionCookieConfig sessionCookieConfig) {
+                          ServletSessionCookieConfig sessionCookieConfig, MimeMappingsX mimeMappings) {
 //        File rootDir = new File("");
 //        this.rootDirStr = rootDir.isAbsolute() ? rootDir.getAbsolutePath() : FilenameUtils.concat(new File(".").getAbsolutePath(), rootDir.getPath());
-        this.sessionCookieConfig = sessionCookieConfig;
+        this.sessionCookieConfig = Objects.requireNonNull(sessionCookieConfig);
+        this.mimeMappings = Objects.requireNonNull(mimeMappings);
         this.serverInfo = serverInfo == null? "netty-server/1.0":serverInfo;
 
         this.contextPath = contextPath == null? "" : contextPath;
@@ -80,8 +84,13 @@ public class ServletContext implements javax.servlet.ServletContext {
         this.servletUrlMapper = new UrlMapper<>(contextPath,true);
         this.filterUrlMapper = new UrlMapper<>(contextPath,false);
         this.servletEventListenerManager = new ServletEventListenerManager();
+        //默认20分钟
+        this.sessionTimeout = 1200;
     }
 
+    public MimeMappingsX getMimeMappings() {
+        return mimeMappings;
+    }
 
     public void setAsyncExecutorSupplier(Supplier<ExecutorService> asyncExecutorSupplier) {
         this.asyncExecutorSupplier = asyncExecutorSupplier;
@@ -116,6 +125,17 @@ public class ServletContext implements javax.servlet.ServletContext {
         }catch (NumberFormatException e){
             return 10000;
         }
+    }
+
+    public int getSessionTimeout() {
+        return sessionTimeout;
+    }
+
+    public void setSessionTimeout(int sessionTimeout) {
+        if(sessionTimeout <= 0){
+            return;
+        }
+        this.sessionTimeout = sessionTimeout;
     }
 
     public InetSocketAddress getServletServerAddress() {
@@ -186,7 +206,18 @@ public class ServletContext implements javax.servlet.ServletContext {
 
     @Override
     public String getMimeType(String file) {
-        return MimeTypeUtil.getMimeTypeByFileName(file);
+        if (file == null) {
+            return null;
+        }
+        int period = file.lastIndexOf('.');
+        if (period < 0) {
+            return null;
+        }
+        String extension = file.substring(period + 1);
+        if (extension.length() < 1) {
+            return null;
+        }
+        return mimeMappings.get(extension);
     }
 
     @Override

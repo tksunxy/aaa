@@ -71,6 +71,7 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        ExceptionUtil.printRootCauseStackTrace(cause);
         logger.error("ServletHandler 异常! : "+cause.toString());
         saveAndClearSession(ctx);
         ctx.channel().close();

@@ -165,7 +165,7 @@ public class ServletUtil {
         if(domain != null) {
             nettyCookie.setDomain(domain);
         }
-        nettyCookie.setHttpOnly(nettyCookie.isHttpOnly());
+        nettyCookie.setHttpOnly(cookie.isHttpOnly());
         nettyCookie.setMaxAge(cookie.getMaxAge());
         nettyCookie.setPath(cookie.getPath());
         nettyCookie.setVersion(cookie.getVersion());
@@ -178,14 +178,14 @@ public class ServletUtil {
         HttpDataFactory factory = getHttpDataFactory(charset);
         HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(factory, httpRequest,charset);
 
-        while (decoder.hasNext()){
-            InterfaceHttpData interfaceData = decoder.next();
+        List<InterfaceHttpData> interfaceHttpDataList = decoder.getBodyHttpDatas();
+        for(InterfaceHttpData interfaceData : interfaceHttpDataList) {
             /*
              * HttpDataType有三种类型
              * Attribute, FileUpload, InternalAttribute
              */
-            switch (interfaceData.getHttpDataType()){
-                case Attribute:{
+            switch (interfaceData.getHttpDataType()) {
+                case Attribute: {
                     Attribute data = (Attribute) interfaceData;
                     String name = data.getName();
                     String value;
@@ -198,22 +198,21 @@ public class ServletUtil {
                     parameterMap.put(name, new String[]{value});
                     break;
                 }
-                case FileUpload:{
+                case FileUpload: {
                     FileUpload data = (FileUpload) interfaceData;
 
                     break;
                 }
-                case InternalAttribute:{
+                case InternalAttribute: {
 //                    InternalAttribute data = (InternalAttribute) interfaceData;
 
                     break;
                 }
-                default:{
+                default: {
 
                     break;
                 }
             }
-
         }
         decoder.destroy();
     }

@@ -1,6 +1,7 @@
 package com.github.netty.springboot;
 
 import com.github.netty.ContainerConfig;
+import com.github.netty.core.support.MimeMappingsX;
 import com.github.netty.servlet.*;
 import com.github.netty.session.service.CompositeSessionServiceImpl;
 import com.github.netty.session.service.SessionService;
@@ -56,12 +57,13 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
 
             //jsp servlet
             JspServlet jspServlet = getJspServlet();
-            if(jspServlet != null  && jspServlet.getRegistered()){
+            if(shouldRegisterJspServlet()){
                 registerJspServlet(servletContext,jspServlet);
             }
 
             //初始化
-            for (ServletContextInitializer initializer : initializers) {
+            ServletContextInitializer[] servletContextInitializers = mergeInitializers(initializers);
+            for (ServletContextInitializer initializer : servletContextInitializers) {
                 initializer.onStartup(servletContext);
             }
 
@@ -112,17 +114,19 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
     private ServletContext newServletContext(){
         ClassLoader parentClassLoader = resourceLoader != null ? resourceLoader.getClassLoader() : ClassUtils.getDefaultClassLoader();
         ServletSessionCookieConfig sessionCookieConfig = loadSessionCookieConfig();
+        MimeMappingsX mimeMappings = newMimeMappings();
 
         ServletContext servletContext = new ServletContext(
                 new InetSocketAddress(getAddress(),getPort()),
                 new URLClassLoader(new URL[]{}, parentClassLoader),
                 getContextPath(),
                 getServerHeader(),
-                sessionCookieConfig);
+                sessionCookieConfig,
+                mimeMappings);
 
+        //session超时时间
+        servletContext.setSessionTimeout(getSessionTimeout());
         servletContext.setSessionService(newSessionService());
-        logger.info("NewInstance "+SessionService.class.getSimpleName()+" using ["+servletContext.getSessionService()+"]");
-
         servletContext.setAsyncExecutorSupplier(newAsyncExecutorSupplier());
         servletContext.getServletEventListenerManager().setServletAddedListener(servlet -> {
             if(servlet instanceof DispatcherServlet){
@@ -131,6 +135,19 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
             return servlet;
         });
         return servletContext;
+    }
+
+    /**
+     * 新建mime映射
+     * @return
+     */
+    private MimeMappingsX newMimeMappings(){
+        MimeMappings mimeMappings = getMimeMappings();
+        MimeMappingsX mimeMappingsX = new MimeMappingsX();
+        for (MimeMappings.Mapping mapping :mimeMappings) {
+            mimeMappingsX.add(mapping.getExtension(),mapping.getMimeType());
+        }
+        return mimeMappingsX;
     }
 
     /**
@@ -227,8 +244,6 @@ public class NettyEmbeddedServletContainerFactory extends AbstractEmbeddedServle
     protected ServletSessionCookieConfig loadSessionCookieConfig(){
         ServletSessionCookieConfig sessionCookieConfig = new ServletSessionCookieConfig();
         sessionCookieConfig.setMaxAge(-1);
-        //session超时时间
-        sessionCookieConfig.setSessionTimeout(getSessionTimeout());
         return sessionCookieConfig;
     }
 

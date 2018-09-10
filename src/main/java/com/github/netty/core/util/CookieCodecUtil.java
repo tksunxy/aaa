@@ -4,10 +4,8 @@ import com.github.netty.core.constants.HttpHeaderConstants;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.DefaultCookie;
 import io.netty.handler.codec.http.HttpConstants;
-import io.netty.handler.codec.http.HttpHeaderDateFormat;
 
 import java.util.Collections;
-import java.util.Date;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -249,10 +247,10 @@ public class CookieCodecUtil {
 
         addUnquoted(buf, cookie.name(), cookie.value());
 
-        if (cookie.maxAge() != Long.MIN_VALUE) {
+        if (cookie.maxAge() > 0) {
             add(buf, HttpHeaderConstants.MAX_AGE_1.toString(), cookie.maxAge());
-            Date expires = new Date(cookie.maxAge() * 1000 + System.currentTimeMillis());
-            addUnquoted(buf, HttpHeaderConstants.EXPIRES.toString(), HttpHeaderDateFormat.get().format(expires));
+//            Date expires = new Date(cookie.maxAge() * 1000 + System.currentTimeMillis());
+//            addUnquoted(buf, HttpHeaderConstants.EXPIRES.toString(), HttpHeaderDateFormat.get().format(expires));
         }
 
         if (cookie.path() != null) {

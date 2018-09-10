@@ -13,7 +13,7 @@ public class HttpHeaderConstants {
 
     public static final CharSequence SECURE = "Secure";
 
-    public static final CharSequence HTTPONLY = "HTTPOnly";
+    public static final CharSequence HTTPONLY = "HttpOnly";
 
     public static final CharSequence COMMENT = "Comment";
 

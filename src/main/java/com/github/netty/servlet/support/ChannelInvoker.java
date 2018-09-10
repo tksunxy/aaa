@@ -7,11 +7,14 @@ import com.github.netty.core.constants.HttpConstants;
 import com.github.netty.core.constants.HttpHeaderConstants;
 import com.github.netty.core.support.AbstractRecycler;
 import com.github.netty.core.support.Recyclable;
+import com.github.netty.core.util.ExceptionUtil;
+import com.github.netty.core.util.HttpHeaderUtil;
+import com.github.netty.core.util.RecyclableUtil;
+import com.github.netty.core.util.StringUtil;
 import com.github.netty.servlet.ServletHttpServletRequest;
 import com.github.netty.servlet.ServletHttpServletResponse;
 import com.github.netty.servlet.ServletHttpSession;
-import com.github.netty.core.util.ExceptionUtil;
-import com.github.netty.core.util.HttpHeaderUtil;
+import com.github.netty.servlet.ServletSessionCookieConfig;
 import com.github.netty.servlet.util.ServletUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
@@ -40,10 +43,11 @@ public class ChannelInvoker {
         ServletHttpServletResponse servletResponse = httpServletObject.getHttpServletResponse();
         NettyHttpRequest nettyRequest = servletRequest.getNettyRequest();
         NettyHttpResponse nettyResponse = servletResponse.getNettyResponse();
+        ServletSessionCookieConfig sessionCookieConfig = httpServletObject.getServletContext().getSessionCookieConfig();
 
         boolean isKeepAlive = HttpHeaderUtil.isKeepAlive(nettyRequest);
 
-        settingResponse(isKeepAlive,content.readableBytes(),nettyResponse,servletRequest,servletResponse);
+        settingResponse(isKeepAlive,content.readableBytes(),nettyResponse,servletRequest,servletResponse,sessionCookieConfig);
         writeResponse(isKeepAlive,context,nettyResponse,content,finishListeners);
     }
 
@@ -51,7 +55,7 @@ public class ChannelInvoker {
         HttpContent httpContent = new DefaultLastHttpContent(content);
 
         ChannelFutureListener flushListener = null;
-        if(finishListeners != null && finishListeners.length == 0) {
+        if(finishListeners != null && finishListeners.length > 0) {
             flushListener = ChannelFutureFlushListener.newInstance(isKeepAlive,finishListeners);
         }
 
@@ -69,9 +73,11 @@ public class ChannelInvoker {
      * @param nettyResponse netty响应
      * @param servletRequest servlet请求
      * @param servletResponse servlet响应
+     * @param sessionCookieConfig sessionCookie配置
      */
     private void settingResponse(boolean isKeepAlive, int totalLength, NettyHttpResponse nettyResponse,
-                                ServletHttpServletRequest servletRequest, ServletHttpServletResponse servletResponse) {
+                                ServletHttpServletRequest servletRequest, ServletHttpServletResponse servletResponse,
+                                 ServletSessionCookieConfig sessionCookieConfig) {
         HttpHeaderUtil.setKeepAlive(nettyResponse, isKeepAlive);
 
         if (isKeepAlive && !HttpHeaderUtil.isContentLengthSet(nettyResponse)) {
@@ -104,8 +110,30 @@ public class ChannelInvoker {
         //先处理Session ，如果是新Session 或 session失效 需要通过Cookie写入
         ServletHttpSession httpSession = servletRequest.getSession(true);
         if (httpSession.isNew()) {
-            String cookieStr = new StringBuilder(SESSION_COOKIE_1).append(servletRequest.getRequestedSessionId()).append(SESSION_COOKIE_2).toString();
-            headers.add(HttpHeaderConstants.SET_COOKIE, cookieStr);
+            String sessionCookieName = sessionCookieConfig.getName();
+            if(StringUtil.isEmpty(sessionCookieName)){
+                sessionCookieName = HttpConstants.JSESSION_ID_COOKIE;
+            }
+            Cookie cookie = new Cookie(sessionCookieName,servletRequest.getRequestedSessionId());
+            cookie.setHttpOnly(true);
+            if(sessionCookieConfig.getDomain() != null) {
+                cookie.setDomain(sessionCookieConfig.getDomain());
+            }
+            if(sessionCookieConfig.getPath() == null) {
+                cookie.setPath("/");
+            }else {
+                cookie.setPath(sessionCookieConfig.getPath());
+            }
+            cookie.setSecure(sessionCookieConfig.isSecure());
+            if(sessionCookieConfig.getComment() != null) {
+                cookie.setComment(sessionCookieConfig.getComment());
+            }
+            if(cookies == null) {
+                cookies = RecyclableUtil.newRecyclableList(1);
+                cookies.add(cookie);
+            }
+//            String cookieStr = new StringBuilder(SESSION_COOKIE_1).append(servletRequest.getRequestedSessionId()).append(SESSION_COOKIE_2).toString();
+//            headers.add(HttpHeaderConstants.SET_COOKIE, cookieStr);
         }
 
         //其他业务或框架设置的cookie，逐条写入到响应头去

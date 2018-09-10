@@ -42,6 +42,7 @@ public class ServletAsyncContext implements AsyncContext {
 
     private ServletContext servletContext;
     private HttpServletObject httpServletObject;
+    private Throwable throwable;
 
     public ServletAsyncContext(HttpServletObject httpServletObject,ServletContext servletContext, ExecutorService executorService, ServletRequest servletRequest, ServletResponse servletResponse) {
         this.httpServletObject = Objects.requireNonNull(httpServletObject);
@@ -50,6 +51,14 @@ public class ServletAsyncContext implements AsyncContext {
         this.servletRequest = Objects.requireNonNull(servletRequest);
         this.servletResponse = Objects.requireNonNull(servletResponse);
         this.status = STATUS_INIT;
+    }
+
+    public Throwable getThrowable() {
+        return throwable;
+    }
+
+    public void setThrowable(Throwable throwable) {
+        this.throwable = throwable;
     }
 
     @Override
@@ -154,37 +163,37 @@ public class ServletAsyncContext implements AsyncContext {
                     try {
                         AsyncEvent event = new AsyncEvent(ServletAsyncContext.this,listenerWrapper.servletRequest,listenerWrapper.servletResponse,null);
                         listenerWrapper.asyncListener.onTimeout(event);
-                    } catch (IOException ioException) {
-                        ioException.printStackTrace();
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
                     }
                 });
             }catch (Throwable throwable){
                 if(throwable instanceof AsyncRuntimeException){
                     throwable = throwable.getCause();
                 }
+                setThrowable(throwable);
 
                 //通知异常
-                Throwable cause = throwable;
                 notifyEvent(listenerWrapper -> {
-                    AsyncEvent event = new AsyncEvent(ServletAsyncContext.this,listenerWrapper.servletRequest,listenerWrapper.servletResponse, cause);
+                    AsyncEvent event = new AsyncEvent(ServletAsyncContext.this,listenerWrapper.servletRequest,listenerWrapper.servletResponse, getThrowable());
                     try {
                         listenerWrapper.asyncListener.onError(event);
-                    } catch (IOException e) {
+                    } catch (Exception e) {
                         e.printStackTrace();
                     }
                 });
             }finally {
-                complete();
-
                 //通知结束
                 notifyEvent(listenerWrapper -> {
                     try {
-                        AsyncEvent event = new AsyncEvent(ServletAsyncContext.this,listenerWrapper.servletRequest,listenerWrapper.servletResponse,null);
+                        AsyncEvent event = new AsyncEvent(ServletAsyncContext.this,listenerWrapper.servletRequest,listenerWrapper.servletResponse, getThrowable());
                         listenerWrapper.asyncListener.onComplete(event);
-                    } catch (IOException e) {
+                    } catch (Exception e) {
                         e.printStackTrace();
                     }
                 });
+
+                complete();
             }
         };
     }

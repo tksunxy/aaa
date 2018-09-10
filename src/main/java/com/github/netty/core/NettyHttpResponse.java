@@ -1,27 +1,18 @@
 package com.github.netty.core;
 
-import com.github.netty.core.constants.VersionConstants;
-import com.github.netty.core.support.Recyclable;
 import com.github.netty.core.support.AbstractRecycler;
-import com.github.netty.core.support.Wrapper;
-import com.github.netty.core.util.ReflectUtil;
+import com.github.netty.core.support.CompositeByteBufX;
+import com.github.netty.core.support.Recyclable;
+import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.DecoderResult;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
-
-import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import io.netty.handler.codec.http.*;
 
 /**
  * 用于兼容 netty4 与netty5
  * @author acer01
  * 2018/7/28/028
  */
-public class NettyHttpResponse implements HttpResponse,Wrapper<HttpResponse>,Recyclable {
+public class NettyHttpResponse implements FullHttpResponse,Recyclable {
 
     private static final AbstractRecycler<NettyHttpResponse> RECYCLER = new AbstractRecycler<NettyHttpResponse>() {
         @Override
@@ -30,145 +21,218 @@ public class NettyHttpResponse implements HttpResponse,Wrapper<HttpResponse>,Rec
         }
     };
 
-    private HttpResponse source;
-    private Class sourceClass;
-    private final Object lock = new Object();
+    private DecoderResult decoderResult;
+    private HttpVersion version;
+    private HttpHeaders headers;
+    private HttpResponseStatus status;
+    private CompositeByteBufX content;
 
-    private List<Method> getStatusMethodList;
-    private List<Method> getProtocolVersionMethodList;
-    private List<Method> getDecoderResultMethodList;
-
-    private NettyHttpResponse() {
-
+    public NettyHttpResponse() {
+        this.headers = new DefaultHttpHeaders(false);
+        this.version = HttpVersion.HTTP_1_1;
+        this.status = HttpResponseStatus.OK;
+        this.decoderResult = DecoderResult.SUCCESS;
     }
 
-    public static NettyHttpResponse newInstance(HttpResponse source) {
-        Objects.requireNonNull(source);
-
+    public static NettyHttpResponse newInstance() {
         NettyHttpResponse instance = RECYCLER.get();
-        instance.wrap(source);
         return instance;
     }
 
+    @Override
     public HttpResponseStatus getStatus() {
-        if(!VersionConstants.isEnableVersionAdapter()){
-            return source.getStatus();
-        }
-        if(getStatusMethodList == null){
-            synchronized (lock) {
-                if(getStatusMethodList == null) {
-                    getStatusMethodList = Arrays.asList(
-                            ReflectUtil.getAccessibleMethodByName(sourceClass, "getStatus",0),
-                            ReflectUtil.getAccessibleMethodByName(sourceClass, "status",0)
-                    );
-                }
-            }
-        }
-        return (HttpResponseStatus) ReflectUtil.invokeMethodOnce(source,getStatusMethodList);
+        return status;
     }
 
+    @Override
     public HttpVersion getProtocolVersion() {
-        if(!VersionConstants.isEnableVersionAdapter()){
-            return source.getProtocolVersion();
-        }
-        if(getProtocolVersionMethodList == null){
-            synchronized (lock) {
-                if(getProtocolVersionMethodList == null) {
-                    getProtocolVersionMethodList = Arrays.asList(
-                            ReflectUtil.getAccessibleMethodByName(sourceClass, "getProtocolVersion",0),
-                            ReflectUtil.getAccessibleMethodByName(sourceClass, "protocolVersion",0)
-                    );
-                }
-            }
-        }
-        return (HttpVersion) ReflectUtil.invokeMethodOnce(source,getProtocolVersionMethodList);
+        return version;
     }
 
+    @Override
     public DecoderResult getDecoderResult() {
-        if(!VersionConstants.isEnableVersionAdapter()){
-            return source.getDecoderResult();
-        }
-        if(getDecoderResultMethodList == null){
-            synchronized (lock) {
-                if(getDecoderResultMethodList == null) {
-                    getDecoderResultMethodList = Arrays.asList(
-                            ReflectUtil.getAccessibleMethodByName(sourceClass, "getDecoderResult", 0),
-                            ReflectUtil.getAccessibleMethodByName(sourceClass, "decoderResult", 0)
-                    );
-                }
-            }
-        }
-        return (DecoderResult) ReflectUtil.invokeMethodOnce(source,getDecoderResultMethodList);
+        return decoderResult;
     }
 
+    @Override
     public HttpResponseStatus status() {
-        return getStatus();
+        return status;
     }
 
+    @Override
     public HttpVersion protocolVersion() {
-        return getProtocolVersion();
+        return version;
     }
 
+    @Override
     public DecoderResult decoderResult() {
-        return getDecoderResult();
+        return decoderResult;
     }
 
     @Override
-    public HttpResponse setStatus(HttpResponseStatus status) {
-        source.setStatus(status);
+    public NettyHttpResponse setStatus(HttpResponseStatus status) {
+        this.status = status;
         return this;
     }
 
     @Override
-    public HttpResponse setProtocolVersion(HttpVersion version) {
-        source.setProtocolVersion(version);
+    public HttpHeaders trailingHeaders() {
+        return headers;
+    }
+
+    @Override
+    public CompositeByteBufX content() {
+        return content;
+    }
+
+    @Override
+    public int refCnt() {
+        return content.refCnt();
+    }
+
+    @Override
+    public FullHttpResponse retain() {
+        content.retain();
         return this;
+    }
+
+    @Override
+    public FullHttpResponse retain(int increment) {
+        content.retain(increment);
+        return this;
+    }
+
+    @Override
+    public FullHttpResponse touch() {
+        content.touch();
+        return this;
+    }
+
+    @Override
+    public FullHttpResponse touch(Object hint) {
+        content.touch(hint);
+        return this;
+    }
+
+    @Override
+    public boolean release() {
+        return content.release();
+    }
+
+    @Override
+    public boolean release(int decrement) {
+        return content.release(decrement);
+    }
+
+    @Override
+    public NettyHttpResponse copy() {
+        return replace(content().copy());
+    }
+
+    @Override
+    public NettyHttpResponse duplicate() {
+        return replace(content().duplicate());
+    }
+
+    @Override
+    public NettyHttpResponse retainedDuplicate() {
+        return replace(content().retainedDuplicate());
+    }
+
+    @Override
+    public NettyHttpResponse replace(ByteBuf content) {
+        NettyHttpResponse response = new NettyHttpResponse();
+        if(content instanceof CompositeByteBufX){
+             response.content = (CompositeByteBufX) content;
+        }else {
+            response.content = new CompositeByteBufX();
+        }
+        response.version = this.version;
+        response.status = this.status;
+        response.headers = this.headers.copy();
+        response.decoderResult = this.decoderResult;
+        return response;
+    }
+
+    @Override
+    public NettyHttpResponse setProtocolVersion(HttpVersion version) {
+        this.version = version;
+        return this;
+    }
+
+    public void setContent(ByteBuf content) {
+        if(content instanceof CompositeByteBufX){
+            this.content = (CompositeByteBufX) content;
+        }else {
+            this.content = new CompositeByteBufX();
+            this.content.addComponent(content);
+        }
     }
 
     @Override
     public HttpHeaders headers() {
-        return source.headers();
+        return headers;
     }
 
     @Override
     public void setDecoderResult(DecoderResult result) {
-        source.setDecoderResult(result);
+        this.decoderResult = result;
     }
 
     @Override
-    public void wrap(HttpResponse source) {
-        Objects.requireNonNull(source);
-        this.source = source;
-        this.sourceClass = source.getClass();
-    }
-
-    @Override
-    public HttpResponse unwrap() {
-        return source;
+    public void recycle() {
+        this.content = null;
+        this.decoderResult = null;
+        this.version = null;
+        this.headers = null;
+        this.status = null;
+        RECYCLER.recycle(this);
     }
 
     @Override
     public int hashCode() {
-        return source.hashCode();
+        int result = decoderResult != null ? decoderResult.hashCode() : 0;
+        result = 31 * result + (version != null ? version.hashCode() : 0);
+        result = 31 * result + (headers != null ? headers.hashCode() : 0);
+        result = 31 * result + (status != null ? status.hashCode() : 0);
+        result = 31 * result + (content != null ? content.hashCode() : 0);
+        return result;
     }
 
     @Override
-    public boolean equals(Object obj) {
-        return source.equals(obj);
+    public boolean equals(Object o) {
+        if (this == o){
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()){
+            return false;
+        }
+
+        NettyHttpResponse that = (NettyHttpResponse) o;
+        if (!decoderResult.equals(that.decoderResult)){
+            return false;
+        }
+        if (!version.equals(that.version)){
+            return false;
+        }
+        if (!status.equals(that.status)){
+            return false;
+        }
+        if (!headers.equals(that.headers)){
+            return false;
+        }
+        return content.equals(that.content);
     }
 
     @Override
     public String toString() {
         return "NettyHttpResponse{" +
-                "sourceClass=" + sourceClass +
+                "content=" + content +
+                ", decoderResult=" + decoderResult +
+                ", version=" + version +
+                ", headers=" + headers +
+                ", status=" + status +
                 '}';
-    }
-
-    @Override
-    public void recycle() {
-        this.source = null;
-        this.sourceClass = null;
-        RECYCLER.recycle(this);
     }
 
 }

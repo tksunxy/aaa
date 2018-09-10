@@ -10,10 +10,9 @@ import com.github.netty.core.util.StringUtil;
 import com.github.netty.core.util.TodoOptimize;
 import com.github.netty.servlet.support.HttpServletObject;
 import com.github.netty.servlet.support.ServletEventListenerManager;
-import com.github.netty.servlet.util.ProxyUtil;
 import com.github.netty.servlet.util.ServletUtil;
 import com.github.netty.session.Session;
-import com.github.netty.session.service.SessionService;
+import com.github.netty.session.SessionService;
 import io.netty.handler.codec.http.HttpHeaders;
 
 import javax.servlet.*;
@@ -33,22 +32,20 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
+ * servlet请求
+ *
+ * 频繁更改, 需要cpu对齐. 防止伪共享, 需设置 : -XX:-RestrictContended
  *
  * @author acer01
  *  2018/7/15/015
  */
+@sun.misc.Contended
 public class ServletHttpServletRequest implements javax.servlet.http.HttpServletRequest,Recyclable {
 
     private static final AbstractRecycler<ServletHttpServletRequest> RECYCLER = new AbstractRecycler<ServletHttpServletRequest>() {
         @Override
         protected ServletHttpServletRequest newInstance() {
-            if(ProxyUtil.isEnableProxy()){
-                return ProxyUtil.newProxyByCglib(
-                        ServletHttpServletRequest.class
-                );
-            }else {
-                return new ServletHttpServletRequest();
-            }
+            return new ServletHttpServletRequest();
         }
     };
 
@@ -93,15 +90,12 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         instance.nettyRequest = nettyRequest;
         instance.nettyHeaders = nettyRequest.headers();
         instance.inputStream.wrap(nettyRequest.content());
-//        instance.httpSession.setServletContext(httpServletObject.getServletContext());
         return instance;
     }
 
     public boolean isAsync(){
         return asyncContext != null && asyncContext.isStarted();
     }
-
-
 
     public NettyHttpRequest getNettyRequest() {
         return nettyRequest;
@@ -480,15 +474,23 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
             return sessionId;
         }
 
-        String sessionId = ServletUtil.getCookieValue(getCookies(),HttpConstants.JSESSION_ID_COOKIE);
+        //如果用户设置了sessionCookie名称, 则以用户设置的为准
+        String userSettingCookieName = getServletContext().getSessionCookieConfig().getName();
+        boolean isSettingCookieName = StringUtil.isEmpty(userSettingCookieName);
+        String urlSessionName = isSettingCookieName? userSettingCookieName : HttpConstants.JSESSION_ID_URL;
+        String cookieSessionName = isSettingCookieName? userSettingCookieName : HttpConstants.JSESSION_ID_COOKIE;
+
+
+        //寻找sessionCookie的值, 优先从cookie里找, 找不到再从url参数头上找
+        String sessionId = ServletUtil.getCookieValue(getCookies(),cookieSessionName);
         if(StringUtil.isNotEmpty(sessionId)){
             sessionIdSource = HttpConstants.SESSION_ID_SOURCE_COOKIE;
         }else {
             String queryString = getQueryString();
-            boolean isUrlCookie = queryString != null && queryString.contains(HttpConstants.JSESSION_ID_PARAMS);
+            boolean isUrlCookie = queryString != null && queryString.contains(urlSessionName);
             if(isUrlCookie) {
                 sessionIdSource = HttpConstants.SESSION_ID_SOURCE_URL;
-                sessionId = getParameter(HttpConstants.JSESSION_ID_PARAMS);
+                sessionId = getParameter(urlSessionName);
             }else {
                 sessionIdSource = HttpConstants.SESSION_ID_SOURCE_NOT_FOUND_CREATE;
                 sessionId = newSessionId();
@@ -502,7 +504,6 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     @Override
     public Object getAttribute(String name) {
         Object value = getAttributeMap().get(name);
-
         return value;
     }
 

@@ -1,4 +1,4 @@
-package com.github.netty.core.support;
+package com.github.netty.servlet.support;
 
 import java.util.*;
 

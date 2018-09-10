@@ -41,7 +41,7 @@ public class ExampleApplication{
     }
 
     @RequestMapping("/hello")
-    public Object hello(@RequestParam Map query, @RequestBody Map body, HttpSession session,
+    public Object hello(@RequestParam Map query, @RequestBody(required = false) Map body, HttpSession session,
                         HttpServletRequest request, HttpServletResponse response, Principal principal) throws IOException {
 //        response.sendRedirect("http://www.baidu.com");
         return "测试返回数据1";

@@ -5,10 +5,10 @@ import com.github.netty.core.support.LoggerFactoryX;
 import com.github.netty.core.support.LoggerX;
 import com.github.netty.core.util.RecyclableUtil;
 import com.github.netty.core.util.TypeUtil;
-import com.github.netty.core.support.MimeMappingsX;
+import com.github.netty.servlet.support.MimeMappingsX;
 import com.github.netty.servlet.support.ServletEventListenerManager;
 import com.github.netty.servlet.support.UrlMapper;
-import com.github.netty.session.service.SessionService;
+import com.github.netty.session.SessionService;
 
 import javax.servlet.*;
 import javax.servlet.descriptor.JspConfigDescriptor;

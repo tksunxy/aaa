@@ -1,7 +1,7 @@
 package com.github.netty;
 
 import com.github.netty.rpc.RpcServer;
-import com.github.netty.session.service.LocalSessionServiceImpl;
+import com.github.netty.session.LocalSessionServiceImpl;
 
 /**
  * 远程会话存储服务 (示例)

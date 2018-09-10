@@ -10,8 +10,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
+ * servlet会话
+ *
+ * 频繁更改, 需要cpu对齐. 防止伪共享, 需设置 : -XX:-RestrictContended
  * Created by acer01 on 2018/7/15/015.
  */
+@sun.misc.Contended
 public class ServletHttpSession implements HttpSession,Wrapper<Session>{
 
     private ServletContext servletContext;

@@ -10,8 +10,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
+ * servlet过滤链
+ *
+ * 频繁更改, 需要cpu对齐. 防止伪共享, 需设置 : -XX:-RestrictContended
  * @author 84215
  */
+@sun.misc.Contended
 public class ServletFilterChain implements FilterChain {
 
     /**
@@ -26,7 +30,7 @@ public class ServletFilterChain implements FilterChain {
     public static Map<Filter,AtomicLong> FILTER_TIME_MAP = new ConcurrentHashMap<>();
     public static AtomicLong SERVLET_TIME = new AtomicLong();
     public static AtomicLong FILTER_TIME = new AtomicLong();
-    long begin = System.currentTimeMillis();
+    private long begin = System.currentTimeMillis();
 
     ServletFilterChain(ServletContext servletContext, Servlet servlet, List<Filter> filterList){
         this.servletContext = servletContext;

@@ -10,10 +10,13 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
+ * servlet 输入流
  *
+ * 频繁更改, 需要cpu对齐. 防止伪共享, 需设置 : -XX:-RestrictContended
  * @author acer01
  *  2018/7/15/015
  */
+@sun.misc.Contended
 public class ServletInputStream extends javax.servlet.ServletInputStream implements Wrapper<ByteBuf> {
 
     private AtomicBoolean closed = new AtomicBoolean(false); //输入流是否已经关闭，保证线程安全

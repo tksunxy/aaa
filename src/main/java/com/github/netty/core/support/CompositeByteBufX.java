@@ -2,11 +2,19 @@ package com.github.netty.core.support;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.CompositeByteBuf;
 
 /**
  * Created by acer01 on 2018/8/11/011.
  */
-public class CompositeByteBufX extends io.netty.buffer.CompositeByteBuf {
+public class CompositeByteBufX extends CompositeByteBuf {
+
+    /**
+     * 常用最大字节数 4096 * 6 = 24576字节
+     */
+    public CompositeByteBufX() {
+        super(ByteBufAllocatorX.INSTANCE, true, 6);
+    }
 
     public CompositeByteBufX(boolean direct, int maxNumComponents) {
         super(ByteBufAllocatorX.INSTANCE, direct, maxNumComponents);

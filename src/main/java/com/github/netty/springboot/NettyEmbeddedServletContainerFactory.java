@@ -1,10 +1,10 @@
 package com.github.netty.springboot;
 
 import com.github.netty.ContainerConfig;
-import com.github.netty.core.support.MimeMappingsX;
+import com.github.netty.servlet.support.MimeMappingsX;
 import com.github.netty.servlet.*;
-import com.github.netty.session.service.CompositeSessionServiceImpl;
-import com.github.netty.session.service.SessionService;
+import com.github.netty.session.CompositeSessionServiceImpl;
+import com.github.netty.session.SessionService;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import org.springframework.boot.context.embedded.*;
 import org.springframework.boot.web.servlet.ServletContextInitializer;

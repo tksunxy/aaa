@@ -1,7 +1,6 @@
-package com.github.netty.session.service;
+package com.github.netty.session;
 
 import com.github.netty.rpc.RpcInterface;
-import com.github.netty.session.Session;
 
 import java.util.List;
 

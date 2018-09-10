@@ -1,9 +1,8 @@
-package com.github.netty.session.service;
+package com.github.netty.session;
 
 import com.github.netty.core.support.LoggerFactoryX;
 import com.github.netty.core.support.LoggerX;
 import com.github.netty.core.util.NamespaceUtil;
-import com.github.netty.session.Session;
 
 import java.util.List;
 import java.util.Map;

@@ -8,6 +8,9 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 
 /**
  * 回收
+ *
+ * 因为回收对象会频繁修改或清空内容, 建议加注解 @sun.misc.Contended.防止出现伪共享,刷新其他线程缓存, 该注解需设置 : -XX:-RestrictContended
+ *
  * @author 84215
  */
 public abstract class AbstractRecycler<T>   {

@@ -1,5 +1,6 @@
 package com.github.netty.servlet;
 
+import com.github.netty.ContainerConfig;
 import com.github.netty.core.NettyHttpCookie;
 import com.github.netty.core.NettyHttpRequest;
 import com.github.netty.core.NettyHttpResponse;
@@ -12,7 +13,6 @@ import com.github.netty.core.util.*;
 import com.github.netty.servlet.support.HttpServletObject;
 import com.github.netty.servlet.util.ServletUtil;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -36,19 +36,26 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @sun.misc.Contended
 public class ServletOutputStream extends javax.servlet.ServletOutputStream {
 
-    //是否已经调用close()方法关闭输出流
     private AtomicBoolean closed = new AtomicBoolean(false);
     private WriteListener writeListener;
     private HttpServletObject httpServletObject;
     private CompositeByteBufX content;
+    private ContainerConfig config;
 
-    ServletOutputStream() {
-    }
+    ServletOutputStream() {}
 
-    public void setOutputTarget(HttpServletObject httpServletObject, CompositeByteBufX content) {
-        this.httpServletObject = httpServletObject;
-        this.content = content;
-        this.closed.set(false);
+    public void resetOutputTarget(HttpServletObject httpServletObject) {
+        if(httpServletObject == null){
+            this.httpServletObject = null;
+            this.config = null;
+            this.content = null;
+            this.closed.set(true);
+        }else {
+            this.httpServletObject = httpServletObject;
+            this.config = httpServletObject.getConfig();
+            this.content = new CompositeByteBufX();
+            this.closed.set(false);
+        }
     }
 
     @Override
@@ -72,8 +79,17 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream {
         if(len == 0){
             return;
         }
-        ByteBuf byteBuf = Unpooled.wrappedBuffer(b,off,len);
-        content.addComponent(byteBuf);
+
+        int maxHeapByteLength = config.getResponseWriterChunkMaxHeapByteLength();
+        ByteBuf ioByteBuf;
+        if(len > maxHeapByteLength){
+            ioByteBuf = content.alloc().directBuffer(len);
+        }else {
+            ioByteBuf = content.alloc().heapBuffer(len);
+        }
+
+        ioByteBuf.writeBytes(b,off,len);
+        content.addComponent(ioByteBuf);
     }
 
     @Override
@@ -92,10 +108,6 @@ public class ServletOutputStream extends javax.servlet.ServletOutputStream {
     @Override
     public void flush() throws IOException {
         checkClosed();
-    }
-
-    public int getContentLength(){
-        return content.capacity();
     }
 
     @Override

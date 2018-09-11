@@ -13,7 +13,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * servlet会话
  *
  * 频繁更改, 需要cpu对齐. 防止伪共享, 需设置 : -XX:-RestrictContended
- * Created by acer01 on 2018/7/15/015.
+ *
+ * @author acer01
+ *  2018/7/15/015
  */
 @sun.misc.Contended
 public class ServletHttpSession implements HttpSession,Wrapper<Session>{
@@ -33,12 +35,24 @@ public class ServletHttpSession implements HttpSession,Wrapper<Session>{
     private List<HttpSessionBindingListener> httpSessionBindingListenerList;
 
     private Session source;
+    /**
+     * servlet身份
+     */
+    private ServletPrincipal principal;
 
     ServletHttpSession() {
     }
 
     ServletHttpSession(ServletContext servletContext) {
         this.servletContext = servletContext;
+    }
+
+    public ServletPrincipal getPrincipal() {
+        return principal;
+    }
+
+    public void setPrincipal(ServletPrincipal principal) {
+        this.principal = principal;
     }
 
     public void setServletContext(ServletContext servletContext) {
@@ -192,12 +206,14 @@ public class ServletHttpSession implements HttpSession,Wrapper<Session>{
 
     @Override
     public void invalidate() {
-        ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
-        if(listenerManager.hasHttpSessionListener()){
-            listenerManager.onHttpSessionDestroyed(new HttpSessionEvent(this));
+        if(servletContext != null) {
+            ServletEventListenerManager listenerManager = servletContext.getServletEventListenerManager();
+            if (listenerManager.hasHttpSessionListener()) {
+                listenerManager.onHttpSessionDestroyed(new HttpSessionEvent(this));
+            }
+            servletContext.getSessionService().removeSession(id);
         }
 
-//        servletContext.getSessionClient().remove(id);
         if(attributeMap != null) {
             attributeMap.clear();
             attributeMap = null;
@@ -283,7 +299,12 @@ public class ServletHttpSession implements HttpSession,Wrapper<Session>{
         this.maxInactiveInterval = 0;
         this.accessCount = null;
         this.source = null;
+        this.principal = null;
     }
 
+    @Override
+    public String toString() {
+        return "ServletHttpSession[" + id + ']';
+    }
 
 }

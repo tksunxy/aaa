@@ -11,7 +11,7 @@ public class HttpConstants {
 
     public static final int SESSION_ID_SOURCE_COOKIE = 1;
     public static final int SESSION_ID_SOURCE_URL = 2;
-    public static final int SESSION_ID_SOURCE_NOT_FOUND_CREATE = 3;
+    public static final int SESSION_ID_SOURCE_UNKNOWN = 3;
     public static final String JSESSION_ID_COOKIE = "JSESSIONID";
     public static final String JSESSION_ID_URL = "jsessionid";
 

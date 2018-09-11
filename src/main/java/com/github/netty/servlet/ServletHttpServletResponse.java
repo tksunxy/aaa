@@ -4,7 +4,6 @@ import com.github.netty.core.NettyHttpResponse;
 import com.github.netty.core.constants.HttpConstants;
 import com.github.netty.core.constants.HttpHeaderConstants;
 import com.github.netty.core.support.AbstractRecycler;
-import com.github.netty.core.support.CompositeByteBufX;
 import com.github.netty.core.support.Recyclable;
 import com.github.netty.core.util.HttpHeaderUtil;
 import com.github.netty.core.util.TodoOptimize;
@@ -47,18 +46,18 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
     private boolean commit = false;
     private ServletOutputStream outputStream = new ServletOutputStream();
 
-    protected ServletHttpServletResponse() {}
+    protected ServletHttpServletResponse() {
+    }
 
     public static ServletHttpServletResponse newInstance(HttpServletObject httpServletObject) {
         Objects.requireNonNull(httpServletObject);
 
         ServletHttpServletResponse instance = RECYCLER.get();
 
-        //Netty自带的http响应对象，初始化为200
-        CompositeByteBufX content = new CompositeByteBufX();
         instance.nettyResponse = NettyHttpResponse.newInstance();
         instance.httpServletObject = httpServletObject;
-        instance.outputStream.setOutputTarget(httpServletObject,content);
+
+        instance.outputStream.resetOutputTarget(httpServletObject);
         return instance;
     }
 
@@ -317,10 +316,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
     @Override
     public void setContentLengthLong(long len) {
         HttpHeaderUtil.setContentLength(nettyResponse, len);
-
-        if(len > 0 && outputStream.getContentLength() > 0){
-            commit = true;
-        }
+        commit = true;
     }
 
     @Override
@@ -410,7 +406,7 @@ public class ServletHttpServletResponse implements javax.servlet.http.HttpServle
                 httpServletObject.getServletContext().getSessionService().saveSession(httpSession.unwrap());
             }
 
-            closeTarget.outputStream.setOutputTarget(null,null);
+            closeTarget.outputStream.resetOutputTarget(null);
             closeTarget.httpServletObject = null;
             closeTarget.nettyResponse = null;
             closeTarget.writer = null;

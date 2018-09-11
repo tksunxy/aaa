@@ -5,15 +5,18 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
 
 /**
- * Created by acer01 on 2018/8/11/011.
+ * 组合字节缓冲
+ *
+ * @author acer01
+ *  2018/8/11/011
  */
 public class CompositeByteBufX extends CompositeByteBuf {
 
     /**
-     * 常用最大字节数 4096 * 6 = 24576字节
+     * 常用最大字节数 4096 * 32 = 128 KB
      */
     public CompositeByteBufX() {
-        super(ByteBufAllocatorX.INSTANCE, true, 6);
+        super(ByteBufAllocatorX.INSTANCE, true, 32);
     }
 
     public CompositeByteBufX(boolean direct, int maxNumComponents) {

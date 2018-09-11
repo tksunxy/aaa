@@ -154,6 +154,19 @@ public class ContainerConfig implements Serializable{
      */
     private InetSocketAddress sessionRemoteServerAddress;
 
+    /**
+     * 每次调用servlet的 OutputStream.Writer()方法写入的最大堆字节,超出后用堆外内存
+     */
+    private int responseWriterChunkMaxHeapByteLength = 4096;
+
+
+    public int getResponseWriterChunkMaxHeapByteLength() {
+        return responseWriterChunkMaxHeapByteLength;
+    }
+
+    public void setResponseWriterChunkMaxHeapByteLength(int responseWriterChunkMaxHeapByteLength) {
+        this.responseWriterChunkMaxHeapByteLength = responseWriterChunkMaxHeapByteLength;
+    }
 
     public int getClientWorkerCount() {
         return clientWorkerCount;

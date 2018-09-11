@@ -56,6 +56,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     private HttpHeaders nettyHeaders;
     private ServletAsyncContext asyncContext;
 
+    private String protocol;
     private String scheme;
     private String servletPath;
     private String queryString;
@@ -70,14 +71,11 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     private boolean decodeParameterByUrlFlag = false;
     private boolean decodeParameterByBodyFlag = false;
 
-//    private ServletHttpSession httpSession = new ServletHttpSession();
     private ServletInputStream inputStream = new ServletInputStream();
     private Map<String,Object> attributeMap = new ConcurrentHashMap<>(16);
     private Map<String,String[]> parameterMap;
     private Cookie[] cookies;
-    private Locale locale;
-
-    private final Object SYNC_SESSION_LOCK = new Object();
+    private Locale[] locales;
 
     protected ServletHttpServletRequest() {}
 
@@ -109,6 +107,36 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         return decodeParameterByBodyFlag || decodeParameterByUrlFlag;
     }
 
+    /**
+     * 解析地区
+     */
+    private void decodeLocale(){
+        Locale[] locales;
+        String headerValue = getHeader(HttpHeaderConstants.ACCEPT_LANGUAGE.toString());
+        if(headerValue == null){
+            locales = new Locale[]{Locale.getDefault()};
+        }else {
+            String[] values = headerValue.split(HttpConstants.SP);
+            int length = values.length;
+            locales = new Locale[length];
+            for(int i=0; i< length; i++){
+                String value = values[i];
+                String[] valueSp = value.split(";");
+                Locale locale;
+                if(valueSp.length > 0) {
+                    locale = new Locale(valueSp[0]);
+                }else {
+                    locale = new Locale(value);
+                }
+                locales[i] = locale;
+            }
+        }
+        this.locales = locales;
+    }
+
+    /**
+     * 解析编码
+     */
     private void decodeCharacterEncoding() {
         String characterEncoding = ServletUtil.decodeCharacterEncoding(getContentType());
         if (characterEncoding == null) {
@@ -152,6 +180,9 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         this.parameterMap = parameterMap;
     }
 
+    /**
+     * 解析cookie
+     */
     private void decodeCookie(){
         Object value = getHeader(HttpHeaderConstants.COOKIE.toString());
         if (value == null) {
@@ -161,6 +192,9 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         this.decodeCookieFlag = true;
     }
 
+    /**
+     * 解析路径
+     */
     @TodoOptimize("加上pathInfo")
     private void decodePaths(){
         ServletContext servletContext = getServletContext();
@@ -178,10 +212,13 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
         // 1.加上pathInfo
         this.pathInfo = null;
-
         this.decodePathsFlag = true;
     }
 
+    /**
+     * 新建会话ID
+     * @return
+     */
     private String newSessionId(){
         return UUID.randomUUID().toString().replace("-","");
     }
@@ -385,39 +422,39 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public ServletHttpSession getSession(boolean create) {
-        synchronized (SYNC_SESSION_LOCK) {
-            ServletHttpSession httpSession = httpServletObject.getHttpSessionChannel();
-            if (httpSession != null && httpSession.isValid()) {
-                return httpSession;
-            }
-
-            if (!create) {
-                return null;
-            }
-
-            String sessionId = getRequestedSessionId();
-            ServletContext servletContext = getServletContext();
-            SessionService sessionService = servletContext.getSessionService();
-            Session session = sessionService.getSession(sessionId);
-            boolean newSessionFlag = session == null;
-
-            if (newSessionFlag) {
-                long currTime = System.currentTimeMillis();
-                session = new Session(sessionId);
-                session.setCreationTime(currTime);
-                session.setLastAccessedTime(currTime);
-                session.setMaxInactiveInterval(servletContext.getSessionTimeout());
-            }
-
-            if (httpSession == null) {
-                httpSession = new ServletHttpSession(servletContext);
-            }
-            httpSession.wrap(session);
-            httpSession.access();
-            httpSession.setNewSessionFlag(newSessionFlag);
-            httpServletObject.setHttpSessionChannel(httpSession);
+        ServletHttpSession httpSession = httpServletObject.getHttpSessionChannel();
+        if (httpSession != null && httpSession.isValid()) {
             return httpSession;
         }
+
+        if (!create) {
+            return null;
+        }
+
+        String sessionId = getRequestedSessionId();
+        ServletContext servletContext = getServletContext();
+        SessionService sessionService = servletContext.getSessionService();
+        Session session = sessionService.getSession(sessionId);
+        boolean newSessionFlag = session == null;
+
+        if (newSessionFlag) {
+            long currTime = System.currentTimeMillis();
+            session = new Session(sessionId);
+            session.setCreationTime(currTime);
+            session.setLastAccessedTime(currTime);
+            session.setMaxInactiveInterval(servletContext.getSessionTimeout());
+        }
+
+        if (httpSession == null) {
+            httpSession = new ServletHttpSession(servletContext);
+        }else {
+            httpSession.setServletContext(servletContext);
+        }
+        httpSession.wrap(session);
+        httpSession.access();
+        httpSession.setNewSessionFlag(newSessionFlag);
+        httpServletObject.setHttpSessionChannel(httpSession);
+        return httpSession;
     }
 
     @Override
@@ -476,10 +513,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
         //如果用户设置了sessionCookie名称, 则以用户设置的为准
         String userSettingCookieName = getServletContext().getSessionCookieConfig().getName();
-        boolean isSettingCookieName = StringUtil.isEmpty(userSettingCookieName);
-        String urlSessionName = isSettingCookieName? userSettingCookieName : HttpConstants.JSESSION_ID_URL;
-        String cookieSessionName = isSettingCookieName? userSettingCookieName : HttpConstants.JSESSION_ID_COOKIE;
-
+        String cookieSessionName = StringUtil.isNotEmpty(userSettingCookieName)? userSettingCookieName : HttpConstants.JSESSION_ID_COOKIE;
 
         //寻找sessionCookie的值, 优先从cookie里找, 找不到再从url参数头上找
         String sessionId = ServletUtil.getCookieValue(getCookies(),cookieSessionName);
@@ -487,12 +521,12 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
             sessionIdSource = HttpConstants.SESSION_ID_SOURCE_COOKIE;
         }else {
             String queryString = getQueryString();
-            boolean isUrlCookie = queryString != null && queryString.contains(urlSessionName);
+            boolean isUrlCookie = queryString != null && queryString.contains(HttpConstants.JSESSION_ID_URL);
             if(isUrlCookie) {
                 sessionIdSource = HttpConstants.SESSION_ID_SOURCE_URL;
-                sessionId = getParameter(urlSessionName);
+                sessionId = getParameter(HttpConstants.JSESSION_ID_URL);
             }else {
-                sessionIdSource = HttpConstants.SESSION_ID_SOURCE_NOT_FOUND_CREATE;
+                sessionIdSource = HttpConstants.SESSION_ID_SOURCE_UNKNOWN;
                 sessionId = newSessionId();
             }
         }
@@ -561,12 +595,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String[] getParameterValues(String name) {
-        Collection<String[]> collection = getParameterMap().values();
-        List<String> list = new LinkedList<>();
-        for(String[] arr : collection){
-            Collections.addAll(list, arr);
-        }
-        return list.toArray(new String[list.size()]);
+        return getParameterMap().get(name);
     }
 
     @Override
@@ -579,7 +608,10 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public String getProtocol() {
-        return nettyRequest.protocolVersion().toString();
+        if(protocol == null) {
+            protocol = nettyRequest.protocolVersion().toString();
+        }
+        return protocol;
     }
 
     @Override
@@ -674,27 +706,24 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
 
     @Override
     public Locale getLocale() {
-        if(locale != null){
-            return locale;
+        if(this.locales == null){
+            decodeLocale();
         }
 
-        Locale locale;
-        String value = getHeader(HttpHeaderConstants.ACCEPT_LANGUAGE.toString());
-        if(value == null){
-            locale = Locale.getDefault();
-        }else {
-            String[] values = value.split(HttpConstants.SP);
-            String localeStr = values[0];
-            locale = new Locale(localeStr);
+        Locale[] locales = this.locales;
+        if(locales == null || locales.length == 0) {
+            return null;
         }
-
-        this.locale = locale;
-        return locale;
+        return locales[0];
     }
 
     @Override
     public Enumeration<Locale> getLocales() {
-        return Collections.enumeration(Collections.singletonList(getLocale()));
+        if(this.locales == null){
+            decodeLocale();
+        }
+
+        return Collections.enumeration(Arrays.asList(locales));
     }
 
     @Override
@@ -791,22 +820,24 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     }
 
     @Override
-    public Principal getUserPrincipal() {
-        return null;
-    }
-
-    @Override
     public boolean authenticate(javax.servlet.http.HttpServletResponse response) throws IOException, ServletException {
         return false;
     }
 
     @Override
+    public Principal getUserPrincipal() {
+        return getSession().getPrincipal();
+    }
+
+    @Override
     public void login(String username, String password) throws ServletException {
+        ServletPrincipal principal = new ServletPrincipal(username,password);
+        getSession().setPrincipal(principal);
     }
 
     @Override
     public void logout() throws ServletException {
-
+        getSession().setPrincipal(null);
     }
 
     @Override
@@ -820,8 +851,14 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
     }
 
     @Override
-    public <T extends HttpUpgradeHandler> T upgrade(Class<T> handlerClass) throws IOException, ServletException {
-        return null;
+    public <T extends HttpUpgradeHandler> T upgrade(Class<T> httpUpgradeHandlerClass) throws IOException, ServletException {
+        try {
+            T handler = httpUpgradeHandlerClass.newInstance();
+            handler.init(new ServletWebConnection(httpServletObject));
+            return handler;
+        } catch (Exception e) {
+            throw new ServletException(e.getMessage(),e);
+        }
     }
 
     @Override
@@ -841,6 +878,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         this.decodeCookieFlag = false;
         this.decodePathsFlag = false;
         this.sessionIdSource = 0;
+        this.protocol = null;
         this.scheme = null;
         this.servletPath = null;
         this.queryString = null;
@@ -850,7 +888,7 @@ public class ServletHttpServletRequest implements javax.servlet.http.HttpServlet
         this.sessionId = null;
         this.parameterMap = null;
         this.cookies = null;
-        this.locale = null;
+        this.locales = null;
         this.asyncContext = null;
         this.nettyRequest = null;
         this.nettyHeaders = null;

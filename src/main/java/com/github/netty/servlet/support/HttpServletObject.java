@@ -1,5 +1,6 @@
 package com.github.netty.servlet.support;
 
+import com.github.netty.ContainerConfig;
 import com.github.netty.core.NettyHttpRequest;
 import com.github.netty.core.support.AbstractRecycler;
 import com.github.netty.core.support.Recyclable;
@@ -9,6 +10,7 @@ import com.github.netty.servlet.ServletHttpServletResponse;
 import com.github.netty.servlet.ServletHttpSession;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
 
 import java.net.InetSocketAddress;
@@ -33,13 +35,15 @@ public class HttpServletObject implements Recyclable{
     private ServletHttpServletResponse httpServletResponse;
     private ChannelHandlerContext channelHandlerContext;
     private ServletContext servletContext;
+    private ContainerConfig config;
 
     private HttpServletObject() {
     }
 
-    public static HttpServletObject newInstance(ServletContext servletContext, ChannelHandlerContext context, FullHttpRequest fullHttpRequest) {
+    public static HttpServletObject newInstance(ServletContext servletContext, ContainerConfig config, ChannelHandlerContext context, FullHttpRequest fullHttpRequest) {
         HttpServletObject instance = RECYCLER.get();
         instance.servletContext = servletContext;
+        instance.config = config;
         instance.channelHandlerContext = context;
         instance.httpServletRequest = newHttpServletRequest(instance,fullHttpRequest);
         instance.httpServletResponse = newHttpServletResponse(instance);
@@ -72,7 +76,13 @@ public class HttpServletObject implements Recyclable{
      * @return
      */
     public ServletHttpSession getHttpSessionChannel(){
-        return channelHandlerContext.channel().attr(CHANNEL_ATTR_KEY_SESSION).get();
+        if(isChannelActive()) {
+            Attribute<ServletHttpSession> attribute = channelHandlerContext.channel().attr(CHANNEL_ATTR_KEY_SESSION);
+            if(attribute != null){
+                return attribute.get();
+            }
+        }
+        return null;
     }
 
     /**
@@ -80,7 +90,20 @@ public class HttpServletObject implements Recyclable{
      * @param httpSession
      */
     public void setHttpSessionChannel(ServletHttpSession httpSession){
-        channelHandlerContext.channel().attr(CHANNEL_ATTR_KEY_SESSION).set(httpSession);
+        if(isChannelActive()) {
+            channelHandlerContext.channel().attr(CHANNEL_ATTR_KEY_SESSION).set(httpSession);
+        }
+    }
+
+    /**
+     * 管道是否处于活动状态
+     * @return
+     */
+    public boolean isChannelActive(){
+        if(channelHandlerContext != null && channelHandlerContext.channel() != null && channelHandlerContext.channel().isActive()) {
+            return true;
+        }
+        return false;
     }
 
     public ServletHttpServletRequest getHttpServletRequest() {
@@ -123,6 +146,10 @@ public class HttpServletObject implements Recyclable{
             return (InetSocketAddress) socketAddress;
         }
         return null;
+    }
+
+    public ContainerConfig getConfig() {
+        return config;
     }
 
     /**

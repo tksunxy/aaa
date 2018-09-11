@@ -106,7 +106,7 @@ public class NettyEmbeddedServletContainer implements EmbeddedServletContainer {
         @Override
         protected ChannelInitializer<? extends Channel> newInitializerChannelHandler() {
             return new ChannelInitializer<SocketChannel>() {
-                private ChannelHandler servletHandler = new NettyServletHandler(servletContext,config.getServerHandlerExecutor());
+                private ChannelHandler servletHandler = new NettyServletHandler(servletContext,config);
 
                 @Override
                 protected void initChannel(SocketChannel ch) throws Exception {

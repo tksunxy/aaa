@@ -1,5 +1,6 @@
 package com.github.netty.springboot;
 
+import com.github.netty.ContainerConfig;
 import com.github.netty.core.AbstractChannelHandler;
 import com.github.netty.core.constants.CoreConstants;
 import com.github.netty.core.support.AbstractRecycler;
@@ -34,14 +35,16 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
 
     private Executor dispatcherExecutor;
     private ServletContext servletContext;
+    private ContainerConfig config;
 
     public static AtomicLong SERVLET_AND_FILTER_TIME = new AtomicLong();
     public static AtomicLong SERVLET_QUERY_COUNT = new AtomicLong();
 
-    public NettyServletHandler(ServletContext servletContext,Executor executor) {
+    public NettyServletHandler(ServletContext servletContext,ContainerConfig config) {
         super(false);
         this.servletContext = Objects.requireNonNull(servletContext);
-        this.dispatcherExecutor = executor;
+        this.config = Objects.requireNonNull(config);
+        this.dispatcherExecutor = config.getServerHandlerExecutor();
     }
 
     @Override
@@ -52,6 +55,7 @@ public class NettyServletHandler extends AbstractChannelHandler<FullHttpRequest>
         }else {
             HttpServletObject httpServletObject = HttpServletObject.newInstance(
                     servletContext,
+                    config,
                     ByteBufAllocatorX.forceDirectAllocator(context),
                     fullHttpRequest);
             task = ServletTask.newInstance(httpServletObject);

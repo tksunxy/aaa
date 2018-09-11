@@ -1,5 +1,7 @@
 package com.github.netty;
 
+import com.github.netty.core.support.ApplicationX;
+
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executor;
@@ -159,6 +161,18 @@ public class ContainerConfig implements Serializable{
      */
     private int responseWriterChunkMaxHeapByteLength = 4096;
 
+    /**
+     * 全局对象
+     */
+    private ApplicationX application = new ApplicationX();
+
+    public ApplicationX getApplication() {
+        return application;
+    }
+
+    public void setApplication(ApplicationX application) {
+        this.application = application;
+    }
 
     public int getResponseWriterChunkMaxHeapByteLength() {
         return responseWriterChunkMaxHeapByteLength;

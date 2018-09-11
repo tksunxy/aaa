@@ -44,4 +44,9 @@ public interface SessionService {
      */
     void changeSessionId(String oldSessionId,String newSessionId);
 
+    /**
+     * 获取数量
+     */
+    int count();
+
 }

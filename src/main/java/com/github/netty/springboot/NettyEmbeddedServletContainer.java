@@ -2,6 +2,7 @@ package com.github.netty.springboot;
 
 import com.github.netty.ContainerConfig;
 import com.github.netty.core.AbstractNettyServer;
+import com.github.netty.core.support.ApplicationX;
 import com.github.netty.core.support.NettyThreadX;
 import com.github.netty.core.util.TodoOptimize;
 import com.github.netty.servlet.ServletContext;
@@ -17,10 +18,15 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.embedded.EmbeddedServletContainer;
 import org.springframework.boot.context.embedded.EmbeddedServletContainerException;
 import org.springframework.boot.context.embedded.Ssl;
+import org.springframework.context.ApplicationContext;
+import org.springframework.web.context.WebApplicationContext;
+import org.springframework.web.context.support.WebApplicationContextUtils;
 
+import javax.annotation.Resource;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
 import javax.servlet.Filter;
@@ -41,7 +47,7 @@ public class NettyEmbeddedServletContainer implements EmbeddedServletContainer {
     private final ServletContext servletContext;
 
     private ServletServer servletServer;
-
+    ApplicationContext applicationContext;
     /**
      * 服务器地址
      */
@@ -50,6 +56,8 @@ public class NettyEmbeddedServletContainer implements EmbeddedServletContainer {
     private ContainerConfig config;
 
     public NettyEmbeddedServletContainer(ServletContext servletContext,Ssl ssl,ContainerConfig config) throws SSLException {
+
+
         this.servletContext = servletContext;
         this.servletServerAddress = servletContext.getServletServerAddress();
         this.config = config;
@@ -64,6 +72,26 @@ public class NettyEmbeddedServletContainer implements EmbeddedServletContainer {
         }
 
         servletServer.start();
+        injectToSpringApplication();
+    }
+
+    /**
+     * 注入到spring对象里
+     */
+    private void injectToSpringApplication(){
+        ApplicationX application = config.getApplication();
+        application.addInjectAnnotation(Autowired.class, Resource.class);
+        application.addInstance(servletContext.getSessionService());
+        application.addInstance(servletContext);
+        application.addInstance(config);
+        WebApplicationContext springApplication = WebApplicationContextUtils.getRequiredWebApplicationContext(servletContext);
+        String[] beans = springApplication.getBeanDefinitionNames();
+        for (String beanName : beans) {
+            Object bean = springApplication.getBean(beanName);
+            application.addInstance(bean,false);
+        }
+
+        application.scanner("com.github.netty").inject();
     }
 
     @Override

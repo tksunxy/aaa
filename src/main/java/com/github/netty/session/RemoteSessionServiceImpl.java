@@ -30,6 +30,8 @@ public class RemoteSessionServiceImpl implements SessionService {
     private ContainerConfig config;
     private InetSocketAddress address;
 
+    private static final String SESSION_GROUP = "/session";
+
     private FastThreadLocal<RpcClient> rpcClientThreadLocal = new FastThreadLocal<RpcClient>(){
         @Override
         protected RpcClient initialValue() throws Exception {
@@ -60,9 +62,9 @@ public class RemoteSessionServiceImpl implements SessionService {
                 @Override
                 public void run() {
                     if (expireSecond > 0) {
-                        getRpcDBService().put(session.getId(), bytes, (int) expireSecond);
+                        getRpcDBService().put(session.getId(), bytes, (int) expireSecond,SESSION_GROUP);
                     } else {
-                        getRpcDBService().remove(session.getId());
+                        getRpcDBService().remove(session.getId(),SESSION_GROUP);
                     }
                 };
             });
@@ -71,20 +73,20 @@ public class RemoteSessionServiceImpl implements SessionService {
 
 
         if (expireSecond > 0) {
-            getRpcDBService().put(session.getId(), bytes, (int) expireSecond);
+            getRpcDBService().put(session.getId(), bytes, (int) expireSecond,SESSION_GROUP);
         } else {
-            getRpcDBService().remove(session.getId());
+            getRpcDBService().remove(session.getId(),SESSION_GROUP);
         }
     }
 
     @Override
     public void removeSession(String sessionId) {
-        getRpcDBService().remove(sessionId);
+        getRpcDBService().remove(sessionId,SESSION_GROUP);
     }
 
     @Override
     public void removeSessionBatch(List<String> sessionIdList) {
-        getRpcDBService().remove(sessionIdList);
+        getRpcDBService().removeBatch(sessionIdList,SESSION_GROUP);
     }
 
     @Override
@@ -93,21 +95,26 @@ public class RemoteSessionServiceImpl implements SessionService {
             return CoreConstants.holdExecute(new Supplier<Session>() {
                 @Override
                 public Session get() {
-                    byte[] bytes = getRpcDBService().get(sessionId);
+                    byte[] bytes = getRpcDBService().get(sessionId,SESSION_GROUP);
                     Session session = decode(bytes);
                     return session;
                 }
             });
         }
 
-        byte[] bytes = getRpcDBService().get(sessionId);
+        byte[] bytes = getRpcDBService().get(sessionId,SESSION_GROUP);
         Session session = decode(bytes);
         return session;
     }
 
     @Override
     public void changeSessionId(String oldSessionId, String newSessionId) {
-        getRpcDBService().changeKey(oldSessionId,newSessionId);;
+        getRpcDBService().changeKey(oldSessionId,newSessionId,SESSION_GROUP);;
+    }
+
+    @Override
+    public int count() {
+        return getRpcDBService().count(SESSION_GROUP);
     }
 
 

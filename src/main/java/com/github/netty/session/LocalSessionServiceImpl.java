@@ -77,6 +77,11 @@ public class LocalSessionServiceImpl implements SessionService {
     }
 
     @Override
+    public int count() {
+        return sessionMap.size();
+    }
+
+    @Override
     public String toString() {
         return name;
     }

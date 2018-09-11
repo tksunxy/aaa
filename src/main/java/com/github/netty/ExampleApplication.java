@@ -1,6 +1,8 @@
 package com.github.netty;
 
+import com.github.netty.core.support.ApplicationX;
 import com.github.netty.core.support.ThreadPoolX;
+import com.github.netty.session.SessionService;
 import com.github.netty.springboot.NettyEmbeddedServletContainerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -27,6 +29,14 @@ import java.util.concurrent.TimeUnit;
 @SpringBootApplication
 public class ExampleApplication{
 
+    /**
+     * 该方法实现自动注入
+     */
+    @ApplicationX.Resource
+    private SessionService sessionService;
+    @ApplicationX.Resource
+    private ApplicationX applicationX;
+
     @Bean
     NettyEmbeddedServletContainerFactory nettyEmbeddedServletContainerFactory(){
         ContainerConfig config = new ContainerConfig();
@@ -44,7 +54,8 @@ public class ExampleApplication{
     public Object hello(@RequestParam Map query, @RequestBody(required = false) Map body, HttpSession session,
                         HttpServletRequest request, HttpServletResponse response, Principal principal) throws IOException {
 //        response.sendRedirect("http://www.baidu.com");
-        return "测试返回数据1";
+        int count = sessionService.count();
+        return "测试返回数据1, session数量" + count;
     }
 
 }

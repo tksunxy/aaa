@@ -13,58 +13,113 @@ public class RpcDBServiceImpl implements RpcDBService {
 
     private LoggerX logger = LoggerFactoryX.getLogger(getClass());
 
-    private ExpiryMap<String,byte[]> memExpiryMap = new ExpiryMap<>(-1);
+    private final Map<String,ExpiryMap<String,byte[]>> memExpiryGroupMap = new HashMap<>(16);
+
+    private static final String SHARING_GROUP = "/sharing";
 
     @Override
-    public boolean exist(String key) {
-        return memExpiryMap.containsKey(key);
+    public boolean exist(String key, String group) {
+        return getMemExpiryMap(group).containsKey(key);
     }
 
     @Override
     public void put(String key, byte[] data) {
-        memExpiryMap.put(key,data);
+        put(key,data, -1, SHARING_GROUP);
     }
 
     @Override
     public void put(String key, byte[] data, int expireSecond) {
+        put(key,data,expireSecond,SHARING_GROUP);
+    }
+
+    @Override
+    public void put(String key, byte[] data, int expireSecond, String group) {
         logger.info("保存数据 : key="+key);
-        memExpiryMap.put(key,data,expireSecond);
+        getMemExpiryMap(group).put(key,data,expireSecond);
+    }
+
+    @Override
+    public int count(String group) {
+        Map map = memExpiryGroupMap.get(group);
+        if(map == null){
+            return 0;
+        }
+        return map.size();
+    }
+
+    @Override
+    public boolean exist(String key) {
+        return exist(key,SHARING_GROUP);
     }
 
     @Override
     public byte[] get(String key) {
-        return memExpiryMap.get(key);
+        return get(key,SHARING_GROUP);
+    }
+
+    @Override
+    public byte[] get(String key,String group) {
+        return getMemExpiryMap(group).get(key);
     }
 
     @Override
     public void changeKey(String oldKey, String newKey) {
-        memExpiryMap.changeKey(oldKey,newKey);
+        changeKey(oldKey,newKey,SHARING_GROUP);
+    }
+
+    @Override
+    public void changeKey(String oldKey, String newKey,String group) {
+        getMemExpiryMap(group).changeKey(oldKey,newKey);
     }
 
     @Override
     public void remove(String key) {
-        memExpiryMap.remove(key);
+        remove(key,SHARING_GROUP);
     }
 
     @Override
-    public void remove(List<String> keys) {
+    public void remove(String key, String group) {
+        getMemExpiryMap(group).remove(key);
+    }
+
+    @Override
+    public void removeBatch(List<String> keys) {
+        removeBatch(keys,SHARING_GROUP);
+    }
+
+    @Override
+    public void removeBatch(List<String> keys, String group) {
         if(keys == null || keys.isEmpty()){
             return;
         }
 
+        ExpiryMap<String, byte[]> map = getMemExpiryMap(group);
         if(keys instanceof RandomAccess) {
             int size = keys.size();
             for (int i=0; i<size; i++){
                 String key = keys.get(i);
-                memExpiryMap.remove(key);
+                map.remove(key);
             }
         }else {
             for (String key : keys) {
-                memExpiryMap.remove(key);
+                map.remove(key);
             }
         }
     }
 
+    private ExpiryMap<String, byte[]> getMemExpiryMap(String group) {
+        ExpiryMap<String,byte[]> memExpiryMap = memExpiryGroupMap.get(group);
+        if(memExpiryMap == null){
+            synchronized (memExpiryGroupMap) {
+                memExpiryMap = memExpiryGroupMap.get(group);
+                if(memExpiryMap == null) {
+                    memExpiryMap = new ExpiryMap<>(-1);
+                    memExpiryGroupMap.put(group, memExpiryMap);
+                }
+            }
+        }
+        return memExpiryMap;
+    }
 
     /**
      * 定时过期Map 会自动过期删除

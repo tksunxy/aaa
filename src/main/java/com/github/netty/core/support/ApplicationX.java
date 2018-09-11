@@ -5,7 +5,9 @@ import sun.misc.Unsafe;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.lang.annotation.*;
+import java.lang.annotation.Annotation;
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.net.URL;
@@ -14,7 +16,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 
-import static java.lang.annotation.ElementType.*;
+import static java.lang.annotation.ElementType.FIELD;
+import static java.lang.annotation.ElementType.TYPE;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
@@ -26,8 +29,11 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  */
 public class ApplicationX {
 
-    private List<Class<? extends Annotation>> scannerAnnotationList = Arrays.asList(
-            Resource.class);
+    private Collection<Class<? extends Annotation>> scannerAnnotationList = new HashSet<>(
+            Arrays.asList(Resource.class));
+
+    private Collection<Class<? extends Annotation>> injectAnnotationList = new HashSet<>(
+            Arrays.asList(Resource.class));
 
     private ClassLoader loader = getClass().getClassLoader();
     private Scanner scanner = new Scanner();
@@ -52,7 +58,22 @@ public class ApplicationX {
                 .inject();
     }
 
+    public void addInjectAnnotation(Class<? extends Annotation>... classes){
+        Collections.addAll(injectAnnotationList, classes);
+    }
+
+    public void addScanAnnotation(Class<? extends Annotation>... classes){
+        Collections.addAll(scannerAnnotationList, classes);
+    }
+
     public Object addInstance(Object instance){
+        return addInstance(instance,true);
+    }
+
+    public Object addInstance(Object instance,boolean isInject){
+        if(isInject) {
+            injector.inject(instance.getClass(), instance);
+        }
         return this.context.put(instance.getClass(),instance);
     }
 
@@ -387,9 +408,19 @@ public class ApplicationX {
 //            return obj;
 //        }
 
-        private Class findType(Resource resourceAnn, Field field){
+        private Class findType(Annotation resourceAnn, Field field){
+            if(resourceAnn == null){
+                return field.getType();
+            }
+
             Class resourceType = field.getType();
-            Class resourceAnnType = resourceAnn.type();
+            Class resourceAnnType = Object.class;
+            if(resourceAnn instanceof Resource) {
+                resourceAnnType = ((Resource) resourceAnn).type();
+            }else if(resourceAnn instanceof javax.annotation.Resource){
+                resourceAnnType = ((javax.annotation.Resource) resourceAnn).type();
+            }
+
             Class type;
             if(resourceAnnType != Object.class && resourceType.isAssignableFrom(resourceAnnType)){
                 type = resourceAnnType;
@@ -399,33 +430,46 @@ public class ApplicationX {
             return type;
         }
 
-        private Object findResource(Field field, Object target){
-            Resource resourceAnn = field.getAnnotation(Resource.class);
-            if(resourceAnn != null){
-                Class type = findType(resourceAnn,field);
-                if(!isAbstract(type)) {
-                    return get(type);
+        private Annotation findAnnotation(Annotation[] annotations){
+            for(Annotation annotation : annotations){
+                Class<? extends Annotation> annotationClass = annotation.getClass();
+                for(Class<? extends Annotation> injectAnnotationClass : injectAnnotationList) {
+                    if (injectAnnotationClass == annotationClass){
+                        return annotation;
+                    }
                 }
-
-                List implList = findImpl(type);
-                for(Object impl : implList){
-                    //防止 自身要注入自身 已经实现的接口 从而发生死循环调用
-                    if(impl != target)
-                        return impl;
-                }
-                return null;
             }
+            return null;
+        }
+
+        private Object findResource(Field field, Object target){
+            Annotation annotation = findAnnotation(field.getDeclaredAnnotations());
+            Class type = findType(annotation,field);
+            if(!isAbstract(type)) {
+                return get(type);
+            }
+
+            List implList = findImpl(type);
+            for(Object impl : implList){
+                //防止 自身要注入自身 已经实现的接口 从而发生死循环调用
+                if(impl != target)
+                    return impl;
+            }
+            return null;
 
 //            RpcResource rpcResource = field.getAnnotation(RpcResource.class);
 //            if(rpcResource != null){
 //                return createRpcResource(rpcResource,field,obj);
 //            }
-            return null;
         }
 
         private void inject(Class clazz, Object target) {
             for(Class cClazz = clazz; cClazz!=Object.class; cClazz = cClazz.getSuperclass()) {
                 for (Field field : cClazz.getDeclaredFields()) {
+                    if(Modifier.isFinal(field.getModifiers())){
+                        continue;
+                    }
+
                     Object resource = findResource(field, target);
                     if (null == resource)
                         continue;
@@ -434,6 +478,12 @@ public class ApplicationX {
                         boolean isAccessible = field.isAccessible();
                         try {
                             field.setAccessible(true);
+
+                            Object oldValue = field.get(target);
+                            if(oldValue != null){
+                                continue;
+                            }
+
                             field.set(target, resource);
                         } finally {
                             field.setAccessible(isAccessible);

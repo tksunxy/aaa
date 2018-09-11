@@ -64,6 +64,11 @@ public class CompositeSessionServiceImpl implements SessionService {
         getSessionServiceImpl().changeSessionId(oldSessionId, newSessionId);
     }
 
+    @Override
+    public int count() {
+        return getSessionServiceImpl().count();
+    }
+
     private SessionService getSessionServiceImpl() {
         if(remoteSessionService != null) {
             return remoteSessionService;

@@ -16,6 +16,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.security.Principal;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -40,7 +41,7 @@ public class ExampleApplication{
     @Bean
     NettyEmbeddedServletContainerFactory nettyEmbeddedServletContainerFactory(){
         ContainerConfig config = new ContainerConfig();
-//        config.setSessionRemoteServerAddress(new InetSocketAddress("localhost",8082));
+        config.setSessionRemoteServerAddress(new InetSocketAddress("localhost",8082));
         return new NettyEmbeddedServletContainerFactory(config);
     }
 
@@ -54,7 +55,8 @@ public class ExampleApplication{
     public Object hello(@RequestParam Map query, @RequestBody(required = false) Map body, HttpSession session,
                         HttpServletRequest request, HttpServletResponse response, Principal principal) throws IOException {
 //        response.sendRedirect("http://www.baidu.com");
-        int count = sessionService.count();
+        int count = 0;
+//        count = sessionService.count();
         return "测试返回数据1, session数量" + count;
     }
 

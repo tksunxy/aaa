@@ -2,7 +2,7 @@ package com.github.netty;
 
 import com.github.netty.core.support.LoggerFactoryX;
 import com.github.netty.core.support.LoggerX;
-import com.github.netty.rpc.RpcClient;
+import com.github.netty.rpc.RpcClientHandler;
 import com.github.netty.servlet.ServletFilterChain;
 import com.github.netty.springboot.NettyServletHandler;
 
@@ -25,10 +25,10 @@ public class ReportTask implements Runnable{
     @Override
     public void run() {
         try {
-            String timeoutApis = RpcClient.getTimeoutApis();
-            long spinResponseCount = RpcClient.RpcLock.TOTAL_SPIN_RESPONSE_COUNT.get();
-            long totalCount = RpcClient.getTotalInvokeCount();
-            long timeoutCount = RpcClient.getTotalTimeoutCount();
+            String timeoutApis = RpcClientHandler.getTimeoutApis();
+            long spinResponseCount = RpcClientHandler.RpcLock.TOTAL_SPIN_RESPONSE_COUNT.get();
+            long totalCount = RpcClientHandler.getTotalInvokeCount();
+            long timeoutCount = RpcClientHandler.getTotalTimeoutCount();
             long successCount = totalCount - timeoutCount;
             double rate = totalCount == 0? 0:(double) successCount/(double) totalCount * 100;
             double rateSpinResponseCount = totalCount==0?0:(double) spinResponseCount/(double) totalCount * 100;

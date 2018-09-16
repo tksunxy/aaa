@@ -1,19 +1,14 @@
 package com.github.netty.rpc;
 
-import com.github.netty.core.AbstractChannelHandler;
 import com.github.netty.core.AbstractNettyServer;
-import com.github.netty.rpc.codec.DataCodec;
-import com.github.netty.rpc.codec.JsonDataCodec;
 import com.github.netty.rpc.codec.RpcProto;
-import com.github.netty.rpc.codec.RpcResponseStatus;
 import com.github.netty.rpc.service.RpcCommandServiceImpl;
 import com.github.netty.rpc.service.RpcDBServiceImpl;
-import com.github.netty.core.util.ExceptionUtil;
-import com.github.netty.core.util.ReflectUtil;
-import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLiteOrBuilder;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.*;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.handler.codec.MessageToMessageDecoder;
@@ -24,10 +19,6 @@ import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
 import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * rpc服务端
@@ -36,10 +27,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class RpcServer extends AbstractNettyServer{
 
-    /**
-     * 数据编码解码器
-     */
-    private DataCodec dataCodec = new JsonDataCodec();
     /**
      * rpc服务端处理器
      */
@@ -61,12 +48,24 @@ public class RpcServer extends AbstractNettyServer{
     protected RpcServerHandler newRpcServerHandler(){
         RpcServerHandler rpcServerHandler = new RpcServerHandler();
         //默认开启rpc基本命令服务
-        rpcServerHandler.addService(new RpcCommandServiceImpl());
+        rpcServerHandler.addInstance(new RpcCommandServiceImpl());
         //默认开启DB服务
-        rpcServerHandler.addService(new RpcDBServiceImpl());
+        rpcServerHandler.addInstance(new RpcDBServiceImpl());
         return rpcServerHandler;
     }
 
+    /**
+     * 增加实例class (不能是接口,抽象类)
+     * @param service
+     */
+    public void addInstance(Object service){
+        rpcServerHandler.addInstance(service);
+    }
+
+    /**
+     * 初始化所有处理器
+     * @return
+     */
     @Override
     protected ChannelInitializer<? extends Channel> newInitializerChannelHandler() {
         return new ChannelInitializer<Channel>() {
@@ -86,163 +85,6 @@ public class RpcServer extends AbstractNettyServer{
                 pipeline.addLast(rpcServerHandler);
             }
         };
-    }
-
-    public void addService(Object service){
-        rpcServerHandler.addService(service);
-    }
-
-    public DataCodec getDataCodec() {
-        return dataCodec;
-    }
-
-    @ChannelHandler.Sharable
-    private class RpcServerHandler extends AbstractChannelHandler<RpcProto.Request> {
-        private final Map<String,RpcService> serviceInstanceMap = new HashMap<>();
-        private Map<String,Channel> channelMap = new ConcurrentHashMap<>();
-
-        @Override
-        protected void onMessageReceived(ChannelHandlerContext ctx, RpcProto.Request rpcRequest) throws Exception {
-//            long c = System.currentTimeMillis();
-
-            String serviceName = rpcRequest.getServiceName();
-            String methodName = rpcRequest.getMethodName();
-
-            Object result = null;
-            int status;
-            String message;
-
-            RpcService rpcService = serviceInstanceMap.get(serviceName);
-            if(rpcService == null){
-                status = RpcResponseStatus.NO_SUCH_SERVICE;
-                message = "not found service ["+ serviceName +"]";
-            }else {
-                try {
-                    Object[] requestData = dataCodec.decodeRequestData(rpcRequest.getData().toStringUtf8());
-                    result = rpcService.invoke(methodName, requestData);
-
-                    status = RpcResponseStatus.OK;
-                    message = "ok";
-                } catch (NoSuchMethodException | IllegalAccessException e) {
-                    status = RpcResponseStatus.NO_SUCH_METHOD;
-                    message = e.getMessage();
-                } catch (Throwable e) {
-                    status = RpcResponseStatus.SERVER_ERROR;
-                    message = e.getCause() == null? e.toString() : e.getCause().getMessage();
-                }
-            }
-
-            //是否进行编码
-            int isEncode;
-            byte[] responseDataBytes;
-            if(result instanceof byte[]){
-                isEncode = 0;
-                responseDataBytes = (byte[]) result;
-            }else {
-                isEncode = 1;
-                responseDataBytes = dataCodec.encodeResponseData(result);
-            }
-
-            RpcProto.Response rpcResponse = RpcProto.Response.newBuilder()
-                    .setRequestId(rpcRequest.getRequestId())
-                    .setStatus(status)
-                    .setMessage(message)
-                    .setEncode(isEncode)
-                    .setData(ByteString.copyFrom(responseDataBytes))
-                    .build();
-
-            ctx.writeAndFlush(rpcResponse);
-
-
-//            long end = (System.currentTimeMillis() - c);
-//            if(end > 3) {
-//            logger.info(serviceName+"--"+methodName+"--["+status+"]--"+result+"");
-//                logger.info("耗时: [" + end+ "] 纳秒 -"+ rpcResponse);
-//            }
-        }
-
-        @Override
-        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-            ExceptionUtil.printRootCauseStackTrace(cause);
-            removeChannel(ctx.channel());
-        }
-
-        @Override
-        public void channelActive(ChannelHandlerContext ctx) throws Exception {
-            putChannel(ctx.channel());
-        }
-
-        @Override
-        public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-            removeChannel(ctx.channel());
-        }
-
-        /**
-         * 放入链接
-         * @param channel
-         */
-        private void putChannel(Channel channel){
-            InetSocketAddress remoteAddress = getInetSocketAddress(channel.remoteAddress());
-            if(remoteAddress == null){
-                return;
-            }
-            channelMap.put(remoteAddress.getHostString() + ":" + remoteAddress.getPort(),channel);
-            logger.info("新入链接 = "+channel.toString());
-        }
-
-        /**
-         * 移除链接
-         * @param channel
-         */
-        private void removeChannel(Channel channel){
-            InetSocketAddress remoteAddress = getInetSocketAddress(channel.remoteAddress());
-            if(remoteAddress == null){
-                return;
-            }
-            channelMap.remove(remoteAddress.getHostString() + ":" + remoteAddress.getPort(),channel);
-            logger.info("断开链接" + channel.toString());
-        }
-
-        /**
-         * 增加服务
-         * @param service
-         */
-        public void addService(Object service){
-            RpcInterface rpcInterfaceAnn = findRpcInterfaceAnn(service);
-            if (rpcInterfaceAnn == null) {
-                //缺少RpcInterface注解
-                throw new IllegalStateException("The class is not exist Annotation, you must coding @RpcInterface");
-            }
-
-            String serviceName = rpcInterfaceAnn.value();
-            int timeout = rpcInterfaceAnn.timeout();
-
-            synchronized (serviceInstanceMap) {
-                Object oldService = serviceInstanceMap.get(serviceName);
-                if (oldService != null) {
-                    throw new IllegalStateException("The service exist [" + serviceName + "]");
-                }
-                serviceInstanceMap.put(serviceName, new RpcService(serviceName, timeout,service,RpcServer.this));
-            }
-        }
-
-        private RpcInterface findRpcInterfaceAnn(Object service){
-            Class[] interfaces = ReflectUtil.getInterfaces(service);
-            for(Class i : interfaces){
-                RpcInterface rpcInterfaceAnn = ReflectUtil.findAnnotation(i, RpcInterface.class);
-                if(rpcInterfaceAnn != null){
-                    return rpcInterfaceAnn;
-                }
-            }
-            return null;
-        }
-
-        private InetSocketAddress getInetSocketAddress(SocketAddress socketAddress){
-            if(socketAddress instanceof InetSocketAddress){
-                return (InetSocketAddress) socketAddress;
-            }
-            return null;
-        }
     }
 
 }

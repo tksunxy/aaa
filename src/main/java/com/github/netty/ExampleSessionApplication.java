@@ -23,7 +23,7 @@ public class ExampleSessionApplication {
 
     public static void run(int port){
         RpcServer server = new RpcServer("Session",port);
-        server.addService(new LocalSessionServiceImpl());
+        server.addInstance(new LocalSessionServiceImpl());
         server.run();
     }
 

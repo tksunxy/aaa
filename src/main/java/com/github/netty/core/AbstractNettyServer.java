@@ -12,6 +12,7 @@ import io.netty.channel.*;
 import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.util.internal.PlatformDependent;
 
 import java.net.InetSocketAddress;
@@ -65,7 +66,7 @@ public abstract class AbstractNettyServer implements Runnable{
     protected abstract ChannelInitializer<?extends Channel> newInitializerChannelHandler();
 
     protected ServerBootstrap newServerBootstrap(){
-        return new NettyServerBootstrap();
+        return new ServerBootstrap();
     }
 
     protected EventLoopGroup newWorkerEventLoopGroup() {
@@ -97,7 +98,7 @@ public abstract class AbstractNettyServer implements Runnable{
         if(enableEpoll){
             channelFactory = EpollServerSocketChannel::new;
         }else {
-            channelFactory = new NioServerChannelFactory();
+            channelFactory = NioServerSocketChannel::new;
         }
         return channelFactory;
     }
